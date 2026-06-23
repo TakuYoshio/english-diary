@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>英語日記</title>
+<link rel="stylesheet" href="style.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+JP:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- ── SETUP ── -->
+<div id="setup-screen" class="setup-screen" style="display:none">
+  <div class="setup-card">
+    <div class="setup-logo">📖</div>
+    <h1 class="setup-title">英語日記</h1>
+    <p class="setup-sub">APIキーを設定してください</p>
+    <div class="form-group">
+      <label>Gemini API Key <span class="badge-free">無料</span></label>
+      <input type="password" id="s-gemini" class="input" placeholder="AIza..." />
+      <p class="hint"><a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a> で取得（無料）</p>
+    </div>
+    <div class="form-group">
+      <label>Supabase URL</label>
+      <input type="text" id="s-sb-url" class="input" placeholder="https://xxxx.supabase.co" />
+    </div>
+    <div class="form-group">
+      <label>Supabase Anon Key</label>
+      <input type="password" id="s-sb-key" class="input" placeholder="eyJ..." />
+      <p class="hint">設定方法は <a href="README.md" target="_blank">README</a> を参照</p>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="saveSetup()">始める →</button>
+    <p class="hint center">キーはこのブラウザにのみ保存されます</p>
+  </div>
+</div>
+
+<!-- ── APP ── -->
+<div id="app" style="display:none">
+  <header class="header">
+    <div class="header-inner">
+      <span class="logo">📖 英語日記</span>
+      <nav class="nav">
+        <button class="nav-btn active" data-tab="diary" onclick="switchTab('diary')">日記</button>
+        <button class="nav-btn" data-tab="vocab" onclick="switchTab('vocab')">単語帳</button>
+        <button class="nav-btn" data-tab="quiz" onclick="switchTab('quiz')">テスト</button>
+      </nav>
+      <button class="icon-btn" onclick="openSettings()" title="設定">⚙️</button>
+    </div>
+  </header>
+
+  <main class="main">
+
+    <!-- ── DIARY TAB ── -->
+    <section id="tab-diary" class="tab active">
+
+      <!-- STEP 1 -->
+      <div class="step-card" id="step1-card">
+        <div class="step-header">
+          <span class="step-badge">1</span>
+          <span class="step-title-text">日本語で今日の出来事を書く</span>
+        </div>
+        <div class="date-label" id="today-label"></div>
+        <textarea id="diary-jp" class="textarea" placeholder="今日は..."></textarea>
+        <div class="step-actions">
+          <button class="btn btn-primary" onclick="goStep2()">次へ →</button>
+        </div>
+      </div>
+
+      <!-- STEP 2 -->
+      <div class="step-card locked" id="step2-card">
+        <div class="step-header">
+          <span class="step-badge">2</span>
+          <span class="step-title-text">自分で英訳してみる（1回目）</span>
+        </div>
+        <div class="jp-ref" id="jp-ref-2"></div>
+        <textarea id="diary-en1" class="textarea" placeholder="Today, I..."></textarea>
+        <div class="step-actions">
+          <button class="btn btn-primary" onclick="goStep3()">次へ →</button>
+        </div>
+      </div>
+
+      <!-- STEP 3 -->
+      <div class="step-card locked" id="step3-card">
+        <div class="step-header">
+          <span class="step-badge">3</span>
+          <span class="step-title-text">わからない単語を控えておく</span>
+        </div>
+        <div class="hint-text-small">英訳できなかった・自信がない単語をメモしておこう</div>
+        <div id="unknown-words-list">
+          <div class="word-row">
+            <input type="text" class="input word-jp" placeholder="日本語の単語" />
+            <span class="arrow">→</span>
+            <input type="text" class="input word-en" placeholder="英語（後で調べる）" />
+            <button class="icon-btn red" onclick="removeWordRow(this)">✕</button>
+          </div>
+        </div>
+        <button class="btn btn-sm" onclick="addWordRow()" style="margin-top:8px">＋ 追加</button>
+        <div class="step-actions">
+          <button class="btn btn-primary" onclick="goStep4()">調べたら次へ →</button>
+        </div>
+      </div>
+
+      <!-- STEP 4 -->
+      <div class="step-card locked" id="step4-card">
+        <div class="step-header">
+          <span class="step-badge">4</span>
+          <span class="step-title-text">調べた上で再英訳（2回目）</span>
+        </div>
+        <div class="jp-ref" id="jp-ref-4"></div>
+        <div id="word-hints" class="word-hints"></div>
+        <textarea id="diary-en2" class="textarea" placeholder="Today, I... (improved version)"></textarea>
+        <div class="step-actions">
+          <button class="btn btn-primary" onclick="goStep5()">AIに添削してもらう →</button>
+        </div>
+      </div>
+
+      <!-- STEP 5 -->
+      <div class="step-card locked" id="step5-card">
+        <div class="step-header">
+          <span class="step-badge">5</span>
+          <span class="step-title-text">AIが添削</span>
+        </div>
+        <div id="ai-corrected-box" class="ai-box">
+          <div class="ai-label">✨ 添削後の英文</div>
+          <div id="ai-corrected-text" class="ai-text"></div>
+          <div class="tts-bar">
+            <button class="btn btn-sm tts-btn" id="tts-btn" onclick="speakCorrected()">🔊 音声を再生</button>
+            <span class="tts-hint">再生したらシャドーイングしてみよう</span>
+          </div>
+        </div>
+        <div id="ai-feedback-box" class="ai-box" style="margin-top:10px">
+          <div class="ai-label">📝 フィードバック</div>
+          <div id="ai-feedback-text" class="ai-text"></div>
+        </div>
+        <div class="step-actions">
+          <button class="btn btn-primary" onclick="goStep6()">シャドーイングできたら次へ →</button>
+        </div>
+      </div>
+
+      <!-- STEP 6 -->
+      <div class="step-card locked" id="step6-card">
+        <div class="step-header">
+          <span class="step-badge">6</span>
+          <span class="step-title-text">音声入力で発音チェック</span>
+        </div>
+        <div class="ai-box" style="margin-bottom:12px">
+          <div class="ai-label">目標文</div>
+          <div id="target-sentence" class="ai-text target-text"></div>
+          <button class="btn btn-sm" style="margin-top:8px" onclick="speakTarget()">🔊 もう一度聞く</button>
+        </div>
+        <div class="speech-area">
+          <button class="mic-btn" id="mic-btn" onclick="toggleMic()">
+            <span class="mic-icon">🎤</span>
+            <span class="mic-label">タップして話す</span>
+          </button>
+          <div id="speech-result" class="speech-result" style="display:none">
+            <div class="speech-label">認識された文</div>
+            <div id="speech-text" class="speech-text"></div>
+            <div id="speech-score" class="speech-score"></div>
+          </div>
+        </div>
+        <div class="step-actions">
+          <button class="btn btn-primary" onclick="saveDiary()">💾 日記を保存</button>
+        </div>
+      </div>
+
+      <!-- PAST ENTRIES -->
+      <div id="entries-section" class="entries-section" style="display:none">
+        <div class="section-title">過去の日記</div>
+        <div id="entries-list"></div>
+      </div>
+    </section>
+
+    <!-- ── VOCAB TAB ── -->
+    <section id="tab-vocab" class="tab">
+      <div class="vocab-add-row">
+        <input type="text" id="v-en" class="input" placeholder="English" />
+        <input type="text" id="v-jp" class="input" placeholder="日本語" />
+        <input type="text" id="v-note" class="input" placeholder="メモ（任意）" />
+        <button class="btn btn-primary" onclick="addVocab()">追加</button>
+      </div>
+      <div id="vocab-count" class="vocab-count"></div>
+      <div id="vocab-list"></div>
+      <div id="vocab-empty" class="empty-state" style="display:none">
+        <div class="empty-icon">📚</div>
+        単語帳が空です<br>日記を書いて追加しよう
+      </div>
+    </section>
+
+    <!-- ── QUIZ TAB ── -->
+    <section id="tab-quiz" class="tab">
+      <div id="quiz-empty" class="empty-state" style="display:none">
+        <div class="empty-icon">🧠</div>
+        単語帳に単語を追加してからテストしよう
+      </div>
+      <div id="quiz-area" style="display:none">
+        <div class="quiz-stats-row">
+          <div class="stat-chip">正解 <strong id="q-ok">0</strong></div>
+          <div class="stat-chip">不正解 <strong id="q-ng">0</strong></div>
+          <div class="stat-chip">残り <strong id="q-left">0</strong></div>
+        </div>
+        <div class="progress-track"><div class="progress-fill" id="q-bar"></div></div>
+        <div class="quiz-card">
+          <div class="quiz-dir" id="quiz-dir"></div>
+          <div class="quiz-word" id="quiz-word">—</div>
+          <button class="hint-btn" id="hint-btn" onclick="toggleHint()">ヒントを見る</button>
+          <div id="hint-text" class="hint-text-quiz" style="display:none"></div>
+          <div id="result-banner" class="result-banner" style="display:none"></div>
+          <input type="text" id="quiz-input" class="quiz-input" placeholder="答えを入力…"
+            onkeydown="if(event.key==='Enter')checkAnswer()" />
+          <div class="quiz-actions">
+            <button class="btn btn-primary" onclick="checkAnswer()">確認</button>
+            <button class="btn" onclick="skipQ()">スキップ</button>
+          </div>
+        </div>
+        <div class="center" style="margin-top:16px">
+          <button class="btn" onclick="startQuiz()">🔄 最初から</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ── ENTRY DETAIL MODAL ── -->
+<div id="entry-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeModal('entry-modal')">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div class="modal-date" id="modal-date"></div>
+      <button class="icon-btn" onclick="closeModal('entry-modal')">✕</button>
+    </div>
+    <div class="modal-block">
+      <div class="modal-label">🇯🇵 日本語</div>
+      <div class="modal-text" id="modal-jp"></div>
+    </div>
+    <div class="modal-block">
+      <div class="modal-label">✍️ 自分の英訳（1回目）</div>
+      <div class="modal-text" id="modal-en1"></div>
+    </div>
+    <div class="modal-block">
+      <div class="modal-label">✍️ 自分の英訳（2回目）</div>
+      <div class="modal-text" id="modal-en2"></div>
+    </div>
+    <div class="modal-block">
+      <div class="modal-label">✨ AI添削後</div>
+      <div class="modal-text" id="modal-corrected"></div>
+      <button class="btn btn-sm" style="margin-top:8px" onclick="speakModalText()">🔊 もう一度聞く</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── SETTINGS MODAL ── -->
+<div id="settings-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeModal('settings-modal')">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div class="modal-title">設定</div>
+      <button class="icon-btn" onclick="closeModal('settings-modal')">✕</button>
+    </div>
+    <div class="form-group">
+      <label>Gemini API Key</label>
+      <input type="password" id="cfg-gemini" class="input" />
+    </div>
+    <div class="form-group">
+      <label>Supabase URL</label>
+      <input type="text" id="cfg-sb-url" class="input" />
+    </div>
+    <div class="form-group">
+      <label>Supabase Anon Key</label>
+      <input type="password" id="cfg-sb-key" class="input" />
+    </div>
+    <div class="action-row">
+      <button class="btn" onclick="closeModal('settings-modal')">キャンセル</button>
+      <button class="btn btn-primary" onclick="updateSettings()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app.js"></script>
+</body>
+</html>
