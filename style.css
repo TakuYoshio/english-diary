@@ -385,6 +385,23 @@ body {
 .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-faint); font-size: 14px; line-height: 2.2; }
 .empty-icon { font-size: 36px; margin-bottom: 8px; }
 
+/* ── LANG TOGGLE ── */
+.lang-toggle-btn {
+  background: none;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-family: inherit;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  letter-spacing: 0.04em;
+}
+.lang-toggle-btn:hover { border-color: var(--accent); color: var(--accent); }
+
 @media (max-width: 520px) {
   .quiz-word { font-size: 22px; }
   .vocab-add-row { flex-direction: column; }
