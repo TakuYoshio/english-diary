@@ -132,6 +132,10 @@
           <div class="ai-label" data-i18n="ai-feedback-label">📝 フィードバック</div>
           <div id="ai-feedback-text" class="ai-text"></div>
         </div>
+        <div id="ai-corrections-box" class="ai-box" style="margin-top:10px;display:none">
+          <div class="ai-label" data-i18n="ai-corrections-label">🔍 修正ポイント</div>
+          <div id="ai-corrections-list" class="corrections-list"></div>
+        </div>
         <div class="step-actions">
           <button class="btn btn-primary" onclick="goStep6()" data-i18n="btn-shadow">シャドーイングできたら次へ →</button>
         </div>
@@ -157,6 +161,7 @@
             <div class="speech-label" data-i18n="speech-recognized">認識された文</div>
             <div id="speech-text" class="speech-text"></div>
             <div id="speech-score" class="speech-score"></div>
+            <div id="word-feedback" class="word-feedback"></div>
           </div>
         </div>
         <div class="step-actions">

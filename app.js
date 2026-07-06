@@ -62,6 +62,11 @@ const TRANSLATIONS = {
     'score-ok': '👍 {score}% 一致 — もう一度練習してみよう',
     'score-try': '💪 {score}% 一致 — ゆっくり音声を聞いてから再挑戦！',
     'feedback-lang': '日本語',
+    'ai-corrections-label': '🔍 修正ポイント',
+    'fb-good': '👍 良かった点', 'fb-improve': '📈 改善点', 'fb-vocab': '📚 調べた単語の使い方',
+    'type-grammar': '文法', 'type-vocabulary': '語彙', 'type-naturalness': '自然さ', 'type-spelling': 'スペル',
+    'quiz-typo-note': '（スペルに注意！）',
+    'word-feedback-hint': '赤い単語が認識されませんでした。もう一度挑戦！',
   },
   en: {
     'setup-title': 'English Diary', 'setup-sub': 'Please enter your API keys',
@@ -113,8 +118,39 @@ const TRANSLATIONS = {
     'score-ok': '👍 {score}% match — Keep practicing!',
     'score-try': '💪 {score}% match — Listen again and try once more!',
     'feedback-lang': 'English',
+    'ai-corrections-label': '🔍 Corrections',
+    'fb-good': '👍 What you did well', 'fb-improve': '📈 Improvements', 'fb-vocab': '📚 Vocabulary usage',
+    'type-grammar': 'Grammar', 'type-vocabulary': 'Vocabulary', 'type-naturalness': 'Naturalness', 'type-spelling': 'Spelling',
+    'quiz-typo-note': ' (watch the spelling!)',
+    'word-feedback-hint': 'Red words were not recognized. Try again!',
   }
 };
+
+// ── Utils ─────────────────────────────────────────────────────────────────
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Damerau-Levenshtein（隣接文字の入れ替えも距離1と数える）
+function levenshtein(a, b) {
+  if (a === b) return 0;
+  const m = a.length, n = b.length;
+  if (!m) return n;
+  if (!n) return m;
+  let prev2 = null;
+  let prev = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    const cur = [i];
+    for (let j = 1; j <= n; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        cur[j] = Math.min(cur[j], prev2[j - 2] + 1);
+      }
+    }
+    prev2 = prev; prev = cur;
+  }
+  return prev[n];
+}
 
 function getLang() { return LS.get('lang') || 'ja'; }
 function t(key) { return (TRANSLATIONS[getLang()] || TRANSLATIONS.ja)[key] || TRANSLATIONS.ja[key] || key; }
@@ -274,6 +310,27 @@ function goStep4() {
 }
 
 // ── STEP 4 → 5 (Gemini) ──────────────────────────────────────────────────
+const CORRECTION_SCHEMA = {
+  type: 'object',
+  properties: {
+    corrected:    { type: 'string' },
+    good_points:  { type: 'array', items: { type: 'string' } },
+    improvements: { type: 'array', items: { type: 'string' } },
+    corrections:  { type: 'array', items: {
+      type: 'object',
+      properties: {
+        before:      { type: 'string' },
+        after:       { type: 'string' },
+        type:        { type: 'string', enum: ['grammar', 'vocabulary', 'naturalness', 'spelling'] },
+        explanation: { type: 'string' },
+      },
+      required: ['before', 'after', 'type', 'explanation'],
+    } },
+    vocab_usage: { type: 'string' },
+  },
+  required: ['corrected', 'good_points', 'improvements', 'corrections'],
+};
+
 async function goStep5() {
   const en2 = document.getElementById('diary-en2').value.trim();
   if (!en2) { alert(t('alert-write-en2')); return; }
@@ -283,6 +340,7 @@ async function goStep5() {
   const feedbackEl  = document.getElementById('ai-feedback-text');
   correctedEl.innerHTML = `<span class="loading-text">${t('loading-correcting')}</span>`;
   feedbackEl.innerHTML  = `<span class="loading-text">${t('loading-feedback')}</span>`;
+  renderCorrections([]);
 
   const jp  = document.getElementById('diary-jp').value.trim();
   const en1 = document.getElementById('diary-en1').value.trim();
@@ -295,36 +353,66 @@ async function goStep5() {
   });
 
   const feedbackLang = t('feedback-lang');
-  const prompt = `You are a native English teacher helping a language learner.
+  const prompt = `You are an experienced native English teacher helping a language learner improve through diary writing.
 
-Original diary entry: "${jp}"
+Original diary entry (learner's native language): "${jp}"
 
-Student's 1st English attempt: "${en1}"
+Student's 1st English attempt: "${en1 || '(none)'}"
 Vocabulary the student looked up: ${words.length ? words.join(', ') : '(none)'}
-Student's 2nd English attempt (improved): "${en2}"
+Student's 2nd English attempt (after looking up words): "${en2}"
 
-Please respond in exactly this format:
+Fill in the JSON fields as follows:
+- "corrected": Rewrite the 2nd attempt as the most natural native English version. Keep the same meaning and personal tone, and keep the student's wording wherever it is already correct. Do not add information that is not in the diary.
+- "good_points": exactly 2 specific things the student did well.
+- "improvements": 1-2 specific improvements from the 1st to the 2nd attempt (if there was no 1st attempt, suggest what to focus on next).
+- "corrections": the 3-6 most important fixes you made. For each: "before" is the student's phrase, "after" is your fix, "type" is one of grammar / vocabulary / naturalness / spelling, and "explanation" is one short sentence on why.
+- "vocab_usage": if the student looked up vocabulary, one short comment on whether they used those words correctly; otherwise an empty string.
 
-CORRECTED:
-[Write the most natural native English version of the diary entry here. Keep the same meaning and personal tone.]
-
-FEEDBACK:
-[In ${feedbackLang}: Give encouraging, specific feedback. Mention 2 things done well and 1-2 improvements from 1st to 2nd attempt. Max 80 words.]`;
+Be encouraging and specific. Write "good_points", "improvements", every "explanation", and "vocab_usage" in ${feedbackLang}.`;
 
   try {
-    const res = await callGemini(prompt);
-    const correctedMatch = res.match(/CORRECTED:\s*([\s\S]*?)(?=FEEDBACK:|$)/);
-    const feedbackMatch  = res.match(/FEEDBACK:\s*([\s\S]*)/);
-    const corrected = correctedMatch ? correctedMatch[1].trim() : en2;
-    const feedback  = feedbackMatch  ? feedbackMatch[1].trim()  : '';
-    correctedEl.textContent = corrected;
-    feedbackEl.textContent  = feedback;
-    window._correctedText = corrected;
+    const res  = await callGemini(prompt, CORRECTION_SCHEMA);
+    const data = JSON.parse(res);
+    if (!data.corrected) throw new Error('empty response');
+    correctedEl.textContent = data.corrected;
+    renderFeedback(data);
+    renderCorrections(data.corrections);
+    window._correctedText = data.corrected;
   } catch (e) {
     correctedEl.textContent = en2 + '\n\n(' + t('error-ai') + e.message + ')';
     feedbackEl.textContent  = '';
+    renderCorrections([]);
     window._correctedText   = en2;
   }
+}
+
+function renderFeedback(data) {
+  const el = document.getElementById('ai-feedback-text');
+  const section = (label, items) => items && items.length
+    ? `<div class="fb-section"><div class="fb-head">${t(label)}</div><ul class="fb-list">${items.map(p => `<li>${escapeHtml(p)}</li>`).join('')}</ul></div>`
+    : '';
+  let html = section('fb-good', data.good_points) + section('fb-improve', data.improvements);
+  if (data.vocab_usage) {
+    html += `<div class="fb-section"><div class="fb-head">${t('fb-vocab')}</div><p>${escapeHtml(data.vocab_usage)}</p></div>`;
+  }
+  el.innerHTML = html;
+}
+
+function renderCorrections(list) {
+  const box = document.getElementById('ai-corrections-box');
+  const el  = document.getElementById('ai-corrections-list');
+  if (!list || !list.length) { box.style.display = 'none'; el.innerHTML = ''; return; }
+  box.style.display = 'block';
+  el.innerHTML = list.map(c => `
+    <div class="correction-item">
+      <div class="correction-diff">
+        <span class="corr-before">${escapeHtml(c.before)}</span>
+        <span class="corr-arrow">→</span>
+        <span class="corr-after">${escapeHtml(c.after)}</span>
+        <span class="corr-tag corr-tag-${escapeHtml(c.type)}">${escapeHtml(t('type-' + c.type))}</span>
+      </div>
+      <div class="correction-exp">${escapeHtml(c.explanation)}</div>
+    </div>`).join('');
 }
 
 // ── TTS (ブラウザ内蔵 Web Speech API) ────────────────────────────────────
@@ -382,6 +470,7 @@ function startMic() {
   recognition.lang = 'en-US';
   recognition.continuous = false;
   recognition.interimResults = true;
+  recognition.maxAlternatives = 3;
 
   const btn = document.getElementById('mic-btn');
   btn.classList.add('recording');
@@ -391,10 +480,15 @@ function startMic() {
   document.getElementById('speech-result').style.display = 'none';
 
   recognition.onresult = (e) => {
-    const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
+    const transcript = Array.from(e.results).map(r => r[0].transcript).join(' ');
     document.getElementById('speech-text').textContent = transcript;
     document.getElementById('speech-result').style.display = 'block';
-    if (e.results[0].isFinal) scorePronunciation(transcript);
+    const last = e.results[e.results.length - 1];
+    if (last.isFinal) {
+      const prefix = Array.from(e.results).slice(0, -1).map(r => r[0].transcript).join(' ');
+      const alternatives = Array.from(last).map(a => (prefix + ' ' + a.transcript).trim());
+      scorePronunciation(alternatives);
+    }
   };
 
   recognition.onerror = (e) => {
@@ -414,13 +508,79 @@ function stopMic() {
   document.querySelector('.mic-label').textContent = t('mic-label');
 }
 
-function scorePronunciation(spoken) {
-  const target = document.getElementById('target-sentence').textContent.toLowerCase().trim();
-  const spokenLower = spoken.toLowerCase().trim();
-  const targetWords = target.replace(/[^\w\s]/g, '').split(/\s+/);
-  const spokenWords = spokenLower.replace(/[^\w\s]/g, '').split(/\s+/);
-  const matchCount  = targetWords.filter(w => spokenWords.includes(w)).length;
-  const score       = targetWords.length ? Math.round(matchCount / targetWords.length * 100) : 0;
+const CONTRACTIONS = {
+  "i'm":"i am","you're":"you are","he's":"he is","she's":"she is","it's":"it is",
+  "we're":"we are","they're":"they are","that's":"that is","there's":"there is",
+  "what's":"what is","let's":"let us","i've":"i have","you've":"you have",
+  "we've":"we have","they've":"they have","i'll":"i will","you'll":"you will",
+  "he'll":"he will","she'll":"she will","we'll":"we will","they'll":"they will",
+  "i'd":"i would","you'd":"you would","don't":"do not","doesn't":"does not",
+  "didn't":"did not","isn't":"is not","aren't":"are not","wasn't":"was not",
+  "weren't":"were not","can't":"cannot","couldn't":"could not","won't":"will not",
+  "wouldn't":"would not","shouldn't":"should not","haven't":"have not",
+  "hasn't":"has not","hadn't":"had not","mustn't":"must not",
+};
+
+// 小文字化・アクセント記号除去・短縮形展開・記号除去して単語配列にする
+function speechWords(text) {
+  return text.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[’‘]/g, "'").split(/\s+/)
+    .map(w => {
+      const bare = w.replace(/[^a-z0-9']/g, '');
+      return CONTRACTIONS[bare] || bare.replace(/'/g, '');
+    })
+    .join(' ').split(/\s+/).filter(Boolean);
+}
+
+// LCS（最長共通部分列）で語順を考慮したアライメント。target各語の一致フラグを返す
+function lcsMatchFlags(target, spoken) {
+  const n = target.length, m = spoken.length;
+  const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i--)
+    for (let j = m - 1; j >= 0; j--)
+      dp[i][j] = target[i] === spoken[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  const flags = new Array(n).fill(false);
+  let i = 0, j = 0;
+  while (i < n && j < m) {
+    if (target[i] === spoken[j]) { flags[i] = true; i++; j++; }
+    else if (dp[i + 1][j] >= dp[i][j + 1]) i++;
+    else j++;
+  }
+  return flags;
+}
+
+function scorePronunciation(spokenAlternatives) {
+  const alts = Array.isArray(spokenAlternatives) ? spokenAlternatives : [spokenAlternatives];
+  const targetText = document.getElementById('target-sentence').textContent;
+
+  // 表示用トークンと正規化語の対応（短縮形は複数語に展開されるため）
+  const tokens = targetText.trim().split(/\s+/).filter(Boolean);
+  const norm = [], tokenOf = [];
+  tokens.forEach((tok, ti) => speechWords(tok).forEach(w => { norm.push(w); tokenOf.push(ti); }));
+
+  let best = { score: 0, flags: new Array(norm.length).fill(false) };
+  alts.forEach(alt => {
+    const flags = lcsMatchFlags(norm, speechWords(alt));
+    const matched = flags.filter(Boolean).length;
+    const score = norm.length ? Math.round(matched / norm.length * 100) : 0;
+    if (score >= best.score) best = { score, flags };
+  });
+  const score = best.score;
+
+  // 単語ごとの色分け表示（一致=緑、不一致=赤）
+  const wfEl = document.getElementById('word-feedback');
+  if (wfEl) {
+    const tokenMatched = tokens.map((_, ti) => {
+      const idxs = tokenOf.reduce((acc, tv, i) => (tv === ti ? (acc.push(i), acc) : acc), []);
+      return idxs.length ? idxs.every(i => best.flags[i]) : true;
+    });
+    const anyMiss = tokenMatched.some(m => !m);
+    wfEl.innerHTML = tokens.map((tok, ti) =>
+      `<span class="wf-word ${tokenMatched[ti] ? 'wf-ok' : 'wf-miss'}">${escapeHtml(tok)}</span>`
+    ).join(' ') + (anyMiss ? `<div class="wf-hint">${escapeHtml(t('word-feedback-hint'))}</div>` : '');
+    wfEl.style.display = 'block';
+  }
 
   const scoreEl = document.getElementById('speech-score');
   const fmt = (key) => t(key).replace('{score}', score);
@@ -475,6 +635,8 @@ async function saveDiary() {
   document.getElementById('speech-result').style.display = 'none';
   document.getElementById('ai-corrected-text').textContent = '';
   document.getElementById('ai-feedback-text').textContent  = '';
+  renderCorrections([]);
+  document.getElementById('word-feedback').innerHTML = '';
   document.getElementById('target-sentence').textContent   = '';
 
   await loadEntries();
@@ -493,7 +655,7 @@ async function loadEntries() {
   list.innerHTML = data.map(e => `
     <div class="entry-card" onclick="viewEntry(${e.id})">
       <div class="entry-date">${fmtDate(e.date)}</div>
-      <div class="entry-preview">${e.jp}</div>
+      <div class="entry-preview">${escapeHtml(e.jp)}</div>
     </div>
   `).join('');
 }
@@ -541,9 +703,9 @@ async function renderVocab() {
     const rate  = total ? Math.round(v.correct/total*100) : null;
     const cls   = rate===null ? 'rate-new' : rate>=70 ? 'rate-ok' : 'rate-ng';
     return `<div class="vocab-row">
-      <div class="v-en">${v.en}</div>
-      <div class="v-jp">${v.jp}</div>
-      <div class="v-note">${v.note||''}</div>
+      <div class="v-en">${escapeHtml(v.en)}</div>
+      <div class="v-jp">${escapeHtml(v.jp)}</div>
+      <div class="v-note">${escapeHtml(v.note||'')}</div>
       <span class="v-rate ${cls}">${rate===null ? t('vocab-untested') : rate+'%'}</span>
       <button class="icon-btn red" onclick="deleteVocab(${v.id})">✕</button>
     </div>`;
@@ -598,18 +760,43 @@ function nextQ() {
   document.getElementById('quiz-input').focus();
   updateQStats(true);
 }
+// trim・小文字化・全角半角統一(NFKC)・カタカナ→ひらがな
+function normalizeAnswer(s) {
+  let x = String(s).trim().toLowerCase().normalize('NFKC');
+  x = x.replace(/[ァ-ヶ]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+  return x.replace(/\s+/g, ' ').trim();
+}
+function stripArticle(s) { return s.replace(/^(a|an|the)\s+/, ''); }
+
+// 複数訳語（、 , / ・ ;区切り）のいずれか一致で正解。英語は冠詞無視+軽微なタイポ許容
+function judgeAnswer(ans, correct) {
+  const a = normalizeAnswer(ans);
+  if (!a) return { ok: false, typo: false };
+  for (const cand of String(correct).split(/[、,/・;；]/)) {
+    const c = normalizeAnswer(cand);
+    if (!c) continue;
+    if (a === c) return { ok: true, typo: false };
+    const as = stripArticle(a), cs = stripArticle(c);
+    if (as === cs) return { ok: true, typo: false };
+    if (cs.length >= 5 && /^[\x20-\x7e]+$/.test(cs) && levenshtein(as, cs) === 1) {
+      return { ok: true, typo: true };
+    }
+  }
+  return { ok: false, typo: false };
+}
+
 async function checkAnswer() {
   const input=document.getElementById('quiz-input');
-  const ans=input.value.trim().toLowerCase();
+  const ans=input.value.trim();
   if (!ans||!currentCard) return;
   const {v,dir}=currentCard;
   const correct=dir==='en2jp'?v.jp:v.en;
-  const isOk=ans===correct.toLowerCase()||(ans.length>3&&correct.toLowerCase().includes(ans));
+  const { ok: isOk, typo } = judgeAnswer(ans, correct);
   const banner=document.getElementById('result-banner');
   banner.style.display='block';
   if (isOk) {
     qStats.ok++; banner.className='result-banner result-ok';
-    banner.textContent=t('quiz-correct')+correct+'」';
+    banner.textContent=t('quiz-correct')+correct+'」'+(typo?t('quiz-typo-note'):'');
     await sb.from('vocab').update({correct:(v.correct||0)+1}).eq('id',v.id);
   } else {
     qStats.ng++; banner.className='result-banner result-ng';
@@ -635,19 +822,28 @@ function updateQStats(hasCard) {
 }
 
 // ── Gemini ────────────────────────────────────────────────────────────────
-async function callGemini(prompt) {
+async function callGemini(prompt, schema) {
   const key = cfg().gemini;
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+  const generationConfig = { temperature: 0.3 };
+  if (schema) {
+    generationConfig.responseMimeType = 'application/json';
+    generationConfig.responseSchema = schema;
+  }
+  const body = JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig });
+
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }
+    );
+    if ((res.status === 429 || res.status >= 500) && attempt === 0) {
+      await new Promise(r => setTimeout(r, 2500));
+      continue;
     }
-  );
-  const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  }
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────
