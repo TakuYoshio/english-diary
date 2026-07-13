@@ -9,27 +9,23 @@
 </head>
 <body>
 
-<!-- ── SETUP ── -->
+<!-- ── LOGIN ── -->
 <div id="setup-screen" class="setup-screen" style="display:none">
   <div class="setup-card">
     <div class="setup-logo">📖</div>
     <h1 class="setup-title" data-i18n="setup-title">英語日記</h1>
-    <p class="setup-sub" data-i18n="setup-sub">APIキーを設定してください</p>
+    <p class="setup-sub" data-i18n="setup-sub">ログインしてください</p>
     <div class="form-group">
-      <label><span data-i18n="label-gemini">Gemini API Key</span> <span class="badge-free" data-i18n="badge-free">無料</span></label>
-      <input type="password" id="s-gemini" class="input" placeholder="AIza..." />
-      <p class="hint"><a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a> <span data-i18n="hint-gemini">で取得（無料）</span></p>
+      <label><span data-i18n="label-email">メールアドレス</span></label>
+      <input type="email" id="s-email" class="input" placeholder="you@example.com" autocomplete="username" />
     </div>
     <div class="form-group">
-      <label>Supabase URL</label>
-      <input type="text" id="s-sb-url" class="input" placeholder="https://xxxx.supabase.co" />
+      <label><span data-i18n="label-password">パスワード</span></label>
+      <input type="password" id="s-password" class="input" placeholder="••••••••" autocomplete="current-password" />
     </div>
-    <div class="form-group">
-      <label>Supabase Anon Key</label>
-      <input type="password" id="s-sb-key" class="input" placeholder="eyJ..." />
-    </div>
-    <button class="btn btn-primary btn-full" onclick="saveSetup()" data-i18n="btn-start">始める →</button>
-    <p class="hint center" data-i18n="hint-keys">キーはこのブラウザにのみ保存されます</p>
+    <p id="login-error" class="hint" style="color:#c0392b"></p>
+    <button class="btn btn-primary btn-full" onclick="loginUser()" data-i18n="btn-start">ログイン →</button>
+    <p class="hint center" data-i18n="hint-keys">招待されたメールアドレスでログインできます</p>
   </div>
 </div>
 
@@ -262,20 +258,12 @@
       <button class="icon-btn" onclick="closeModal('settings-modal')">✕</button>
     </div>
     <div class="form-group">
-      <label>Gemini API Key</label>
-      <input type="password" id="cfg-gemini" class="input" />
-    </div>
-    <div class="form-group">
-      <label>Supabase URL</label>
-      <input type="text" id="cfg-sb-url" class="input" />
-    </div>
-    <div class="form-group">
-      <label>Supabase Anon Key</label>
-      <input type="password" id="cfg-sb-key" class="input" />
+      <label data-i18n="settings-account-label">ログイン中のアカウント</label>
+      <p id="settings-email" class="hint"></p>
     </div>
     <div class="action-row">
       <button class="btn" onclick="closeModal('settings-modal')" data-i18n="btn-cancel">キャンセル</button>
-      <button class="btn btn-primary" onclick="updateSettings()" data-i18n="btn-settings-save">保存</button>
+      <button class="btn btn-primary" onclick="logoutUser()" data-i18n="btn-logout">ログアウト</button>
     </div>
   </div>
 </div>

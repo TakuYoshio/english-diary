@@ -2,21 +2,20 @@
 
 // ── Config ────────────────────────────────────────────────────────────────
 const LS = { get: k => localStorage.getItem(k), set: (k,v) => localStorage.setItem(k,v) };
-function cfg() {
-  return {
-    gemini: LS.get('gemini_key') || '',
-    sbUrl:  LS.get('sb_url') || '',
-    sbKey:  LS.get('sb_key') || '',
-  };
-}
+const WORKER_URL = 'https://english-diary-gemini-proxy.taku-yoshio0224.workers.dev';
+const SUPABASE_URL = 'https://swbbslowwklhptqsaixn.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3YmJzbG93d2tsaHB0cXNhaXhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMTcwNjcsImV4cCI6MjA5Nzc5MzA2N30.T_7VD3emSP6DbwCpYkhIjO6yRmueuNeXUkldpaGGp3c';
+let currentUserId = null;
+let currentUserEmail = '';
 
 // ── i18n ──────────────────────────────────────────────────────────────────
 const TRANSLATIONS = {
   ja: {
-    'setup-title': '英語日記', 'setup-sub': 'APIキーを設定してください',
-    'label-gemini': 'Gemini API Key', 'badge-free': '無料',
-    'hint-gemini': 'で取得（無料）', 'btn-start': '始める →',
-    'hint-keys': 'キーはこのブラウザにのみ保存されます',
+    'setup-title': '英語日記', 'setup-sub': 'ログインしてください',
+    'label-email': 'メールアドレス', 'label-password': 'パスワード',
+    'btn-start': 'ログイン →',
+    'hint-keys': '招待されたメールアドレスでログインできます',
+    'btn-logout': 'ログアウト', 'settings-account-label': 'ログイン中のアカウント',
     'app-title': '英語日記', 'nav-diary': '日記', 'nav-vocab': '単語帳', 'nav-quiz': 'テスト',
     'step1-title': '日本語で今日の出来事を書く',
     'step2-title': '自分で英訳してみる（1回目）',
@@ -50,6 +49,8 @@ const TRANSLATIONS = {
     'alert-write-before-save': '日記を書いてから保存してね',
     'alert-vocab-fill': '英語と日本語を入力してね',
     'alert-no-speech': 'このブラウザは音声認識に対応していません。ChromeかSafariをお使いください。',
+    'alert-auth-error': 'ログインが必要です。ログインし直してください。',
+    'alert-login-fill': 'メールアドレスとパスワードを入力してね',
     'loading-correcting': 'AIが添削中…', 'loading-feedback': 'フィードバック生成中…',
     'error-ai': 'AI添削エラー: ', 'error-save': '保存エラー: ', 'error-vocab': 'エラー: ',
     'toast-saved': '日記を保存しました！', 'toast-words-added': '件の単語を単語帳に追加。',
@@ -69,10 +70,11 @@ const TRANSLATIONS = {
     'word-feedback-hint': '赤い単語が認識されませんでした。もう一度挑戦！',
   },
   en: {
-    'setup-title': 'English Diary', 'setup-sub': 'Please enter your API keys',
-    'label-gemini': 'Gemini API Key', 'badge-free': 'Free',
-    'hint-gemini': '— Get it free', 'btn-start': 'Get Started →',
-    'hint-keys': 'Keys are stored only in this browser',
+    'setup-title': 'English Diary', 'setup-sub': 'Please log in',
+    'label-email': 'Email', 'label-password': 'Password',
+    'btn-start': 'Log in →',
+    'hint-keys': 'Log in with the email address you were invited with',
+    'btn-logout': 'Log out', 'settings-account-label': 'Logged in as',
     'app-title': 'English Diary', 'nav-diary': 'Diary', 'nav-vocab': 'Vocabulary', 'nav-quiz': 'Quiz',
     'step1-title': 'Write today\'s diary in your native language',
     'step2-title': 'Try translating it into English (1st attempt)',
@@ -106,6 +108,8 @@ const TRANSLATIONS = {
     'alert-write-before-save': 'Please write your diary before saving',
     'alert-vocab-fill': 'Please fill in both English and translation',
     'alert-no-speech': 'Speech recognition is not supported. Please use Chrome or Safari.',
+    'alert-auth-error': 'You need to be logged in. Please log in again.',
+    'alert-login-fill': 'Please enter your email and password',
     'loading-correcting': 'AI is correcting…', 'loading-feedback': 'Generating feedback…',
     'error-ai': 'AI correction error: ', 'error-save': 'Save error: ', 'error-vocab': 'Error: ',
     'toast-saved': 'Diary saved!', 'toast-words-added': ' words added to vocabulary.',
@@ -179,48 +183,54 @@ function toggleLang() {
 // ── Supabase ──────────────────────────────────────────────────────────────
 let sb = null;
 function initSB() {
-  const c = cfg();
-  if (c.sbUrl && c.sbKey) sb = supabase.createClient(c.sbUrl, c.sbKey);
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
-// ── Boot ──────────────────────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', async () => {
-  applyLang();
-  const c = cfg();
-  if (!c.gemini || !c.sbUrl || !c.sbKey) {
-    document.getElementById('setup-screen').style.display = 'flex';
-    return;
-  }
-  initSB();
+// ── Boot / Auth ───────────────────────────────────────────────────────────
+async function enterApp(session) {
+  currentUserId = session.user.id;
+  currentUserEmail = session.user.email || '';
+  document.getElementById('setup-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   setDateLabel();
   addWordRow();
   await Promise.all([loadEntries(), renderVocab()]);
   startQuiz();
+}
+
+function showLogin() {
+  currentUserId = null;
+  currentUserEmail = '';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('setup-screen').style.display = 'flex';
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+  applyLang();
+  initSB();
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) { await enterApp(session); } else { showLogin(); }
 });
 
-// ── Setup / Settings ──────────────────────────────────────────────────────
-function saveSetup() {
-  const gemini = document.getElementById('s-gemini').value.trim();
-  const sbUrl  = document.getElementById('s-sb-url').value.trim();
-  const sbKey  = document.getElementById('s-sb-key').value.trim();
-  if (!gemini || !sbUrl || !sbKey) { alert(t('alert-write-jp')); return; }
-  LS.set('gemini_key', gemini);
-  LS.set('sb_url', sbUrl); LS.set('sb_key', sbKey);
-  location.reload();
+// ── Login / Logout ───────────────────────────────────────────────────────
+async function loginUser() {
+  const email    = document.getElementById('s-email').value.trim();
+  const password = document.getElementById('s-password').value;
+  const errEl    = document.getElementById('login-error');
+  errEl.textContent = '';
+  if (!email || !password) { errEl.textContent = t('alert-login-fill'); return; }
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) { errEl.textContent = error.message; return; }
+  await enterApp(data.session);
 }
 function openSettings() {
-  const c = cfg();
-  document.getElementById('cfg-gemini').value = c.gemini;
-  document.getElementById('cfg-sb-url').value = c.sbUrl;
-  document.getElementById('cfg-sb-key').value = c.sbKey;
+  document.getElementById('settings-email').textContent = currentUserEmail;
   document.getElementById('settings-modal').style.display = 'flex';
 }
-function updateSettings() {
-  LS.set('gemini_key', document.getElementById('cfg-gemini').value.trim());
-  LS.set('sb_url',     document.getElementById('cfg-sb-url').value.trim());
-  LS.set('sb_key',     document.getElementById('cfg-sb-key').value.trim());
-  closeModal('settings-modal'); location.reload();
+async function logoutUser() {
+  await sb.auth.signOut();
+  closeModal('settings-modal');
+  showLogin();
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
@@ -612,7 +622,7 @@ async function saveDiary() {
   });
 
   const { error } = await sb.from('entries').insert({
-    date: todayISO(), jp, en1, en2, corrected,
+    date: todayISO(), jp, en1, en2, corrected, user_id: currentUserId,
   });
   if (error) { alert(t('error-save') + error.message); return; }
 
@@ -621,7 +631,7 @@ async function saveDiary() {
     const existingSet = new Set((existing||[]).map(v => v.en.toLowerCase()));
     const toAdd = newWords.filter(w => !existingSet.has(w.en.toLowerCase()));
     if (toAdd.length) {
-      await sb.from('vocab').insert(toAdd.map(w => ({ ...w, note: '', correct: 0, wrong: 0 })));
+      await sb.from('vocab').insert(toAdd.map(w => ({ ...w, note: '', correct: 0, wrong: 0, user_id: currentUserId })));
     }
   }
 
@@ -678,7 +688,7 @@ async function addVocab() {
   const jp   = document.getElementById('v-jp').value.trim();
   const note = document.getElementById('v-note').value.trim();
   if (!en || !jp) { alert(t('alert-vocab-fill')); return; }
-  const { error } = await sb.from('vocab').insert({ en, jp, note, correct: 0, wrong: 0 });
+  const { error } = await sb.from('vocab').insert({ en, jp, note, correct: 0, wrong: 0, user_id: currentUserId });
   if (error) { alert(t('error-vocab') + error.message); return; }
   document.getElementById('v-en').value = '';
   document.getElementById('v-jp').value = '';
@@ -821,25 +831,23 @@ function updateQStats(hasCard) {
   document.getElementById('q-bar').style.width=total?Math.round(done/total*100)+'%':'0%';
 }
 
-// ── Gemini ────────────────────────────────────────────────────────────────
+// ── Gemini (Cloudflare Worker 経由) ─────────────────────────────────────────
 async function callGemini(prompt, schema) {
-  const key = cfg().gemini;
-  const generationConfig = { temperature: 0.3 };
-  if (schema) {
-    generationConfig.responseMimeType = 'application/json';
-    generationConfig.responseSchema = schema;
-  }
-  const body = JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig });
+  const body = JSON.stringify({ prompt, schema });
 
   for (let attempt = 0; ; attempt++) {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }
-    );
+    const { data: { session } } = await sb.auth.getSession();
+    const token = session?.access_token || '';
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body,
+    });
     if ((res.status === 429 || res.status >= 500) && attempt === 0) {
       await new Promise(r => setTimeout(r, 2500));
       continue;
     }
+    if (res.status === 401) throw new Error(t('alert-auth-error'));
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
     return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
