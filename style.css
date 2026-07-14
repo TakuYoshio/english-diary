@@ -163,12 +163,26 @@ body {
 
 .step-actions { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
 
+/* ── WORD NOTE QUICK-ADD (Step 2) ── */
+.word-note-add {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 10px; flex-wrap: wrap;
+}
+.word-note-add .input { flex: 1; min-width: 100px; }
+
 /* ── WORD ROWS (Step 3) ── */
 .word-row {
-  display: flex; align-items: center; gap: 8px;
-  margin-bottom: 8px; flex-wrap: wrap;
+  display: flex; flex-direction: column; gap: 6px;
+  margin-bottom: 12px; padding-bottom: 10px;
+  border-bottom: 1px solid var(--surface2);
+}
+.word-row-main {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
 }
 .word-row .input { flex: 1; min-width: 100px; }
+.word-row .word-note {
+  resize: vertical; min-height: 44px;
+}
 .arrow { color: var(--text-faint); font-size: 16px; flex-shrink: 0; }
 .word-hints { margin-bottom: 12px; }
 .word-hint-item {
@@ -254,7 +268,7 @@ body {
 .target-text { font-size: 16px; font-weight: 500; }
 
 /* ── ENTRIES ── */
-.entries-section { margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem; }
+.entries-section { }
 .section-title {
   font-size: 12px; font-weight: 700;
   color: var(--text-faint); text-transform: uppercase;
@@ -269,6 +283,13 @@ body {
 .entry-card:hover { border-color: var(--border-strong); box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
 .entry-date { font-size: 11px; color: var(--text-faint); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
 .entry-preview { font-size: 14px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.entries-toolbar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.entries-toolbar #entries-search { flex: 1; min-width: 140px; }
+.entries-page-size { flex: 0 0 auto; width: auto; }
+.entries-pagination { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 12px; }
+.entries-page-info { font-size: 13px; color: var(--text-faint); }
+.empty-state-small { font-size: 13px; color: var(--text-faint); text-align: center; padding: 20px 0; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ── VOCAB ── */
 .vocab-add-row { display: flex; gap: 7px; margin-bottom: 1rem; flex-wrap: wrap; }

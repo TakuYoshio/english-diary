@@ -36,6 +36,7 @@
       <span class="logo">📖 <span data-i18n="app-title">英語日記</span></span>
       <nav class="nav">
         <button class="nav-btn active" data-tab="diary" onclick="switchTab('diary')" data-i18n="nav-diary">日記</button>
+        <button class="nav-btn" data-tab="entries" onclick="switchTab('entries')" data-i18n="nav-entries">履歴</button>
         <button class="nav-btn" data-tab="vocab" onclick="switchTab('vocab')" data-i18n="nav-vocab">単語帳</button>
         <button class="nav-btn" data-tab="quiz" onclick="switchTab('quiz')" data-i18n="nav-quiz">テスト</button>
       </nav>
@@ -70,6 +71,10 @@
         </div>
         <div class="jp-ref" id="jp-ref-2"></div>
         <textarea id="diary-en1" class="textarea" placeholder="Today, I..."></textarea>
+        <div class="word-note-add">
+          <input type="text" class="input" id="s2-word-note" data-i18n-placeholder="ph-word-note-add" placeholder="これ英語で何て言うんだろう…をメモ" />
+          <button class="btn btn-sm" onclick="addWordNote()" data-i18n="btn-word-note-add">＋ メモ</button>
+        </div>
         <div class="step-actions">
           <button class="btn btn-primary" onclick="goStep3()" data-i18n="btn-next">次へ →</button>
         </div>
@@ -84,10 +89,13 @@
         <div class="hint-text-small" data-i18n="step3-hint">英訳できなかった・自信がない単語をメモしておこう</div>
         <div id="unknown-words-list">
           <div class="word-row">
-            <input type="text" class="input word-jp" data-i18n-placeholder="ph-word-jp" placeholder="日本語の単語" />
-            <span class="arrow">→</span>
-            <input type="text" class="input word-en" data-i18n-placeholder="ph-word-en" placeholder="英語（後で調べる）" />
-            <button class="icon-btn red" onclick="removeWordRow(this)">✕</button>
+            <div class="word-row-main">
+              <input type="text" class="input word-jp" data-i18n-placeholder="ph-word-jp" placeholder="日本語の単語" />
+              <span class="arrow">→</span>
+              <input type="text" class="input word-en" data-i18n-placeholder="ph-word-en" placeholder="英語（後で調べる）" />
+              <button class="icon-btn red" onclick="removeWordRow(this)">✕</button>
+            </div>
+            <textarea class="input word-note" data-i18n-placeholder="ph-word-note" placeholder="メモ・解説（任意）"></textarea>
           </div>
         </div>
         <button class="btn btn-sm" onclick="addWordRow()" style="margin-top:8px" data-i18n="btn-add-word">＋ 追加</button>
@@ -116,6 +124,7 @@
           <span class="step-badge">5</span>
           <span class="step-title-text" data-i18n="step5-title">AIが添削</span>
         </div>
+        <div class="progress-track" id="ai-progress-track" style="display:none"><div class="progress-fill" id="ai-progress-bar"></div></div>
         <div id="ai-corrected-box" class="ai-box">
           <div class="ai-label" data-i18n="ai-corrected-label">✨ 添削後の英文</div>
           <div id="ai-corrected-text" class="ai-text"></div>
@@ -164,11 +173,27 @@
           <button class="btn btn-primary" onclick="saveDiary()" data-i18n="btn-save-diary">💾 日記を保存</button>
         </div>
       </div>
+    </section>
 
-      <!-- PAST ENTRIES -->
+    <!-- ── ENTRIES (HISTORY) TAB ── -->
+    <section id="tab-entries" class="tab">
       <div id="entries-section" class="entries-section" style="display:none">
         <div class="section-title" data-i18n="entries-title">過去の日記</div>
+        <div class="entries-toolbar">
+          <input type="text" id="entries-search" class="input" data-i18n-placeholder="ph-entries-search" placeholder="日記を検索…" oninput="onEntriesSearchInput(this.value)" />
+          <select id="entries-page-size" class="input entries-page-size" onchange="changeEntriesPageSize(this.value)">
+            <option value="10">10件</option>
+            <option value="20">20件</option>
+            <option value="50">50件</option>
+            <option value="100">100件</option>
+          </select>
+        </div>
         <div id="entries-list"></div>
+        <div class="entries-pagination">
+          <button class="btn btn-sm" id="entries-prev" onclick="entriesPrevPage()">← <span data-i18n="btn-prev">前へ</span></button>
+          <span id="entries-page-info" class="entries-page-info"></span>
+          <button class="btn btn-sm" id="entries-next" onclick="entriesNextPage()"><span data-i18n="btn-next-page">次へ</span> →</button>
+        </div>
       </div>
     </section>
 
@@ -180,6 +205,7 @@
         <input type="text" id="v-note" class="input" data-i18n-placeholder="ph-v-note" placeholder="メモ（任意）" />
         <button class="btn btn-primary" onclick="addVocab()" data-i18n="btn-vocab-add">追加</button>
       </div>
+      <input type="text" id="vocab-search" class="input" data-i18n-placeholder="ph-vocab-search" placeholder="単語を検索…" oninput="onVocabSearchInput(this.value)" style="margin-bottom:12px" />
       <div id="vocab-count" class="vocab-count"></div>
       <div id="vocab-list"></div>
       <div id="vocab-empty" class="empty-state" style="display:none">
@@ -246,6 +272,21 @@
       <div class="modal-label" data-i18n="modal-corrected-label">✨ AI添削後</div>
       <div class="modal-text" id="modal-corrected"></div>
       <button class="btn btn-sm" style="margin-top:8px" onclick="speakModalText()" data-i18n="modal-hear">🔊 もう一度聞く</button>
+    </div>
+    <div class="modal-block">
+      <div class="modal-label" data-i18n="modal-pronounce-label">🎤 発音チェック</div>
+      <div class="speech-area">
+        <button class="mic-btn" id="modal-mic-btn" onclick="toggleMic(MODAL_CTX)">
+          <span class="mic-icon">🎤</span>
+          <span class="mic-label" data-i18n="mic-label">タップして話す</span>
+        </button>
+        <div id="modal-speech-result" class="speech-result" style="display:none">
+          <div class="speech-label" data-i18n="speech-recognized">認識された文</div>
+          <div id="modal-speech-text" class="speech-text"></div>
+          <div id="modal-speech-score" class="speech-score"></div>
+          <div id="modal-word-feedback" class="word-feedback"></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
