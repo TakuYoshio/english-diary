@@ -779,9 +779,15 @@ function changeEntriesPageSize(size) {
 function entriesPrevPage() { if (entriesPage > 1) { entriesPage--; loadEntries(); } }
 function entriesNextPage() { entriesPage++; loadEntries(); }
 
+const ENTRY_EDIT_FIELDS = ['jp', 'en1', 'en2', 'corrected'];
+let _modalEntryId = null;
+let _modalEntryData = null;
+
 async function viewEntry(id) {
   const { data } = await sb.from('entries').select('*').eq('id', id).single();
   if (!data) return;
+  _modalEntryId   = data.id;
+  _modalEntryData = data;
   document.getElementById('modal-date').textContent      = fmtDate(data.date);
   document.getElementById('modal-jp').textContent        = data.jp || '—';
   document.getElementById('modal-en1').textContent       = data.en1 || '—';
@@ -791,7 +797,40 @@ async function viewEntry(id) {
   document.getElementById('modal-speech-result').style.display = 'none';
   document.getElementById('modal-speech-text').textContent = '';
   document.getElementById('modal-word-feedback').innerHTML = '';
+  setEntryEditMode(false);
   document.getElementById('entry-modal').style.display = 'flex';
+}
+
+function setEntryEditMode(on) {
+  ENTRY_EDIT_FIELDS.forEach(f => {
+    document.getElementById('modal-' + f).style.display = on ? 'none' : 'block';
+    document.getElementById('modal-' + f + '-edit').style.display = on ? 'block' : 'none';
+  });
+  document.getElementById('modal-edit-btn').style.display = on ? 'none' : 'inline-block';
+  document.getElementById('modal-edit-actions').style.display = on ? 'block' : 'none';
+}
+
+function toggleEntryEdit() {
+  ENTRY_EDIT_FIELDS.forEach(f => {
+    document.getElementById('modal-' + f + '-edit').value = _modalEntryData[f] || '';
+  });
+  setEntryEditMode(true);
+}
+
+function cancelEntryEdit() { setEntryEditMode(false); }
+
+async function saveEntryEdit() {
+  const vals = {};
+  ENTRY_EDIT_FIELDS.forEach(f => { vals[f] = document.getElementById('modal-' + f + '-edit').value.trim(); });
+  const { error } = await sb.from('entries').update(vals).eq('id', _modalEntryId);
+  if (error) { alert(t('error-save') + error.message); return; }
+  _modalEntryData = { ..._modalEntryData, ...vals };
+  ENTRY_EDIT_FIELDS.forEach(f => {
+    document.getElementById('modal-' + f).textContent = vals[f] || '—';
+  });
+  _modalCorrectedText = vals.corrected || '';
+  setEntryEditMode(false);
+  await loadEntries();
 }
 
 // ── Vocab ─────────────────────────────────────────────────────────────────
@@ -814,11 +853,26 @@ async function deleteVocab(id) {
 }
 let allVocab = [];
 let vocabSearch = '';
+let editingVocabId = null;
 
 async function renderVocab() {
   const { data } = await sb.from('vocab').select('*').order('created_at', { ascending: false });
   allVocab = data || [];
+  editingVocabId = null;
   filterAndRenderVocab();
+}
+
+function startEditVocab(id) { editingVocabId = id; filterAndRenderVocab(); }
+function cancelEditVocab() { editingVocabId = null; filterAndRenderVocab(); }
+async function saveEditVocab(id) {
+  const en   = document.getElementById(`ve-en-${id}`).value.trim();
+  const jp   = document.getElementById(`ve-jp-${id}`).value.trim();
+  const note = document.getElementById(`ve-note-${id}`).value.trim();
+  if (!en || !jp) { alert(t('alert-vocab-fill')); return; }
+  const { error } = await sb.from('vocab').update({ en, jp, note }).eq('id', id);
+  if (error) { alert(t('error-vocab') + error.message); return; }
+  editingVocabId = null;
+  await renderVocab();
 }
 
 function filterAndRenderVocab() {
@@ -845,6 +899,15 @@ function filterAndRenderVocab() {
   empty.style.display = 'none';
   count.textContent   = `${vocab.length}`;
   list.innerHTML = vocab.map(v => {
+    if (editingVocabId === v.id) {
+      return `<div class="vocab-row vocab-row-editing">
+        <input type="text" class="input" id="ve-en-${v.id}" value="${escapeHtml(v.en)}" />
+        <input type="text" class="input" id="ve-jp-${v.id}" value="${escapeHtml(v.jp)}" />
+        <input type="text" class="input" id="ve-note-${v.id}" value="${escapeHtml(v.note||'')}" />
+        <button class="icon-btn" onclick="saveEditVocab(${v.id})" title="保存">💾</button>
+        <button class="icon-btn" onclick="cancelEditVocab()" title="キャンセル">✕</button>
+      </div>`;
+    }
     const total = (v.correct||0) + (v.wrong||0);
     const rate  = total ? Math.round(v.correct/total*100) : null;
     const cls   = rate===null ? 'rate-new' : rate>=70 ? 'rate-ok' : 'rate-ng';
@@ -853,7 +916,8 @@ function filterAndRenderVocab() {
       <div class="v-jp">${escapeHtml(v.jp)}</div>
       <div class="v-note">${escapeHtml(v.note||'')}</div>
       <span class="v-rate ${cls}">${rate===null ? t('vocab-untested') : rate+'%'}</span>
-      <button class="icon-btn red" onclick="deleteVocab(${v.id})">✕</button>
+      <button class="icon-btn" onclick="startEditVocab(${v.id})" title="編集">✏️</button>
+      <button class="icon-btn red" onclick="deleteVocab(${v.id})" title="削除">✕</button>
     </div>`;
   }).join('');
 }

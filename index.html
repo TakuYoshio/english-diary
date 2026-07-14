@@ -254,24 +254,35 @@
   <div class="modal-card">
     <div class="modal-header">
       <div class="modal-date" id="modal-date"></div>
-      <button class="icon-btn" onclick="closeModal('entry-modal')">✕</button>
+      <div>
+        <button class="icon-btn" id="modal-edit-btn" onclick="toggleEntryEdit()" title="編集">✏️</button>
+        <button class="icon-btn" onclick="closeModal('entry-modal')">✕</button>
+      </div>
     </div>
     <div class="modal-block">
       <div class="modal-label" data-i18n="modal-jp-label">🇯🇵 日本語</div>
       <div class="modal-text" id="modal-jp"></div>
+      <textarea class="input modal-edit-field" id="modal-jp-edit" style="display:none"></textarea>
     </div>
     <div class="modal-block">
       <div class="modal-label" data-i18n="modal-en1-label">✍️ 自分の英訳（1回目）</div>
       <div class="modal-text" id="modal-en1"></div>
+      <textarea class="input modal-edit-field" id="modal-en1-edit" style="display:none"></textarea>
     </div>
     <div class="modal-block">
       <div class="modal-label" data-i18n="modal-en2-label">✍️ 自分の英訳（2回目）</div>
       <div class="modal-text" id="modal-en2"></div>
+      <textarea class="input modal-edit-field" id="modal-en2-edit" style="display:none"></textarea>
     </div>
     <div class="modal-block">
       <div class="modal-label" data-i18n="modal-corrected-label">✨ AI添削後</div>
       <div class="modal-text" id="modal-corrected"></div>
+      <textarea class="input modal-edit-field" id="modal-corrected-edit" style="display:none"></textarea>
       <button class="btn btn-sm" style="margin-top:8px" onclick="speakModalText()" data-i18n="modal-hear">🔊 もう一度聞く</button>
+    </div>
+    <div class="modal-block" id="modal-edit-actions" style="display:none">
+      <button class="btn btn-primary btn-sm" onclick="saveEntryEdit()">💾 保存</button>
+      <button class="btn btn-sm" onclick="cancelEntryEdit()" data-i18n="btn-cancel">キャンセル</button>
     </div>
     <div class="modal-block">
       <div class="modal-label" data-i18n="modal-pronounce-label">🎤 発音チェック</div>

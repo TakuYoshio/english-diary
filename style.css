@@ -308,6 +308,10 @@ body {
   font-size: 11px; font-weight: 700;
   padding: 3px 9px; border-radius: 20px; flex-shrink: 0;
 }
+.vocab-row-editing input[id^="ve-en-"] { flex: 1.2; min-width: 100px; }
+.vocab-row-editing input[id^="ve-jp-"] { flex: 1; min-width: 80px; }
+.vocab-row-editing input[id^="ve-note-"] { flex: 1.5; min-width: 80px; }
+.vocab-row-editing .input { width: auto; }
 .rate-new { background: var(--surface2); color: var(--text-faint); }
 .rate-ok { background: var(--success-light); color: var(--success); }
 .rate-ng { background: var(--danger-light); color: var(--danger); }
@@ -366,6 +370,7 @@ body {
   background: var(--surface2); border-radius: var(--radius-sm);
   padding: 10px 12px; white-space: pre-wrap;
 }
+.modal-edit-field { min-height: 70px; resize: vertical; font-size: 15px; line-height: 1.6; }
 
 /* ── SHARED ── */
 .btn {
