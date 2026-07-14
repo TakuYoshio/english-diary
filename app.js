@@ -36,6 +36,7 @@ const TRANSLATIONS = {
     'speech-recognized': '認識された文', 'entries-title': '過去の日記',
     'ph-entries-search': '日記を検索…', 'btn-prev': '前へ', 'btn-next-page': '次へ',
     'entries-empty': 'まだ日記がありません', 'entries-no-results': '検索結果がありません',
+    'btn-back-entries': '← 履歴に戻る',
     'ph-v-jp': '日本語', 'ph-v-note': 'メモ（任意）', 'btn-vocab-add': '追加',
     'vocab-empty-text': '単語帳が空です<br>日記を書いて追加しよう',
     'quiz-empty': '単語帳に単語を追加してからテストしよう',
@@ -101,6 +102,7 @@ const TRANSLATIONS = {
     'speech-recognized': 'Recognized speech', 'entries-title': 'Past Entries',
     'ph-entries-search': 'Search diary entries…', 'btn-prev': 'Prev', 'btn-next-page': 'Next',
     'entries-empty': 'No diary entries yet', 'entries-no-results': 'No matching entries',
+    'btn-back-entries': '← Back to history',
     'ph-v-jp': 'Translation', 'ph-v-note': 'Note (optional)', 'btn-vocab-add': 'Add',
     'vocab-empty-text': 'Your vocabulary is empty<br>Write a diary to add words',
     'quiz-empty': 'Add words to your vocabulary first',
@@ -431,20 +433,25 @@ Be encouraging and specific. Write "good_points", "improvements", every "explana
     renderFeedback(data);
     renderCorrections(data.corrections);
     window._correctedText = data.corrected;
-    window._lastCorrections = data.corrections || [];
+    window._lastFeedback = {
+      good_points:  data.good_points  || [],
+      improvements: data.improvements || [],
+      corrections:  data.corrections  || [],
+      vocab_usage:  data.vocab_usage  || '',
+    };
   } catch (e) {
     correctedEl.textContent = en2 + '\n\n(' + t('error-ai') + e.message + ')';
     feedbackEl.textContent  = '';
     renderCorrections([]);
-    window._correctedText   = en2;
-    window._lastCorrections = [];
+    window._correctedText  = en2;
+    window._lastFeedback   = null;
   } finally {
     stopProgress();
   }
 }
 
-function renderFeedback(data) {
-  const el = document.getElementById('ai-feedback-text');
+function renderFeedback(data, feedbackElId = 'ai-feedback-text') {
+  const el = document.getElementById(feedbackElId);
   const section = (label, items) => items && items.length
     ? `<div class="fb-section"><div class="fb-head">${t(label)}</div><ul class="fb-list">${items.map(p => `<li>${escapeHtml(p)}</li>`).join('')}</ul></div>`
     : '';
@@ -455,9 +462,9 @@ function renderFeedback(data) {
   el.innerHTML = html;
 }
 
-function renderCorrections(list) {
-  const box = document.getElementById('ai-corrections-box');
-  const el  = document.getElementById('ai-corrections-list');
+function renderCorrections(list, boxId = 'ai-corrections-box', listId = 'ai-corrections-list') {
+  const box = document.getElementById(boxId);
+  const el  = document.getElementById(listId);
   if (!list || !list.length) { box.style.display = 'none'; el.innerHTML = ''; return; }
   box.style.display = 'block';
   el.innerHTML = list.map(c => `
@@ -510,9 +517,9 @@ function goStep6() {
   setTimeout(() => speakText(corrected), 400);
 }
 
-// ── Web Speech API (Step 6 / 過去日記モーダル共通) ────────────────────────
-const STEP6_CTX = { target: 'target-sentence', micBtn: 'mic-btn', result: 'speech-result', text: 'speech-text', score: 'speech-score', feedback: 'word-feedback' };
-const MODAL_CTX  = { target: 'modal-corrected', micBtn: 'modal-mic-btn', result: 'modal-speech-result', text: 'modal-speech-text', score: 'modal-speech-score', feedback: 'modal-word-feedback' };
+// ── Web Speech API (Step 6 / 過去日記詳細ページ共通) ───────────────────────
+const STEP6_CTX  = { target: 'target-sentence', micBtn: 'mic-btn', result: 'speech-result', text: 'speech-text', score: 'speech-score', feedback: 'word-feedback' };
+const DETAIL_CTX = { target: 'detail-corrected', micBtn: 'detail-mic-btn', result: 'detail-speech-result', text: 'detail-speech-text', score: 'detail-speech-score', feedback: 'detail-word-feedback' };
 
 let recognition = null;
 let isRecording = false;
@@ -672,14 +679,14 @@ async function saveDiary() {
     if (wordJp && wordEn) newWords.push({ jp: wordJp, en: wordEn, note: wordNote });
   });
 
-  (window._lastCorrections || []).forEach(c => {
+  (window._lastFeedback?.corrections || []).forEach(c => {
     if (c.type === 'vocabulary' && c.jp && c.after) {
       newWords.push({ jp: c.jp, en: c.after, note: c.explanation || '' });
     }
   });
 
   const { error } = await sb.from('entries').insert({
-    date: todayISO(), jp, en1, en2, corrected, user_id: currentUserId,
+    date: todayISO(), jp, en1, en2, corrected, feedback: window._lastFeedback || null, user_id: currentUserId,
   });
   if (error) { alert(t('error-save') + error.message); return; }
 
@@ -705,8 +712,8 @@ async function saveDiary() {
   document.getElementById('s2-word-note').value = '';
   document.getElementById('unknown-words-list').innerHTML = '';
   addWordRow();
-  window._correctedText   = '';
-  window._lastCorrections = [];
+  window._correctedText = '';
+  window._lastFeedback  = null;
   ['step2-card','step3-card','step4-card','step5-card','step6-card'].forEach(id => lock(id));
   document.getElementById('speech-result').style.display = 'none';
   document.getElementById('ai-corrected-text').textContent = '';
@@ -753,7 +760,7 @@ async function loadEntries() {
     list.innerHTML = `<div class="empty-state-small">${escapeHtml(t(term ? 'entries-no-results' : 'entries-empty'))}</div>`;
   } else {
     list.innerHTML = data.map(e => `
-      <div class="entry-card" onclick="viewEntry(${e.id})">
+      <div class="entry-card" onclick="openEntryDetail(${e.id})">
         <div class="entry-date">${fmtDate(e.date)}</div>
         <div class="entry-preview">${escapeHtml(e.jp)}</div>
       </div>
@@ -783,36 +790,44 @@ const ENTRY_EDIT_FIELDS = ['jp', 'en1', 'en2', 'corrected'];
 let _modalEntryId = null;
 let _modalEntryData = null;
 
-async function viewEntry(id) {
+async function openEntryDetail(id) {
   const { data } = await sb.from('entries').select('*').eq('id', id).single();
   if (!data) return;
   _modalEntryId   = data.id;
   _modalEntryData = data;
-  document.getElementById('modal-date').textContent      = fmtDate(data.date);
-  document.getElementById('modal-jp').textContent        = data.jp || '—';
-  document.getElementById('modal-en1').textContent       = data.en1 || '—';
-  document.getElementById('modal-en2').textContent       = data.en2 || '—';
-  document.getElementById('modal-corrected').textContent = data.corrected || '—';
+  document.getElementById('detail-date').textContent      = fmtDate(data.date);
+  document.getElementById('detail-jp').textContent        = data.jp || '—';
+  document.getElementById('detail-en1').textContent       = data.en1 || '—';
+  document.getElementById('detail-en2').textContent       = data.en2 || '—';
+  document.getElementById('detail-corrected').textContent = data.corrected || '—';
   _modalCorrectedText = data.corrected || '';
-  document.getElementById('modal-speech-result').style.display = 'none';
-  document.getElementById('modal-speech-text').textContent = '';
-  document.getElementById('modal-word-feedback').innerHTML = '';
+  document.getElementById('detail-speech-result').style.display = 'none';
+  document.getElementById('detail-speech-text').textContent = '';
+  document.getElementById('detail-word-feedback').innerHTML = '';
+  renderFeedback(data.feedback || {}, 'detail-feedback-text');
+  renderCorrections(data.feedback?.corrections || [], 'detail-corrections-box', 'detail-corrections-list');
   setEntryEditMode(false);
-  document.getElementById('entry-modal').style.display = 'flex';
+
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-entry-detail').classList.add('active');
+  window.scrollTo({ top: 0 });
 }
+
+function backToEntries() { switchTab('entries'); }
 
 function setEntryEditMode(on) {
   ENTRY_EDIT_FIELDS.forEach(f => {
-    document.getElementById('modal-' + f).style.display = on ? 'none' : 'block';
-    document.getElementById('modal-' + f + '-edit').style.display = on ? 'block' : 'none';
+    document.getElementById('detail-' + f).style.display = on ? 'none' : 'block';
+    document.getElementById('detail-' + f + '-edit').style.display = on ? 'block' : 'none';
   });
-  document.getElementById('modal-edit-btn').style.display = on ? 'none' : 'inline-block';
-  document.getElementById('modal-edit-actions').style.display = on ? 'block' : 'none';
+  document.getElementById('detail-edit-btn').style.display = on ? 'none' : 'inline-block';
+  document.getElementById('detail-edit-actions').style.display = on ? 'block' : 'none';
 }
 
 function toggleEntryEdit() {
   ENTRY_EDIT_FIELDS.forEach(f => {
-    document.getElementById('modal-' + f + '-edit').value = _modalEntryData[f] || '';
+    document.getElementById('detail-' + f + '-edit').value = _modalEntryData[f] || '';
   });
   setEntryEditMode(true);
 }
@@ -821,12 +836,12 @@ function cancelEntryEdit() { setEntryEditMode(false); }
 
 async function saveEntryEdit() {
   const vals = {};
-  ENTRY_EDIT_FIELDS.forEach(f => { vals[f] = document.getElementById('modal-' + f + '-edit').value.trim(); });
+  ENTRY_EDIT_FIELDS.forEach(f => { vals[f] = document.getElementById('detail-' + f + '-edit').value.trim(); });
   const { error } = await sb.from('entries').update(vals).eq('id', _modalEntryId);
   if (error) { alert(t('error-save') + error.message); return; }
   _modalEntryData = { ..._modalEntryData, ...vals };
   ENTRY_EDIT_FIELDS.forEach(f => {
-    document.getElementById('modal-' + f).textContent = vals[f] || '—';
+    document.getElementById('detail-' + f).textContent = vals[f] || '—';
   });
   _modalCorrectedText = vals.corrected || '';
   setEntryEditMode(false);
