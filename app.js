@@ -108,6 +108,23 @@ const TRANSLATIONS = {
     'btn-situational-next': '次の問題へ →',
     'loading-situational': 'AIがシチュエーションを作成中…', 'loading-situational-grading': 'AIが採点中…',
     'situational-correct': '✓ よくできました！', 'situational-incorrect': '✗ もう少し！下の添削を見てみよう',
+    // Confirm modal / toasts
+    'confirm-delete-word': 'この単語を削除しますか？', 'btn-delete': '削除', 'toast-word-deleted': '単語を削除しました',
+    // Streak / progress
+    'streak-title': '現在{current}日連続。最長記録は{longest}日', 'streak-title-zero': '今日書いて連続記録をはじめよう',
+    'entries-view-list': '一覧', 'entries-view-calendar': 'カレンダー', 'entries-view-stats': '統計',
+    'stats-diary-trend': '日記数（週次）', 'stats-vocab-trend': '単語帳の登録数推移',
+    'stats-pron-trend': '発音スコア（初回）の推移', 'stats-accuracy': '単語テストの正答率',
+    'stats-category': 'カテゴリ別の指摘回数', 'stats-entries-suffix': '件', 'stats-words-suffix': '語',
+    'stats-empty': 'データが増えてくるとここにグラフが表示されます',
+    // Mascot「コトラ」
+    'mascot-modal-title': 'コトラ', 'mascot-level-label': 'Lv.{level}',
+    'mascot-next-level': 'あと{xp}XPでレベルアップ', 'mascot-badges-title': '実績バッジ',
+    'mascot-stage-kitten': '子猫', 'mascot-stage-young': '若猫', 'mascot-stage-adult': '貫禄のある大人猫',
+    'badge-first-entry': 'はじめての日記', 'badge-streak-3': '3日連続',
+    'badge-streak-7': '7日連続', 'badge-streak-30': '30日連続',
+    'badge-vocab-50': '単語50語登録', 'badge-vocab-100': '単語100語登録',
+    'badge-pronunciation-90': '発音スコア90%達成',
   },
   en: {
     'setup-title': 'English Diary', 'setup-sub': 'Please log in',
@@ -205,6 +222,23 @@ const TRANSLATIONS = {
     'btn-situational-next': 'Next question →',
     'loading-situational': 'AI is creating a scenario…', 'loading-situational-grading': 'AI is grading…',
     'situational-correct': '✓ Well done!', 'situational-incorrect': '✗ Almost — check the correction below',
+    // Confirm modal / toasts
+    'confirm-delete-word': 'Delete this word?', 'btn-delete': 'Delete', 'toast-word-deleted': 'Word deleted',
+    // Streak / progress
+    'streak-title': '{current}-day streak. Longest: {longest} days', 'streak-title-zero': 'Write today to start a streak',
+    'entries-view-list': 'List', 'entries-view-calendar': 'Calendar', 'entries-view-stats': 'Stats',
+    'stats-diary-trend': 'Entries per week', 'stats-vocab-trend': 'Vocabulary growth',
+    'stats-pron-trend': 'Pronunciation score (first attempt)', 'stats-accuracy': 'Word quiz accuracy',
+    'stats-category': 'Feedback by category', 'stats-entries-suffix': ' entries', 'stats-words-suffix': ' words',
+    'stats-empty': 'Charts will appear here as you build up more data',
+    // Mascot "Kotora"
+    'mascot-modal-title': 'Kotora', 'mascot-level-label': 'Lv.{level}',
+    'mascot-next-level': '{xp} XP to next level', 'mascot-badges-title': 'Badges',
+    'mascot-stage-kitten': 'Kitten', 'mascot-stage-young': 'Young cat', 'mascot-stage-adult': 'Dignified adult cat',
+    'badge-first-entry': 'First entry', 'badge-streak-3': '3-day streak',
+    'badge-streak-7': '7-day streak', 'badge-streak-30': '30-day streak',
+    'badge-vocab-50': '50 words registered', 'badge-vocab-100': '100 words registered',
+    'badge-pronunciation-90': '90%+ pronunciation score',
   }
 };
 
@@ -272,8 +306,9 @@ async function enterApp(session) {
   document.getElementById('app').style.display = 'block';
   setDateLabel();
   await loadProfile();
-  await Promise.all([loadEntries(), renderVocab()]);
+  await Promise.all([loadEntries(), renderVocab(), loadEntriesMeta()]);
   initQuizTab();
+  refreshProgressUI();
   if (!currentProfile.onboarding_completed) openOnboarding();
 }
 
@@ -307,7 +342,7 @@ function openOnboarding() {
 async function completeOnboarding() {
   const payload = collectPreferenceForm('onboarding');
   const { error } = await sb.from('profiles').upsert(payload, { onConflict: 'user_id' });
-  if (error) { alert(t('error-save') + error.message); return; }
+  if (error) { showToast(t('error-save') + error.message, 'error'); return; }
   currentProfile = payload;
   closeModal('onboarding-modal');
 }
@@ -325,9 +360,9 @@ function populateSettingsPreferences(profile) {
 async function savePreferences() {
   const payload = collectPreferenceForm('settings');
   const { error } = await sb.from('profiles').upsert(payload, { onConflict: 'user_id' });
-  if (error) { alert(t('error-save') + error.message); return; }
+  if (error) { showToast(t('error-save') + error.message, 'error'); return; }
   currentProfile = payload;
-  showToast(t('toast-prefs-saved'));
+  showToast(t('toast-prefs-saved'), 'success');
 }
 
 function showLogin() {
@@ -407,7 +442,7 @@ function lock(cardId) { document.getElementById(cardId).classList.add('locked');
 // ── STEP 1 → 2 ───────────────────────────────────────────────────────────
 function goStep2() {
   const jp = document.getElementById('diary-jp').value.trim();
-  if (!jp) { alert(t('alert-write-jp')); return; }
+  if (!jp) { showToast(t('alert-write-jp'), 'warn'); return; }
   document.getElementById('jp-ref-2').textContent = jp;
   unlock('step2-card');
 }
@@ -630,7 +665,7 @@ function startAiProgress() {
 
 async function goStep5() {
   const en2 = document.getElementById('diary-en2').value.trim();
-  if (!en2) { alert(t('alert-write-en2')); return; }
+  if (!en2) { showToast(t('alert-write-en2'), 'warn'); return; }
 
   unlock('step5-card');
   const correctedEl = document.getElementById('ai-corrected-text');
@@ -799,9 +834,11 @@ function updateShadowingUI() {
   document.getElementById('shadow-progress-bar').style.width = pct + '%';
   document.getElementById('shadow-progress-label').textContent =
     `${Math.min(shadowingReps, shadowingTarget)} / ${shadowingTarget}`;
-  if (shadowingReps >= shadowingTarget) {
+  const reachedGoal = shadowingReps >= shadowingTarget;
+  if (reachedGoal) {
     document.getElementById('step6-speech-area').classList.remove('gated');
   }
+  if (typeof mascotUpdateShadowPose === 'function') mascotUpdateShadowPose(pct, reachedGoal);
 }
 function skipShadowingGate() {
   shadowingReps = shadowingTarget;
@@ -836,7 +873,7 @@ function toggleMic(ctx = STEP6_CTX) {
 
 function startMic(ctx = STEP6_CTX) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { alert(t('alert-no-speech')); return; }
+  if (!SR) { showToast(t('alert-no-speech'), 'warn'); return; }
 
   recognition = new SR();
   recognition.lang = 'en-US';
@@ -869,7 +906,7 @@ function startMic(ctx = STEP6_CTX) {
 
   recognition.onerror = (e) => {
     stopMic(ctx);
-    if (e.error !== 'no-speech') alert('Error: ' + e.error);
+    if (e.error !== 'no-speech') showToast('Error: ' + e.error, 'error');
   };
 
   recognition.onend = () => stopMic(ctx);
@@ -1076,7 +1113,7 @@ async function saveDiary() {
   const en1       = document.getElementById('diary-en1').value.trim();
   const en2       = document.getElementById('diary-en2').value.trim();
   const corrected = window._correctedText || '';
-  if (!jp) { alert(t('alert-write-before-save')); return; }
+  if (!jp) { showToast(t('alert-write-before-save'), 'warn'); return; }
 
   const newWords = [];
   document.querySelectorAll('.word-row').forEach(row => {
@@ -1093,11 +1130,13 @@ async function saveDiary() {
     });
   });
 
+  const prevStreak = computeStreaks(entriesMeta).current;
+
   const { error } = await sb.from('entries').insert({
     date: todayISO(), jp, en1, en2, corrected, feedback: window._lastFeedback || null,
     pronunciation_first_attempt: firstPronunciationAttempt, user_id: currentUserId,
   });
-  if (error) { alert(t('error-save') + error.message); return; }
+  if (error) { showToast(t('error-save') + error.message, 'error'); return; }
 
   let toAdd = [];
   if (newWords.length) {
@@ -1134,8 +1173,12 @@ async function saveDiary() {
   document.getElementById('speech-first-attempt').style.display = 'none';
 
   await loadEntries();
+  await loadEntriesMeta();
+  refreshProgressUI();
+  const newStreak = computeStreaks(entriesMeta).current;
+  if (typeof mascotCelebrateSave === 'function') mascotCelebrateSave(newStreak > prevStreak);
   const wordsMsg = toAdd.length ? `${toAdd.length}${t('toast-words-added')}` : '';
-  showToast(t('toast-saved') + (wordsMsg ? ' ' + wordsMsg : ''));
+  showToast(t('toast-saved') + (wordsMsg ? ' ' + wordsMsg : ''), 'success');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -1257,7 +1300,7 @@ async function saveEntryEdit() {
   const vals = {};
   ENTRY_EDIT_FIELDS.forEach(f => { vals[f] = document.getElementById('detail-' + f + '-edit').value.trim(); });
   const { error } = await sb.from('entries').update(vals).eq('id', _modalEntryId);
-  if (error) { alert(t('error-save') + error.message); return; }
+  if (error) { showToast(t('error-save') + error.message, 'error'); return; }
   _modalEntryData = { ..._modalEntryData, ...vals };
   ENTRY_EDIT_FIELDS.forEach(f => {
     document.getElementById('detail-' + f).textContent = vals[f] || '—';
@@ -1272,18 +1315,20 @@ async function addVocab() {
   const en   = document.getElementById('v-en').value.trim();
   const jp   = document.getElementById('v-jp').value.trim();
   const note = document.getElementById('v-note').value.trim();
-  if (!en || !jp) { alert(t('alert-vocab-fill')); return; }
+  if (!en || !jp) { showToast(t('alert-vocab-fill'), 'warn'); return; }
   const { error } = await sb.from('vocab').insert({ en, jp, note, correct: 0, wrong: 0, user_id: currentUserId });
-  if (error) { alert(t('error-vocab') + error.message); return; }
+  if (error) { showToast(t('error-vocab') + error.message, 'error'); return; }
   document.getElementById('v-en').value = '';
   document.getElementById('v-jp').value = '';
   document.getElementById('v-note').value = '';
   await renderVocab();
 }
 async function deleteVocab(id) {
-  if (!confirm('Delete this word?')) return;
+  const ok = await showConfirm({ message: t('confirm-delete-word'), okLabel: t('btn-delete'), danger: true });
+  if (!ok) return;
   await sb.from('vocab').delete().eq('id', id);
   await renderVocab();
+  showToast(t('toast-word-deleted'), 'success');
 }
 let allVocab = [];
 let vocabSearch = '';
@@ -1302,9 +1347,9 @@ async function saveEditVocab(id) {
   const en   = document.getElementById(`ve-en-${id}`).value.trim();
   const jp   = document.getElementById(`ve-jp-${id}`).value.trim();
   const note = document.getElementById(`ve-note-${id}`).value.trim();
-  if (!en || !jp) { alert(t('alert-vocab-fill')); return; }
+  if (!en || !jp) { showToast(t('alert-vocab-fill'), 'warn'); return; }
   const { error } = await sb.from('vocab').update({ en, jp, note }).eq('id', id);
-  if (error) { alert(t('error-vocab') + error.message); return; }
+  if (error) { showToast(t('error-vocab') + error.message, 'error'); return; }
   editingVocabId = null;
   await renderVocab();
 }
@@ -1742,19 +1787,52 @@ async function callGemini(prompt, schema, timeoutMs = 20000) {
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────
-function showToast(msg) {
-  let el = document.getElementById('toast');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'toast';
-    el.style.cssText = `position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
-      background:#1C1A16;color:#fff;padding:10px 20px;border-radius:8px;
-      font-size:14px;z-index:999;opacity:0;transition:opacity 0.2s;
-      white-space:nowrap;max-width:90vw;text-align:center;pointer-events:none`;
-    document.body.appendChild(el);
+const TOAST_ICONS = { success: '✅', error: '⚠️', warn: '✋', info: 'ℹ️' };
+
+function showToast(msg, type = 'info') {
+  let container = document.getElementById('toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toast-container';
+    container.className = 'toast-container';
+    document.body.appendChild(container);
   }
-  el.textContent = msg;
-  el.style.opacity = '1';
-  clearTimeout(el._t);
-  el._t = setTimeout(() => { el.style.opacity = '0'; }, 3000);
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.innerHTML = `<span class="toast-icon">${TOAST_ICONS[type] || TOAST_ICONS.info}</span><span class="toast-msg"></span>`;
+  el.querySelector('.toast-msg').textContent = msg;
+  container.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('toast-in'));
+  const remove = () => {
+    el.classList.remove('toast-in');
+    el.classList.add('toast-out');
+    setTimeout(() => el.remove(), 200);
+  };
+  setTimeout(remove, 3200);
+}
+
+// ── Confirm modal ────────────────────────────────────────────────────────
+function showConfirm({ message, okLabel, danger = false }) {
+  return new Promise(resolve => {
+    const modal   = document.getElementById('confirm-modal');
+    const textEl  = document.getElementById('confirm-modal-text');
+    const okBtn   = document.getElementById('confirm-modal-ok');
+    const cancelBtn = document.getElementById('confirm-modal-cancel');
+
+    textEl.textContent = message;
+    okBtn.textContent = okLabel || t('btn-delete');
+    okBtn.className = 'btn btn-sm' + (danger ? ' btn-danger' : ' btn-primary');
+    modal.style.display = 'flex';
+
+    const cleanup = (result) => {
+      modal.style.display = 'none';
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      resolve(result);
+    };
+    const onOk = () => cleanup(true);
+    const onCancel = () => cleanup(false);
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+  });
 }
