@@ -7,6 +7,8 @@ const SUPABASE_URL = 'https://swbbslowwklhptqsaixn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3YmJzbG93d2tsaHB0cXNhaXhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMTcwNjcsImV4cCI6MjA5Nzc5MzA2N30.T_7VD3emSP6DbwCpYkhIjO6yRmueuNeXUkldpaGGp3c';
 let currentUserId = null;
 let currentUserEmail = '';
+let currentProfile = null;
+const SHADOWING_TARGETS = { easy: 10, normal: 20, hard: 50 };
 
 // ── i18n ──────────────────────────────────────────────────────────────────
 const TRANSLATIONS = {
@@ -75,6 +77,23 @@ const TRANSLATIONS = {
     'type-grammar': '文法', 'type-vocabulary': '語彙', 'type-naturalness': '自然さ', 'type-spelling': 'スペル',
     'quiz-typo-note': '（スペルに注意！）',
     'word-feedback-hint': '赤い単語が認識されませんでした。もう一度挑戦！',
+    // Onboarding / Settings preferences
+    'onboarding-title': 'ようこそ！', 'onboarding-sub': 'あなたに合わせて学習をカスタマイズします',
+    'pref-skill-label': '伸ばしたいスキル（複数選択可）',
+    'skill-grammar': '文法', 'skill-vocabulary': '語彙', 'skill-naturalness': '表現・自然さ', 'skill-pronunciation': '発音',
+    'pref-shadowing-label': 'シャドーイングレベル',
+    'level-easy': 'Easy（10回）', 'level-normal': 'Normal（20回）', 'level-hard': 'Hard（50回）',
+    'pref-auto-lookup-label': '単語のAI自動検索をオンにする',
+    'btn-onboarding-start': 'はじめる →',
+    'toast-prefs-saved': '設定を保存しました',
+    // Categorized feedback
+    'cat-grammar': '文法', 'cat-vocabulary': '語彙', 'cat-expression': '表現', 'cat-other': 'その他',
+    // Shadowing gate
+    'btn-shadow-skip': 'スキップして発音チェックへ',
+    // Pronunciation tips
+    'loading-pron-tips': '発音のヒントを生成中…', 'pron-tips-label': '💡 発音のヒント',
+    // Vocab lookup
+    'loading-vocab-lookup': 'AIで調べています…', 'error-vocab-lookup': '単語検索エラー: ',
   },
   en: {
     'setup-title': 'English Diary', 'setup-sub': 'Please log in',
@@ -141,6 +160,23 @@ const TRANSLATIONS = {
     'type-grammar': 'Grammar', 'type-vocabulary': 'Vocabulary', 'type-naturalness': 'Naturalness', 'type-spelling': 'Spelling',
     'quiz-typo-note': ' (watch the spelling!)',
     'word-feedback-hint': 'Red words were not recognized. Try again!',
+    // Onboarding / Settings preferences
+    'onboarding-title': 'Welcome!', 'onboarding-sub': "Let's personalize your learning",
+    'pref-skill-label': 'Skills to focus on (choose any)',
+    'skill-grammar': 'Grammar', 'skill-vocabulary': 'Vocabulary', 'skill-naturalness': 'Expression & naturalness', 'skill-pronunciation': 'Pronunciation',
+    'pref-shadowing-label': 'Shadowing level',
+    'level-easy': 'Easy (10 reps)', 'level-normal': 'Normal (20 reps)', 'level-hard': 'Hard (50 reps)',
+    'pref-auto-lookup-label': 'Turn on AI auto word lookup',
+    'btn-onboarding-start': 'Get started →',
+    'toast-prefs-saved': 'Settings saved',
+    // Categorized feedback
+    'cat-grammar': 'Grammar', 'cat-vocabulary': 'Vocabulary', 'cat-expression': 'Expression', 'cat-other': 'Other',
+    // Shadowing gate
+    'btn-shadow-skip': 'Skip to pronunciation check',
+    // Pronunciation tips
+    'loading-pron-tips': 'Generating pronunciation tips…', 'pron-tips-label': '💡 Pronunciation tips',
+    // Vocab lookup
+    'loading-vocab-lookup': 'Looking up with AI…', 'error-vocab-lookup': 'Lookup error: ',
   }
 };
 
@@ -208,8 +244,63 @@ async function enterApp(session) {
   document.getElementById('app').style.display = 'block';
   setDateLabel();
   addWordRow();
+  await loadProfile();
   await Promise.all([loadEntries(), renderVocab()]);
   startQuiz();
+  if (!currentProfile.onboarding_completed) openOnboarding();
+}
+
+// ── Profile / Preferences ────────────────────────────────────────────────
+function defaultProfile() {
+  return { user_id: currentUserId, onboarding_completed: false, skill_focus: [], shadowing_level: 'normal', auto_vocab_lookup: false };
+}
+
+async function loadProfile() {
+  const { data } = await sb.from('profiles').select('*').eq('user_id', currentUserId).maybeSingle();
+  currentProfile = data || defaultProfile();
+}
+
+function collectPreferenceForm(prefix) {
+  const skill_focus = Array.from(document.querySelectorAll(`.${prefix}-skill:checked`)).map(el => el.value);
+  const shadowingEl = document.querySelector(`input[name="${prefix}-shadowing"]:checked`);
+  return {
+    user_id: currentUserId,
+    onboarding_completed: true,
+    skill_focus,
+    shadowing_level: shadowingEl ? shadowingEl.value : 'normal',
+    auto_vocab_lookup: !!document.getElementById(`${prefix}-auto-lookup`).checked,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function openOnboarding() {
+  document.getElementById('onboarding-modal').style.display = 'flex';
+}
+
+async function completeOnboarding() {
+  const payload = collectPreferenceForm('onboarding');
+  const { error } = await sb.from('profiles').upsert(payload, { onConflict: 'user_id' });
+  if (error) { alert(t('error-save') + error.message); return; }
+  currentProfile = payload;
+  closeModal('onboarding-modal');
+}
+
+function populateSettingsPreferences(profile) {
+  document.querySelectorAll('.settings-skill').forEach(el => {
+    el.checked = (profile.skill_focus || []).includes(el.value);
+  });
+  document.querySelectorAll('input[name="settings-shadowing"]').forEach(el => {
+    el.checked = el.value === (profile.shadowing_level || 'normal');
+  });
+  document.getElementById('settings-auto-lookup').checked = !!profile.auto_vocab_lookup;
+}
+
+async function savePreferences() {
+  const payload = collectPreferenceForm('settings');
+  const { error } = await sb.from('profiles').upsert(payload, { onConflict: 'user_id' });
+  if (error) { alert(t('error-save') + error.message); return; }
+  currentProfile = payload;
+  showToast(t('toast-prefs-saved'));
 }
 
 function showLogin() {
@@ -239,6 +330,7 @@ async function loginUser() {
 }
 function openSettings() {
   document.getElementById('settings-email').textContent = currentUserEmail;
+  populateSettingsPreferences(currentProfile || defaultProfile());
   document.getElementById('settings-modal').style.display = 'flex';
 }
 async function logoutUser() {
@@ -280,6 +372,8 @@ function unlock(cardId) {
   const el = document.getElementById(cardId);
   el.classList.remove('locked');
   el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  el.classList.add('just-unlocked');
+  setTimeout(() => el.classList.remove('just-unlocked'), 500);
 }
 function lock(cardId) { document.getElementById(cardId).classList.add('locked'); }
 
@@ -302,9 +396,9 @@ function addWordRow(jp = '') {
   row.className = 'word-row';
   row.innerHTML = `
     <div class="word-row-main">
-      <input type="text" class="input word-jp" placeholder="${t('ph-word-jp')}" value="${escapeHtml(jp)}" />
+      <input type="text" class="input word-jp" placeholder="${t('ph-word-jp')}" value="${escapeHtml(jp)}" onblur="autoLookupOnBlur(this,'jp2en')" />
       <span class="arrow">→</span>
-      <input type="text" class="input word-en" placeholder="${t('ph-word-en')}" />
+      <input type="text" class="input word-en" placeholder="${t('ph-word-en')}" onblur="autoLookupOnBlur(this,'en2jp')" />
       <button class="icon-btn red" onclick="removeWordRow(this)">✕</button>
     </div>
     <textarea class="input word-note" placeholder="${t('ph-word-note')}"></textarea>
@@ -322,6 +416,52 @@ function addWordNote() {
 function removeWordRow(btn) {
   const rows = document.querySelectorAll('.word-row');
   if (rows.length > 1) btn.closest('.word-row').remove();
+}
+
+// ── AI単語自動検索（トグルON時、Step3の入力欄からフォーカスが外れたら発火） ──
+const VOCAB_LOOKUP_SCHEMA = {
+  type: 'object',
+  properties: { translation: { type: 'string' }, note: { type: 'string' } },
+  required: ['translation'],
+};
+
+function buildVocabLookupPrompt(word, direction, contextJp) {
+  return direction === 'jp2en'
+    ? `Translate this Japanese word/phrase into natural, commonly-used English suitable for a diary sentence: "${word}". Diary context (for disambiguation): "${contextJp || ''}". Return the best single English translation in "translation", and optionally a very short (max 15 words) usage note in "note" (leave "note" empty if not needed).`
+    : `Translate this English word/phrase into natural Japanese: "${word}". Return the best single Japanese translation in "translation", and optionally a very short usage note in "note".`;
+}
+
+const _lastLookupValue = new WeakMap();
+
+async function autoLookupOnBlur(input, direction) {
+  if (!currentProfile?.auto_vocab_lookup) return;
+  const row = input.closest('.word-row');
+  const jpInput = row.querySelector('.word-jp'), enInput = row.querySelector('.word-en');
+  const jp = jpInput.value.trim(), en = enInput.value.trim();
+  const word = direction === 'jp2en' ? jp : en;
+  const otherFilled = direction === 'jp2en' ? en : jp;
+  if (!word || otherFilled) return;
+  if (_lastLookupValue.get(input) === word) return;
+  _lastLookupValue.set(input, word);
+
+  const targetInput = direction === 'jp2en' ? enInput : jpInput;
+  const noteEl = row.querySelector('.word-note');
+  const original = targetInput.value;
+  targetInput.disabled = true;
+  targetInput.placeholder = t('loading-vocab-lookup');
+  try {
+    const contextJp = document.getElementById('diary-jp').value.trim();
+    const res = await callGemini(buildVocabLookupPrompt(word, direction, contextJp), VOCAB_LOOKUP_SCHEMA);
+    const data = JSON.parse(res);
+    if (!targetInput.value.trim()) targetInput.value = data.translation || '';
+    if (data.note && !noteEl.value.trim()) noteEl.value = data.note;
+  } catch (e) {
+    showToast(t('error-vocab-lookup') + e.message);
+    targetInput.value = original;
+  } finally {
+    targetInput.disabled = false;
+    targetInput.placeholder = direction === 'jp2en' ? t('ph-word-en') : t('ph-word-jp');
+  }
 }
 
 // ── STEP 3 → 4 ───────────────────────────────────────────────────────────
@@ -345,28 +485,84 @@ function goStep4() {
   unlock('step4-card');
 }
 
-// ── STEP 4 → 5 (Gemini) ──────────────────────────────────────────────────
-const CORRECTION_SCHEMA = {
+// ── STEP 4 → 5 (Gemini, 高速添削 + 詳細フィードバックの並列2コール) ──────────
+const FAST_CORRECTION_SCHEMA = {
+  type: 'object',
+  properties: { corrected: { type: 'string' } },
+  required: ['corrected'],
+};
+
+const DETAILED_FEEDBACK_SCHEMA = {
   type: 'object',
   properties: {
-    corrected:    { type: 'string' },
-    good_points:  { type: 'array', items: { type: 'string' } },
-    improvements: { type: 'array', items: { type: 'string' } },
-    corrections:  { type: 'array', items: {
-      type: 'object',
-      properties: {
-        before:      { type: 'string' },
-        after:       { type: 'string' },
-        type:        { type: 'string', enum: ['grammar', 'vocabulary', 'naturalness', 'spelling'] },
-        explanation: { type: 'string' },
-        jp:          { type: 'string' },
+    good_points: { type: 'array', items: { type: 'string' } },
+    categories: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          category: { type: 'string', enum: ['grammar', 'vocabulary', 'expression', 'other'] },
+          summary:  { type: 'string' },
+          corrections: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                before:      { type: 'string' },
+                after:       { type: 'string' },
+                explanation: { type: 'string' },
+                jp:          { type: 'string' },
+              },
+              required: ['before', 'after', 'explanation'],
+            },
+          },
+        },
+        required: ['category', 'corrections'],
       },
-      required: ['before', 'after', 'type', 'explanation'],
-    } },
+    },
     vocab_usage: { type: 'string' },
   },
-  required: ['corrected', 'good_points', 'improvements', 'corrections'],
+  required: ['good_points', 'categories'],
 };
+
+const SKILL_FOCUS_LABELS = {
+  grammar: 'grammar',
+  vocabulary: 'vocabulary and word choice',
+  naturalness: 'natural, native-like expression',
+};
+
+function buildFastCorrectionPrompt(jp, en1, en2) {
+  return `You are an experienced native English teacher.
+
+Original diary entry (learner's native language): "${jp}"
+Student's 1st English attempt: "${en1 || '(none)'}"
+Student's 2nd English attempt: "${en2}"
+
+Return ONLY the single most natural native-English rewrite of the 2nd attempt in the "corrected" field. Keep the same meaning and personal tone, keep the student's wording wherever it is already correct, and do not add information that is not in the diary. Do not include any explanation.`;
+}
+
+function buildDetailedFeedbackPrompt(jp, en1, words, en2, skillFocus) {
+  const chosen = (skillFocus || []).filter(f => f in SKILL_FOCUS_LABELS);
+  const focusInstruction = chosen.length
+    ? `The student specifically wants to improve: ${chosen.map(f => SKILL_FOCUS_LABELS[f]).join(', ')}. For these categories, look harder for issues and give deeper, more detailed explanations (aim for 2-4 items). For categories NOT listed, keep it brief (0-2 items, or omit the category entirely if nothing notable).`
+    : `The student has no specific focus area this time — give balanced feedback, aiming for roughly 1-3 items per relevant category.`;
+
+  return `You are an experienced native English teacher helping a language learner improve through diary writing.
+
+Original diary entry (learner's native language): "${jp}"
+Student's 1st English attempt: "${en1 || '(none)'}"
+Vocabulary the student looked up: ${words.length ? words.join(', ') : '(none)'}
+Student's 2nd English attempt (after looking up words): "${en2}"
+
+${focusInstruction}
+
+Fill in the JSON fields as follows:
+- "good_points": exactly 2 specific things the student did well.
+- "categories": group corrections into up to 4 categories — "grammar" (tense, articles, agreement, sentence structure), "vocabulary" (word choice, collocations), "expression" (naturalness, tone, phrasing, flow), and "other" (spelling, punctuation, register, or anything not covered above). Only include a category object if there's at least one correction or a summary comment. For each category, optionally add a one-sentence "summary", and a "corrections" array where each item has "before", "after", "explanation" (one short sentence), and — ONLY for "vocabulary" — "jp" with a short Japanese translation of "after".
+- "vocab_usage": if the student looked up vocabulary, one short comment on whether they used those words correctly; otherwise an empty string.
+
+Be encouraging and specific. Write "good_points", every "summary", every "explanation", and "vocab_usage" in ${t('feedback-lang')}.`;
+}
 
 function startAiProgress() {
   const track = document.getElementById('ai-progress-track');
@@ -394,7 +590,7 @@ async function goStep5() {
   const feedbackEl  = document.getElementById('ai-feedback-text');
   correctedEl.innerHTML = `<span class="loading-text">${t('loading-correcting')}</span>`;
   feedbackEl.innerHTML  = `<span class="loading-text">${t('loading-feedback')}</span>`;
-  renderCorrections([]);
+  renderCategorizedFeedback([]);
   const stopProgress = startAiProgress();
 
   const jp  = document.getElementById('diary-jp').value.trim();
@@ -407,47 +603,40 @@ async function goStep5() {
     if (wj && we) words.push(`${wj} → ${we}`);
   });
 
-  const feedbackLang = t('feedback-lang');
-  const prompt = `You are an experienced native English teacher helping a language learner improve through diary writing.
+  window._correctedText = en2;
+  window._lastFeedback  = null;
 
-Original diary entry (learner's native language): "${jp}"
+  const fastPromise = callGemini(buildFastCorrectionPrompt(jp, en1, en2), FAST_CORRECTION_SCHEMA)
+    .then(res => {
+      const data = JSON.parse(res);
+      if (!data.corrected) throw new Error('empty response');
+      correctedEl.textContent = data.corrected;
+      window._correctedText = data.corrected;
+    })
+    .catch(e => {
+      correctedEl.textContent = en2 + '\n\n(' + t('error-ai') + e.message + ')';
+      window._correctedText = en2;
+    });
 
-Student's 1st English attempt: "${en1 || '(none)'}"
-Vocabulary the student looked up: ${words.length ? words.join(', ') : '(none)'}
-Student's 2nd English attempt (after looking up words): "${en2}"
-
-Fill in the JSON fields as follows:
-- "corrected": Rewrite the 2nd attempt as the most natural native English version. Keep the same meaning and personal tone, and keep the student's wording wherever it is already correct. Do not add information that is not in the diary.
-- "good_points": exactly 2 specific things the student did well.
-- "improvements": 1-2 specific improvements from the 1st to the 2nd attempt (if there was no 1st attempt, suggest what to focus on next).
-- "corrections": the 3-6 most important fixes you made. For each: "before" is the student's phrase, "after" is your fix, "type" is one of grammar / vocabulary / naturalness / spelling, "explanation" is one short sentence on why, and if "type" is "vocabulary" also fill "jp" with a short Japanese translation of the corrected word/phrase in "after" (leave "jp" empty for other types).
-- "vocab_usage": if the student looked up vocabulary, one short comment on whether they used those words correctly; otherwise an empty string.
-
-Be encouraging and specific. Write "good_points", "improvements", every "explanation", and "vocab_usage" in ${feedbackLang}.`;
-
-  try {
-    const res  = await callGemini(prompt, CORRECTION_SCHEMA);
+  const detailedPromise = callGemini(
+    buildDetailedFeedbackPrompt(jp, en1, words, en2, currentProfile?.skill_focus || []),
+    DETAILED_FEEDBACK_SCHEMA
+  ).then(res => {
     const data = JSON.parse(res);
-    if (!data.corrected) throw new Error('empty response');
-    correctedEl.textContent = data.corrected;
     renderFeedback(data);
-    renderCorrections(data.corrections);
-    window._correctedText = data.corrected;
+    renderCategorizedFeedback(data.categories);
     window._lastFeedback = {
-      good_points:  data.good_points  || [],
-      improvements: data.improvements || [],
-      corrections:  data.corrections  || [],
-      vocab_usage:  data.vocab_usage  || '',
+      good_points: data.good_points || [],
+      categories:  data.categories  || [],
+      vocab_usage: data.vocab_usage || '',
     };
-  } catch (e) {
-    correctedEl.textContent = en2 + '\n\n(' + t('error-ai') + e.message + ')';
-    feedbackEl.textContent  = '';
-    renderCorrections([]);
-    window._correctedText  = en2;
-    window._lastFeedback   = null;
-  } finally {
-    stopProgress();
-  }
+  }).catch(e => {
+    feedbackEl.textContent = '(' + t('error-ai') + e.message + ')';
+    renderCategorizedFeedback([]);
+  });
+
+  await Promise.allSettled([fastPromise, detailedPromise]);
+  stopProgress();
 }
 
 function renderFeedback(data, feedbackElId = 'ai-feedback-text') {
@@ -462,6 +651,7 @@ function renderFeedback(data, feedbackElId = 'ai-feedback-text') {
   el.innerHTML = html;
 }
 
+// 旧形式（type別フラットリスト）のレンダラー。旧エントリの表示用に維持。
 function renderCorrections(list, boxId = 'ai-corrections-box', listId = 'ai-corrections-list') {
   const box = document.getElementById(boxId);
   const el  = document.getElementById(listId);
@@ -479,8 +669,35 @@ function renderCorrections(list, boxId = 'ai-corrections-box', listId = 'ai-corr
     </div>`).join('');
 }
 
+// 新形式（文法/語彙/表現/その他カテゴリ別）のレンダラー
+const CATEGORY_ORDER = ['grammar', 'vocabulary', 'expression', 'other'];
+
+function renderCategorizedFeedback(categories, boxId = 'ai-corrections-box', listId = 'ai-corrections-list') {
+  const box = document.getElementById(boxId);
+  const el  = document.getElementById(listId);
+  if (!categories || !categories.length) { box.style.display = 'none'; el.innerHTML = ''; return; }
+  box.style.display = 'block';
+  const ordered = CATEGORY_ORDER.map(k => categories.find(c => c.category === k)).filter(Boolean);
+  el.innerHTML = ordered.map(cat => `
+    <div class="fb-category fb-category-${escapeHtml(cat.category)}">
+      <div class="fb-category-head">
+        <span class="fb-category-tag">${escapeHtml(t('cat-' + cat.category))}</span>
+        ${cat.summary ? `<span class="fb-category-summary">${escapeHtml(cat.summary)}</span>` : ''}
+      </div>
+      ${(cat.corrections || []).map(c => `
+        <div class="correction-item">
+          <div class="correction-diff">
+            <span class="corr-before">${escapeHtml(c.before)}</span>
+            <span class="corr-arrow">→</span>
+            <span class="corr-after">${escapeHtml(c.after)}</span>
+          </div>
+          <div class="correction-exp">${escapeHtml(c.explanation)}</div>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
 // ── TTS (ブラウザ内蔵 Web Speech API) ────────────────────────────────────
-function speakText(text) {
+function speakText(text, onRepEnd) {
   const btn = document.getElementById('tts-btn');
   speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
@@ -490,6 +707,7 @@ function speakText(text) {
   if (voices.length) utter.voice = voices[0];
   utter.onend = () => {
     if (btn) { btn.textContent = t('btn-tts-replay'); btn.disabled = false; }
+    if (onRepEnd) onRepEnd();
   };
   if (btn) { btn.textContent = t('btn-tts-playing'); btn.disabled = false; }
   speechSynthesis.speak(utter);
@@ -501,9 +719,46 @@ function speakCorrected() {
   speakText(text);
 }
 
+function playShadowingRep(text) {
+  const btn = document.getElementById('hear-target-btn');
+  if (btn) btn.disabled = true;
+  speakText(text, () => {
+    registerShadowingRep();
+    if (btn) btn.disabled = false;
+  });
+}
+
 function speakTarget() {
   const text = document.getElementById('target-sentence').textContent;
-  if (text) speakText(text);
+  if (text) playShadowingRep(text);
+}
+
+// ── Shadowing gate (Step 6) ──────────────────────────────────────────────
+let shadowingReps = 0;
+let shadowingTarget = SHADOWING_TARGETS.normal;
+
+function resetShadowingGate() {
+  shadowingReps = 0;
+  shadowingTarget = SHADOWING_TARGETS[currentProfile?.shadowing_level || 'normal'];
+  updateShadowingUI();
+  document.getElementById('step6-speech-area').classList.add('gated');
+}
+function registerShadowingRep() {
+  shadowingReps++;
+  updateShadowingUI();
+}
+function updateShadowingUI() {
+  const pct = Math.min(100, Math.round(shadowingReps / shadowingTarget * 100));
+  document.getElementById('shadow-progress-bar').style.width = pct + '%';
+  document.getElementById('shadow-progress-label').textContent =
+    `${Math.min(shadowingReps, shadowingTarget)} / ${shadowingTarget}`;
+  if (shadowingReps >= shadowingTarget) {
+    document.getElementById('step6-speech-area').classList.remove('gated');
+  }
+}
+function skipShadowingGate() {
+  shadowingReps = shadowingTarget;
+  updateShadowingUI();
 }
 
 let _modalCorrectedText = '';
@@ -514,12 +769,13 @@ function goStep6() {
   const corrected = window._correctedText || document.getElementById('ai-corrected-text').textContent;
   document.getElementById('target-sentence').textContent = corrected;
   unlock('step6-card');
-  setTimeout(() => speakText(corrected), 400);
+  resetShadowingGate();
+  setTimeout(() => playShadowingRep(corrected), 400);
 }
 
 // ── Web Speech API (Step 6 / 過去日記詳細ページ共通) ───────────────────────
-const STEP6_CTX  = { target: 'target-sentence', micBtn: 'mic-btn', result: 'speech-result', text: 'speech-text', score: 'speech-score', feedback: 'word-feedback' };
-const DETAIL_CTX = { target: 'detail-corrected', micBtn: 'detail-mic-btn', result: 'detail-speech-result', text: 'detail-speech-text', score: 'detail-speech-score', feedback: 'detail-word-feedback' };
+const STEP6_CTX  = { target: 'target-sentence', micBtn: 'mic-btn', result: 'speech-result', text: 'speech-text', score: 'speech-score', feedback: 'word-feedback', tips: 'pron-tips' };
+const DETAIL_CTX = { target: 'detail-corrected', micBtn: 'detail-mic-btn', result: 'detail-speech-result', text: 'detail-speech-text', score: 'detail-speech-score', feedback: 'detail-word-feedback', tips: 'detail-pron-tips' };
 
 let recognition = null;
 let isRecording = false;
@@ -647,6 +903,9 @@ function scorePronunciation(spokenAlternatives, ctx = STEP6_CTX) {
       `<span class="wf-word ${tokenMatched[ti] ? 'wf-ok' : 'wf-miss'}">${escapeHtml(tok)}</span>`
     ).join(' ') + (anyMiss ? `<div class="wf-hint">${escapeHtml(t('word-feedback-hint'))}</div>` : '');
     wfEl.style.display = 'block';
+
+    const missedWords = tokens.filter((_, ti) => !tokenMatched[ti]).slice(0, 8);
+    maybeFetchPronunciationTips(missedWords, ctx);
   }
 
   const scoreEl = document.getElementById(ctx.score);
@@ -661,6 +920,62 @@ function scorePronunciation(spokenAlternatives, ctx = STEP6_CTX) {
     scoreEl.className = 'speech-score score-try';
     scoreEl.textContent = fmt('score-try');
   }
+}
+
+// ── 発音アドバイス（不一致単語のみ、非同期・fire-and-forget） ─────────────
+const PRONUNCIATION_TIPS_SCHEMA = {
+  type: 'object',
+  properties: {
+    tips: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { word: { type: 'string' }, tip: { type: 'string' } },
+        required: ['word', 'tip'],
+      },
+    },
+  },
+  required: ['tips'],
+};
+
+function buildPronunciationTipsPrompt(missedWords, detailed) {
+  const depthInstruction = detailed
+    ? 'Give a slightly more detailed tip (mouth/tongue position or a rhyming/sound-alike cue) in 1-2 short sentences.'
+    : 'Give a very short, practical tip (max 1 sentence) — e.g. which syllable to stress, a commonly confused sound, or a similar-sounding word.';
+  return `A Japanese learner of English tried to say the following English words but a speech recognizer failed to detect them correctly (usually mispronunciation, but could be recognizer error — give your best-effort pronunciation guidance assuming mispronunciation):
+
+Words: ${missedWords.join(', ')}
+
+For each word, ${depthInstruction} Write tips in ${t('feedback-lang')}. Return one entry per word in "tips", preserving the given spelling in "word".`;
+}
+
+const _lastTipsKey = {};
+async function maybeFetchPronunciationTips(missedTokens, ctx) {
+  const tipsEl = document.getElementById(ctx.tips);
+  if (!tipsEl) return;
+  const key = missedTokens.join('|').toLowerCase();
+  if (!key) { tipsEl.style.display = 'none'; tipsEl.innerHTML = ''; _lastTipsKey[ctx.tips] = ''; return; }
+  if (_lastTipsKey[ctx.tips] === key) return;
+  _lastTipsKey[ctx.tips] = key;
+  tipsEl.style.display = 'block';
+  tipsEl.innerHTML = `<span class="loading-text">${t('loading-pron-tips')}</span>`;
+  try {
+    const detailed = (currentProfile?.skill_focus || []).includes('pronunciation');
+    const res = await callGemini(buildPronunciationTipsPrompt(missedTokens, detailed), PRONUNCIATION_TIPS_SCHEMA);
+    renderPronunciationTips(JSON.parse(res).tips || [], ctx);
+  } catch (e) {
+    tipsEl.style.display = 'none';
+    tipsEl.innerHTML = '';
+  }
+}
+
+function renderPronunciationTips(tips, ctx) {
+  const el = document.getElementById(ctx.tips);
+  if (!tips.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="ai-label">${t('pron-tips-label')}</div>` + tips.map(tp =>
+    `<div class="pron-tip-item"><span class="pron-tip-word">${escapeHtml(tp.word)}</span><span class="pron-tip-text">${escapeHtml(tp.tip)}</span></div>`
+  ).join('');
+  el.style.display = 'block';
 }
 
 // ── Save Diary ────────────────────────────────────────────────────────────
@@ -679,10 +994,11 @@ async function saveDiary() {
     if (wordJp && wordEn) newWords.push({ jp: wordJp, en: wordEn, note: wordNote });
   });
 
-  (window._lastFeedback?.corrections || []).forEach(c => {
-    if (c.type === 'vocabulary' && c.jp && c.after) {
-      newWords.push({ jp: c.jp, en: c.after, note: c.explanation || '' });
-    }
+  (window._lastFeedback?.categories || []).forEach(cat => {
+    if (cat.category !== 'vocabulary') return;
+    (cat.corrections || []).forEach(c => {
+      if (c.jp && c.after) newWords.push({ jp: c.jp, en: c.after, note: c.explanation || '' });
+    });
   });
 
   const { error } = await sb.from('entries').insert({
@@ -804,8 +1120,15 @@ async function openEntryDetail(id) {
   document.getElementById('detail-speech-result').style.display = 'none';
   document.getElementById('detail-speech-text').textContent = '';
   document.getElementById('detail-word-feedback').innerHTML = '';
+  document.getElementById('detail-pron-tips').style.display = 'none';
+  document.getElementById('detail-pron-tips').innerHTML = '';
+  _lastTipsKey['detail-pron-tips'] = '';
   renderFeedback(data.feedback || {}, 'detail-feedback-text');
-  renderCorrections(data.feedback?.corrections || [], 'detail-corrections-box', 'detail-corrections-list');
+  if (data.feedback?.categories) {
+    renderCategorizedFeedback(data.feedback.categories, 'detail-corrections-box', 'detail-corrections-list');
+  } else {
+    renderCorrections(data.feedback?.corrections || [], 'detail-corrections-box', 'detail-corrections-list');
+  }
   setEntryEditMode(false);
 
   document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
