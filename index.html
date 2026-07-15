@@ -98,7 +98,7 @@
             <textarea class="input word-note" data-i18n-placeholder="ph-word-note" placeholder="メモ・解説（任意）"></textarea>
           </div>
         </div>
-        <button class="btn btn-sm" onclick="addWordRow()" style="margin-top:8px" data-i18n="btn-add-word">＋ 追加</button>
+        <button class="btn btn-sm" onclick="findOrCreateEmptyWordRow()" style="margin-top:8px" data-i18n="btn-add-word">＋ 追加</button>
         <div class="step-actions">
           <button class="btn btn-primary" onclick="goStep4()" data-i18n="btn-step4-next">調べたら次へ →</button>
         </div>
@@ -161,6 +161,11 @@
           <div class="progress-track"><div class="progress-fill" id="shadow-progress-bar"></div></div>
           <div class="shadow-progress-label" id="shadow-progress-label">0 / 20</div>
           <div class="center"><button class="btn btn-sm" onclick="skipShadowingGate()" data-i18n="btn-shadow-skip">スキップして発音チェックへ</button></div>
+        </div>
+        <div id="speech-first-attempt" class="first-attempt-box" style="display:none">
+          <div class="first-attempt-label" data-i18n="first-attempt-label">📌 初回の結果</div>
+          <div class="first-attempt-score speech-score"></div>
+          <div class="first-attempt-words word-feedback"></div>
         </div>
         <div class="speech-area gated" id="step6-speech-area">
           <button class="mic-btn" id="mic-btn" onclick="toggleMic()">
@@ -246,6 +251,11 @@
         </div>
         <div class="modal-block" style="margin-top:10px">
           <div class="modal-label" data-i18n="modal-pronounce-label">🎤 発音チェック</div>
+          <div id="detail-first-attempt" class="first-attempt-box" style="display:none">
+            <div class="first-attempt-label" data-i18n="first-attempt-label">📌 初回の結果</div>
+            <div class="first-attempt-score speech-score"></div>
+            <div class="first-attempt-words word-feedback"></div>
+          </div>
           <div class="speech-area">
             <button class="mic-btn" id="detail-mic-btn" onclick="toggleMic(DETAIL_CTX)">
               <span class="mic-icon">🎤</span>
@@ -282,32 +292,85 @@
 
     <!-- ── QUIZ TAB ── -->
     <section id="tab-quiz" class="tab">
-      <div id="quiz-empty" class="empty-state" style="display:none">
-        <div class="empty-icon">🧠</div>
-        <span data-i18n="quiz-empty">単語帳に単語を追加してからテストしよう</span>
+      <div class="quiz-mode-toggle">
+        <button class="quiz-mode-btn" data-mode="flashcard" onclick="switchQuizMode('flashcard')" data-i18n="quiz-mode-flashcard">単語テスト</button>
+        <button class="quiz-mode-btn" data-mode="situational" onclick="switchQuizMode('situational')" data-i18n="quiz-mode-situational">状況文で練習</button>
       </div>
-      <div id="quiz-area" style="display:none">
-        <div class="quiz-stats-row">
-          <div class="stat-chip"><span data-i18n="stat-ok">正解</span> <strong id="q-ok">0</strong></div>
-          <div class="stat-chip"><span data-i18n="stat-ng">不正解</span> <strong id="q-ng">0</strong></div>
-          <div class="stat-chip"><span data-i18n="stat-left">残り</span> <strong id="q-left">0</strong></div>
+
+      <div id="quiz-flashcard-area">
+        <div id="quiz-empty" class="empty-state" style="display:none">
+          <div class="empty-icon">🧠</div>
+          <span data-i18n="quiz-empty">単語帳に単語を追加してからテストしよう</span>
         </div>
-        <div class="progress-track"><div class="progress-fill" id="q-bar"></div></div>
-        <div class="quiz-card">
-          <div class="quiz-dir" id="quiz-dir"></div>
-          <div class="quiz-word" id="quiz-word">—</div>
-          <button class="hint-btn" id="hint-btn" onclick="toggleHint()" data-i18n="btn-hint">ヒントを見る</button>
-          <div id="hint-text" class="hint-text-quiz" style="display:none"></div>
-          <div id="result-banner" class="result-banner" style="display:none"></div>
-          <input type="text" id="quiz-input" class="quiz-input" data-i18n-placeholder="ph-quiz" placeholder="答えを入力…"
-            onkeydown="if(event.key==='Enter')checkAnswer()" />
-          <div class="quiz-actions">
-            <button class="btn btn-primary" onclick="checkAnswer()" data-i18n="btn-check">確認</button>
-            <button class="btn" onclick="skipQ()" data-i18n="btn-skip">スキップ</button>
+        <div id="quiz-area" style="display:none">
+          <div class="quiz-stats-row">
+            <div class="stat-chip"><span data-i18n="stat-ok">正解</span> <strong id="q-ok">0</strong></div>
+            <div class="stat-chip"><span data-i18n="stat-ng">不正解</span> <strong id="q-ng">0</strong></div>
+            <div class="stat-chip"><span data-i18n="stat-left">残り</span> <strong id="q-left">0</strong></div>
+            <div class="stat-chip"><span data-i18n="stat-streak">連続</span> <strong id="q-streak">0</strong></div>
+          </div>
+          <div class="progress-track"><div class="progress-fill" id="q-bar"></div></div>
+          <div class="quiz-card">
+            <div class="quiz-dir" id="quiz-dir"></div>
+            <div class="quiz-word" id="quiz-word">—</div>
+            <button class="btn btn-sm" id="quiz-listen-btn" style="display:none;margin-bottom:10px" onclick="playQuizAudio()" data-i18n="btn-quiz-listen">🔊 もう一度聞く</button>
+            <button class="hint-btn" id="hint-btn" onclick="toggleHint()" data-i18n="btn-hint">ヒントを見る</button>
+            <div id="hint-text" class="hint-text-quiz" style="display:none"></div>
+            <div id="result-banner" class="result-banner" style="display:none"></div>
+            <div id="quiz-choices" class="quiz-choices" style="display:none"></div>
+            <input type="text" id="quiz-input" class="quiz-input" data-i18n-placeholder="ph-quiz" placeholder="答えを入力…"
+              onkeydown="if(event.key==='Enter')checkAnswer()" />
+            <div class="quiz-actions">
+              <button class="btn btn-primary" onclick="checkAnswer()" data-i18n="btn-check">確認</button>
+              <button class="btn" onclick="skipQ()" data-i18n="btn-skip">スキップ</button>
+            </div>
+          </div>
+          <div class="center" style="margin-top:16px">
+            <button class="btn" onclick="startQuiz()" data-i18n="btn-restart">🔄 最初から</button>
           </div>
         </div>
-        <div class="center" style="margin-top:16px">
-          <button class="btn" onclick="startQuiz()" data-i18n="btn-restart">🔄 最初から</button>
+      </div>
+
+      <div id="quiz-situational-area" style="display:none">
+        <div id="situational-empty" class="empty-state" style="display:none">
+          <div class="empty-icon">💬</div>
+          <span data-i18n="quiz-empty">単語帳に単語を追加してからテストしよう</span>
+        </div>
+        <div id="situational-area" style="display:none">
+          <div class="quiz-card">
+            <div class="situational-scenario" id="situational-scenario"></div>
+            <div class="situational-target-label" data-i18n="situational-target-label">使う単語</div>
+            <div class="word-hints" id="situational-target-words"></div>
+
+            <div class="speech-area" id="situational-speech-area" style="margin-top:16px">
+              <button class="mic-btn" id="situational-mic-btn" onclick="toggleMic(SITUATIONAL_CTX)">
+                <span class="mic-icon">🎤</span>
+                <span class="mic-label" data-i18n="mic-label">タップして話す</span>
+              </button>
+              <div id="situational-speech-result" class="speech-result" style="display:none">
+                <div class="speech-label" data-i18n="speech-recognized">認識された文</div>
+                <div id="situational-speech-text" class="speech-text"></div>
+              </div>
+            </div>
+
+            <div class="situational-or" data-i18n="situational-or">または英語でタイピング</div>
+            <textarea id="situational-answer" class="input" data-i18n-placeholder="ph-situational-answer" placeholder="Type your English answer…"></textarea>
+            <div class="quiz-actions" style="margin-top:10px">
+              <button class="btn btn-primary" onclick="submitSituationalTyped()" data-i18n="btn-situational-grade">AI採点</button>
+            </div>
+
+            <div id="situational-result" class="ai-box" style="display:none;margin-top:14px;text-align:left">
+              <div id="situational-result-banner" class="result-banner"></div>
+              <div class="ai-label" data-i18n="ai-corrected-label">✨ 添削後の英文</div>
+              <div id="situational-corrected" class="ai-text"></div>
+              <div class="ai-label" style="margin-top:8px" data-i18n="ai-feedback-label">📝 フィードバック</div>
+              <div id="situational-feedback" class="ai-text"></div>
+            </div>
+
+            <div class="center" style="margin-top:16px">
+              <button class="btn btn-primary" onclick="startSituationalPractice()" data-i18n="btn-situational-next">次の問題へ →</button>
+            </div>
+          </div>
         </div>
       </div>
     </section>

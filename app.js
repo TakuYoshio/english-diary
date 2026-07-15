@@ -42,7 +42,7 @@ const TRANSLATIONS = {
     'ph-v-jp': '日本語', 'ph-v-note': 'メモ（任意）', 'btn-vocab-add': '追加',
     'vocab-empty-text': '単語帳が空です<br>日記を書いて追加しよう',
     'quiz-empty': '単語帳に単語を追加してからテストしよう',
-    'stat-ok': '正解', 'stat-ng': '不正解', 'stat-left': '残り',
+    'stat-ok': '正解', 'stat-ng': '不正解', 'stat-left': '残り', 'stat-streak': '連続',
     'btn-hint': 'ヒントを見る', 'btn-hint-hide': 'ヒントを隠す',
     'ph-quiz': '答えを入力…', 'btn-check': '確認', 'btn-skip': 'スキップ',
     'btn-restart': '🔄 最初から', 'settings-title': '設定',
@@ -66,7 +66,8 @@ const TRANSLATIONS = {
     'ph-vocab-search': '単語を検索…', 'vocab-no-results': '検索結果がありません',
     'quiz-complete': '🎉 完了！', 'quiz-rate': '正解率 ',
     'quiz-correct': '✓ 正解！「', 'quiz-wrong': '✗ 不正解。正解は「',
-    'quiz-dir-en2jp': '英語 → 日本語', 'quiz-dir-jp2en': '日本語 → 英語',
+    'quiz-dir-en2jp': '英語 → 日本語', 'quiz-dir-jp2en': '日本語 → 英語', 'quiz-dir-listen': '🎧 聞いて和訳',
+    'btn-quiz-listen': '🔊 もう一度聞く', 'quiz-streak-toast': '連続正解！',
     'mic-listening': '認識中…', 'btn-tts-playing': '🔊 再生中…', 'btn-tts-replay': '🔊 もう一度再生',
     'score-great': '🎉 すごい！ {score}% 一致 — ネイティブに近い発音です',
     'score-ok': '👍 {score}% 一致 — もう一度練習してみよう',
@@ -96,6 +97,17 @@ const TRANSLATIONS = {
     'loading-vocab-lookup': 'AIで調べています…', 'error-vocab-lookup': '単語検索エラー: ',
     // Timeout
     'error-ai-timeout': '応答に時間がかかりすぎたため中断しました。もう一度お試しください',
+    // First pronunciation attempt
+    'first-attempt-label': '📌 初回の結果',
+    'first-attempt-score-label': '初回スコア: {score}%',
+    'first-attempt-all-correct': 'すべて認識されました！',
+    // Situational sentence practice
+    'quiz-mode-flashcard': '単語テスト', 'quiz-mode-situational': '状況文で練習',
+    'situational-target-label': '使う単語', 'situational-or': 'または英語でタイピング',
+    'ph-situational-answer': 'ここに英語で回答…', 'btn-situational-grade': 'AI採点',
+    'btn-situational-next': '次の問題へ →',
+    'loading-situational': 'AIがシチュエーションを作成中…', 'loading-situational-grading': 'AIが採点中…',
+    'situational-correct': '✓ よくできました！', 'situational-incorrect': '✗ もう少し！下の添削を見てみよう',
   },
   en: {
     'setup-title': 'English Diary', 'setup-sub': 'Please log in',
@@ -127,7 +139,7 @@ const TRANSLATIONS = {
     'ph-v-jp': 'Translation', 'ph-v-note': 'Note (optional)', 'btn-vocab-add': 'Add',
     'vocab-empty-text': 'Your vocabulary is empty<br>Write a diary to add words',
     'quiz-empty': 'Add words to your vocabulary first',
-    'stat-ok': 'Correct', 'stat-ng': 'Wrong', 'stat-left': 'Left',
+    'stat-ok': 'Correct', 'stat-ng': 'Wrong', 'stat-left': 'Left', 'stat-streak': 'Streak',
     'btn-hint': 'Show hint', 'btn-hint-hide': 'Hide hint',
     'ph-quiz': 'Type your answer…', 'btn-check': 'Check', 'btn-skip': 'Skip',
     'btn-restart': '🔄 Restart', 'settings-title': 'Settings',
@@ -151,7 +163,8 @@ const TRANSLATIONS = {
     'ph-vocab-search': 'Search vocabulary…', 'vocab-no-results': 'No matching words',
     'quiz-complete': '🎉 Done!', 'quiz-rate': 'Score: ',
     'quiz-correct': '✓ Correct! "', 'quiz-wrong': '✗ Wrong. Answer: "',
-    'quiz-dir-en2jp': 'English → Translation', 'quiz-dir-jp2en': 'Translation → English',
+    'quiz-dir-en2jp': 'English → Translation', 'quiz-dir-jp2en': 'Translation → English', 'quiz-dir-listen': '🎧 Listen & translate',
+    'btn-quiz-listen': '🔊 Play again', 'quiz-streak-toast': 'in a row!',
     'mic-listening': 'Listening…', 'btn-tts-playing': '🔊 Playing…', 'btn-tts-replay': '🔊 Play again',
     'score-great': '🎉 Excellent! {score}% match — Near-native pronunciation!',
     'score-ok': '👍 {score}% match — Keep practicing!',
@@ -181,6 +194,17 @@ const TRANSLATIONS = {
     'loading-vocab-lookup': 'Looking up with AI…', 'error-vocab-lookup': 'Lookup error: ',
     // Timeout
     'error-ai-timeout': 'Timed out — please try again',
+    // First pronunciation attempt
+    'first-attempt-label': '📌 First attempt',
+    'first-attempt-score-label': 'First attempt: {score}%',
+    'first-attempt-all-correct': 'All words recognized!',
+    // Situational sentence practice
+    'quiz-mode-flashcard': 'Word Quiz', 'quiz-mode-situational': 'Situational Practice',
+    'situational-target-label': 'Words to use', 'situational-or': 'or type your answer in English',
+    'ph-situational-answer': 'Type your English answer…', 'btn-situational-grade': 'AI Grade',
+    'btn-situational-next': 'Next question →',
+    'loading-situational': 'AI is creating a scenario…', 'loading-situational-grading': 'AI is grading…',
+    'situational-correct': '✓ Well done!', 'situational-incorrect': '✗ Almost — check the correction below',
   }
 };
 
@@ -247,10 +271,9 @@ async function enterApp(session) {
   document.getElementById('setup-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   setDateLabel();
-  addWordRow();
   await loadProfile();
   await Promise.all([loadEntries(), renderVocab()]);
-  startQuiz();
+  initQuizTab();
   if (!currentProfile.onboarding_completed) openOnboarding();
 }
 
@@ -351,7 +374,7 @@ function switchTab(name) {
   document.querySelector(`[data-tab="${name}"]`).classList.add('active');
   if (name === 'entries') loadEntries();
   if (name === 'vocab')   renderVocab();
-  if (name === 'quiz')    startQuiz();
+  if (name === 'quiz')    initQuizTab();
 }
 
 // ── Modal ─────────────────────────────────────────────────────────────────
@@ -409,11 +432,28 @@ function addWordRow(jp = '') {
   `;
   document.getElementById('unknown-words-list').appendChild(row);
 }
+function findEmptyWordRow() {
+  return Array.from(document.querySelectorAll('.word-row')).find(row =>
+    !row.querySelector('.word-jp').value.trim() &&
+    !row.querySelector('.word-en').value.trim() &&
+    !row.querySelector('.word-note').value.trim()
+  ) || null;
+}
+function findOrCreateEmptyWordRow(jp = '') {
+  let row = findEmptyWordRow();
+  if (row) {
+    if (jp) row.querySelector('.word-jp').value = jp;
+  } else {
+    addWordRow(jp);
+    row = document.getElementById('unknown-words-list').lastElementChild;
+  }
+  return row;
+}
 function addWordNote() {
   const input = document.getElementById('s2-word-note');
   const jp = input.value.trim();
   if (!jp) return;
-  addWordRow(jp);
+  findOrCreateEmptyWordRow(jp);
   input.value = '';
   showToast(t('toast-word-note-added'));
 }
@@ -777,6 +817,8 @@ function goStep6() {
   document.getElementById('target-sentence').textContent = corrected;
   unlock('step6-card');
   resetShadowingGate();
+  firstPronunciationAttempt = null;
+  document.getElementById('speech-first-attempt').style.display = 'none';
   setTimeout(() => playShadowingRep(corrected), 400);
 }
 
@@ -815,9 +857,13 @@ function startMic(ctx = STEP6_CTX) {
     document.getElementById(ctx.result).style.display = 'block';
     const last = e.results[e.results.length - 1];
     if (last.isFinal) {
-      const prefix = Array.from(e.results).slice(0, -1).map(r => r[0].transcript).join(' ');
-      const alternatives = Array.from(last).map(a => (prefix + ' ' + a.transcript).trim());
-      scorePronunciation(alternatives, ctx);
+      if (ctx.onFinal) {
+        ctx.onFinal(transcript);
+      } else {
+        const prefix = Array.from(e.results).slice(0, -1).map(r => r[0].transcript).join(' ');
+        const alternatives = Array.from(last).map(a => (prefix + ' ' + a.transcript).trim());
+        scorePronunciation(alternatives, ctx);
+      }
     }
   };
 
@@ -899,19 +945,20 @@ function scorePronunciation(spokenAlternatives, ctx = STEP6_CTX) {
   const score = best.score;
 
   // 単語ごとの色分け表示（一致=緑、不一致=赤）
+  const tokenMatched = tokens.map((_, ti) => {
+    const idxs = tokenOf.reduce((acc, tv, i) => (tv === ti ? (acc.push(i), acc) : acc), []);
+    return idxs.length ? idxs.every(i => best.flags[i]) : true;
+  });
+  const missedWords = tokens.filter((_, ti) => !tokenMatched[ti]).slice(0, 8);
+
   const wfEl = document.getElementById(ctx.feedback);
   if (wfEl) {
-    const tokenMatched = tokens.map((_, ti) => {
-      const idxs = tokenOf.reduce((acc, tv, i) => (tv === ti ? (acc.push(i), acc) : acc), []);
-      return idxs.length ? idxs.every(i => best.flags[i]) : true;
-    });
     const anyMiss = tokenMatched.some(m => !m);
     wfEl.innerHTML = tokens.map((tok, ti) =>
       `<span class="wf-word ${tokenMatched[ti] ? 'wf-ok' : 'wf-miss'}">${escapeHtml(tok)}</span>`
     ).join(' ') + (anyMiss ? `<div class="wf-hint">${escapeHtml(t('word-feedback-hint'))}</div>` : '');
     wfEl.style.display = 'block';
 
-    const missedWords = tokens.filter((_, ti) => !tokenMatched[ti]).slice(0, 8);
     maybeFetchPronunciationTips(missedWords, ctx);
   }
 
@@ -927,6 +974,44 @@ function scorePronunciation(spokenAlternatives, ctx = STEP6_CTX) {
     scoreEl.className = 'speech-score score-try';
     scoreEl.textContent = fmt('score-try');
   }
+
+  recordFirstAttemptIfNeeded(ctx, {
+    score, missedWords,
+    transcript: document.getElementById(ctx.text).textContent,
+    scoredAt: new Date().toISOString(),
+  });
+}
+
+// ── 初回発音チェック結果の保存（リトライでは上書きしない） ──────────────
+let firstPronunciationAttempt = null;
+
+function recordFirstAttemptIfNeeded(ctx, attempt) {
+  if (ctx === STEP6_CTX) {
+    if (!firstPronunciationAttempt) firstPronunciationAttempt = attempt;
+  } else if (ctx === DETAIL_CTX) {
+    if (!_modalEntryData?.pronunciation_first_attempt) {
+      _modalEntryData.pronunciation_first_attempt = attempt;
+      sb.from('entries').update({ pronunciation_first_attempt: attempt }).eq('id', _modalEntryId);
+    }
+  }
+  renderFirstAttemptBadge(ctx);
+}
+
+function renderFirstAttemptBadge(ctx, attemptOverride) {
+  const boxId = ctx === STEP6_CTX ? 'speech-first-attempt' : 'detail-first-attempt';
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  const data = attemptOverride !== undefined ? attemptOverride
+    : (ctx === STEP6_CTX ? firstPronunciationAttempt : _modalEntryData?.pronunciation_first_attempt);
+  if (!data) { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  const scoreEl = box.querySelector('.first-attempt-score');
+  scoreEl.className = 'first-attempt-score speech-score ' +
+    (data.score >= 80 ? 'score-great' : data.score >= 50 ? 'score-ok' : 'score-try');
+  scoreEl.textContent = t('first-attempt-score-label').replace('{score}', data.score);
+  box.querySelector('.first-attempt-words').innerHTML = data.missedWords.length
+    ? data.missedWords.map(w => `<span class="wf-word wf-miss">${escapeHtml(w)}</span>`).join(' ')
+    : `<span class="wf-word wf-ok">${escapeHtml(t('first-attempt-all-correct'))}</span>`;
 }
 
 // ── 発音アドバイス（不一致単語のみ、非同期・fire-and-forget） ─────────────
@@ -1009,7 +1094,8 @@ async function saveDiary() {
   });
 
   const { error } = await sb.from('entries').insert({
-    date: todayISO(), jp, en1, en2, corrected, feedback: window._lastFeedback || null, user_id: currentUserId,
+    date: todayISO(), jp, en1, en2, corrected, feedback: window._lastFeedback || null,
+    pronunciation_first_attempt: firstPronunciationAttempt, user_id: currentUserId,
   });
   if (error) { alert(t('error-save') + error.message); return; }
 
@@ -1044,6 +1130,8 @@ async function saveDiary() {
   renderCorrections([]);
   document.getElementById('word-feedback').innerHTML = '';
   document.getElementById('target-sentence').textContent   = '';
+  firstPronunciationAttempt = null;
+  document.getElementById('speech-first-attempt').style.display = 'none';
 
   await loadEntries();
   const wordsMsg = toAdd.length ? `${toAdd.length}${t('toast-words-added')}` : '';
@@ -1130,6 +1218,7 @@ async function openEntryDetail(id) {
   document.getElementById('detail-pron-tips').style.display = 'none';
   document.getElementById('detail-pron-tips').innerHTML = '';
   _lastTipsKey['detail-pron-tips'] = '';
+  renderFirstAttemptBadge(DETAIL_CTX, data.pronunciation_first_attempt || null);
   renderFeedback(data.feedback || {}, 'detail-feedback-text');
   if (data.feedback?.categories) {
     renderCategorizedFeedback(data.feedback.categories, 'detail-corrections-box', 'detail-corrections-list');
@@ -1272,54 +1361,138 @@ function onVocabSearchInput(value) {
   filterAndRenderVocab();
 }
 
+// ── SRS（間隔反復・エビングハウスの忘却曲線を参考にした固定ステージ方式） ──
+const SRS_INTERVALS_DAYS = [0, 1, 3, 7, 14, 30, 90];
+
+async function fetchDueVocab(limit = 20, preloaded = null) {
+  const vocab = preloaded || (await sb.from('vocab').select('*')).data || [];
+  const now = Date.now();
+  const due = vocab
+    .filter(v => new Date(v.next_review_at || 0).getTime() <= now)
+    .sort((a, b) => new Date(a.next_review_at || 0) - new Date(b.next_review_at || 0));
+  if (due.length >= limit) return due.slice(0, limit).sort(() => Math.random() - 0.5);
+  const dueIds = new Set(due.map(v => v.id));
+  const notDue = vocab.filter(v => !dueIds.has(v.id));
+  // まだ期限が来ていない単語は、理解度（srs_stage）が低いほど出やすいよう重み付けして補充
+  const weighted = notDue
+    .map(v => ({ v, w: Math.random() / (1 + (v.srs_stage || 0)) }))
+    .sort((a, b) => b.w - a.w)
+    .map(x => x.v);
+  return due.concat(weighted.slice(0, limit - due.length)).sort(() => Math.random() - 0.5);
+}
+
+function computeSrsUpdate(v, isOk) {
+  const stage = isOk
+    ? Math.min((v.srs_stage || 0) + 1, SRS_INTERVALS_DAYS.length - 1)
+    : Math.max((v.srs_stage || 0) - 2, 0);
+  return {
+    srs_stage: stage,
+    next_review_at: new Date(Date.now() + SRS_INTERVALS_DAYS[stage] * 86400000).toISOString(),
+    last_reviewed_at: new Date().toISOString(),
+  };
+}
+
 // ── Quiz ──────────────────────────────────────────────────────────────────
-let queue=[], currentCard=null, qStats={ok:0,ng:0};
+let queue=[], currentCard=null, qStats={ok:0,ng:0,streak:0};
 async function startQuiz() {
   const { data: vocab } = await sb.from('vocab').select('*');
+  allVocab = vocab || [];
   const empty=document.getElementById('quiz-empty'), area=document.getElementById('quiz-area');
-  if (!vocab||!vocab.length) { empty.style.display='block'; area.style.display='none'; return; }
+  if (!allVocab.length) { empty.style.display='block'; area.style.display='none'; return; }
   empty.style.display='none'; area.style.display='block';
-  queue = [];
-  vocab.forEach(v => {
-    const w = Math.max(1, 1+(v.wrong||0)*2);
-    queue.push({ v, dir: Math.random()<0.5?'en2jp':'jp2en', weight: w });
+  const due = await fetchDueVocab(30, allVocab);
+  queue = due.map(v => {
+    const type = pickQuestionType();
+    const dir = type === 'listen' ? 'en2jp' : (Math.random()<0.5?'en2jp':'jp2en');
+    return { v, dir, type };
   });
-  queue.sort((a,b)=>b.weight-a.weight);
-  const mid=Math.ceil(queue.length/2);
-  const light=queue.splice(mid).sort(()=>Math.random()-0.5);
-  light.forEach((item,i)=>queue.splice(mid+i,0,item));
-  qStats={ok:0,ng:0};
+  qStats={ok:0,ng:0,streak:0};
   document.getElementById('quiz-input').style.display='block';
   document.querySelector('.quiz-actions').style.display='flex';
   nextQ();
+}
+// 出題形式：recall=タイピング想起、mc=4択、listen=リスニング（英語音声→和訳入力）
+function pickQuestionType() {
+  const types = ['recall', 'listen'];
+  if (allVocab.length >= 4) types.push('mc', 'mc');
+  return types[Math.floor(Math.random()*types.length)];
+}
+function pickDistractors(v, dir, count=3) {
+  const field = dir === 'en2jp' ? 'jp' : 'en';
+  const correctKey = String(v[field]||'').trim().toLowerCase();
+  const seen = new Set([correctKey]);
+  const picked = [];
+  allVocab
+    .filter(o => o.id !== v.id && o[field] && o[field].trim())
+    .sort(() => Math.random() - 0.5)
+    .forEach(o => {
+      const key = o[field].trim().toLowerCase();
+      if (seen.has(key) || picked.length >= count) return;
+      seen.add(key);
+      picked.push(o[field]);
+    });
+  return picked;
 }
 function nextQ() {
   const banner=document.getElementById('result-banner');
   banner.style.display='none'; banner.className='result-banner';
   document.getElementById('hint-text').style.display='none';
   document.getElementById('hint-btn').textContent=t('btn-hint');
-  document.getElementById('quiz-input').disabled=false;
-  document.getElementById('quiz-input').value='';
   if (!queue.length) {
     const total=qStats.ok+qStats.ng;
     document.getElementById('quiz-word').textContent=t('quiz-complete');
     document.getElementById('quiz-dir').textContent=total ? t('quiz-rate')+Math.round(qStats.ok/total*100)+'%' : '';
     document.getElementById('quiz-input').style.display='none';
+    document.getElementById('quiz-choices').style.display='none';
+    document.getElementById('quiz-listen-btn').style.display='none';
     document.querySelector('.quiz-actions').style.display='none';
     document.getElementById('hint-btn').style.display='none';
     updateQStats(false); return;
   }
   currentCard=queue.shift();
   document.getElementById('hint-btn').style.display='block';
-  document.getElementById('quiz-input').style.display='block';
-  document.querySelector('.quiz-actions').style.display='flex';
-  const {v,dir}=currentCard;
-  document.getElementById('quiz-dir').textContent  = t(dir==='en2jp'?'quiz-dir-en2jp':'quiz-dir-jp2en');
-  document.getElementById('quiz-word').textContent = dir==='en2jp'?v.en:v.jp;
-  document.getElementById('hint-text').textContent = v.note||'—';
+  renderQuizCard(currentCard);
   document.getElementById('quiz-input').focus();
   updateQStats(true);
 }
+function renderQuizCard(card) {
+  const {v,dir,type}=card;
+  const input=document.getElementById('quiz-input');
+  input.disabled=false;
+  input.value='';
+  document.getElementById('hint-text').textContent = v.note||'—';
+
+  const isListen = type === 'listen';
+  const isMc = type === 'mc';
+
+  document.getElementById('quiz-dir').textContent = isListen
+    ? t('quiz-dir-listen')
+    : t(dir==='en2jp'?'quiz-dir-en2jp':'quiz-dir-jp2en');
+  document.getElementById('quiz-word').textContent = isListen ? '🔊' : (dir==='en2jp'?v.en:v.jp);
+
+  const listenBtn = document.getElementById('quiz-listen-btn');
+  listenBtn.style.display = isListen ? 'inline-block' : 'none';
+  if (isListen) setTimeout(() => speakText(v.en), 300);
+
+  const choicesEl = document.getElementById('quiz-choices');
+  choicesEl.innerHTML = '';
+  if (isMc) {
+    const correctText = dir==='en2jp'?v.jp:v.en;
+    const options = pickDistractors(v, dir, 3).concat([correctText]).sort(() => Math.random()-0.5);
+    options.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'quiz-choice-btn';
+      btn.textContent = opt;
+      btn.onclick = () => checkChoice(btn, opt === correctText, correctText);
+      choicesEl.appendChild(btn);
+    });
+  }
+  choicesEl.style.display = isMc ? 'grid' : 'none';
+  input.style.display = isMc ? 'none' : 'block';
+  document.querySelector('.quiz-actions').style.display = isMc ? 'none' : 'flex';
+}
+function playQuizAudio() { if (currentCard) speakText(currentCard.v.en); }
 // trim・小文字化・全角半角統一(NFKC)・カタカナ→ひらがな
 function normalizeAnswer(s) {
   let x = String(s).trim().toLowerCase().normalize('NFKC');
@@ -1352,18 +1525,41 @@ async function checkAnswer() {
   const {v,dir}=currentCard;
   const correct=dir==='en2jp'?v.jp:v.en;
   const { ok: isOk, typo } = judgeAnswer(ans, correct);
+  input.disabled=true;
+  await recordQuizResult(isOk, correct, currentCard, typo);
+}
+function checkChoice(btn, isOk, correctText) {
+  Array.from(document.getElementById('quiz-choices').children).forEach(b => b.disabled = true);
+  btn.classList.add(isOk ? 'choice-correct' : 'choice-wrong');
+  recordQuizResult(isOk, correctText, currentCard, false);
+}
+async function recordQuizResult(isOk, correctText, card, typo=false) {
+  const {v} = card;
   const banner=document.getElementById('result-banner');
   banner.style.display='block';
+  const srs = computeSrsUpdate(v, isOk);
   if (isOk) {
-    qStats.ok++; banner.className='result-banner result-ok';
-    banner.textContent=t('quiz-correct')+correct+'」'+(typo?t('quiz-typo-note'):'');
-    await sb.from('vocab').update({correct:(v.correct||0)+1}).eq('id',v.id);
+    qStats.ok++; qStats.streak++;
+    banner.className='result-banner result-ok';
+    banner.textContent=t('quiz-correct')+correctText+'」'+(typo?t('quiz-typo-note'):'');
+    await sb.from('vocab').update({ correct:(v.correct||0)+1, ...srs }).eq('id',v.id);
+    if (qStats.streak > 0 && qStats.streak % 5 === 0) showToast(`🔥 ${qStats.streak} ${t('quiz-streak-toast')}`);
   } else {
-    qStats.ng++; banner.className='result-banner result-ng';
-    banner.textContent=t('quiz-wrong')+correct+'」';
-    await sb.from('vocab').update({wrong:(v.wrong||0)+1}).eq('id',v.id);
+    qStats.ng++; qStats.streak=0;
+    banner.className='result-banner result-ng';
+    banner.textContent=t('quiz-wrong')+correctText+'」';
+    await sb.from('vocab').update({ wrong:(v.wrong||0)+1, ...srs }).eq('id',v.id);
   }
-  input.disabled=true; updateQStats(true); setTimeout(nextQ,1600);
+  pulseQuizCard(isOk);
+  updateQStats(true);
+  setTimeout(nextQ,1600);
+}
+function pulseQuizCard(isOk) {
+  const card = document.querySelector('.quiz-card');
+  if (!card) return;
+  const cls = isOk ? 'card-correct-pulse' : 'card-wrong-pulse';
+  card.classList.add(cls);
+  setTimeout(() => card.classList.remove(cls), 400);
 }
 function skipQ() { if(currentCard){queue.push(currentCard);nextQ();} }
 function toggleHint() {
@@ -1376,9 +1572,139 @@ function updateQStats(hasCard) {
   document.getElementById('q-ok').textContent  =qStats.ok;
   document.getElementById('q-ng').textContent  =qStats.ng;
   document.getElementById('q-left').textContent=queue.length+(hasCard&&currentCard?1:0);
+  document.getElementById('q-streak').textContent = qStats.streak > 0 ? `${qStats.streak}🔥` : '0';
   const total=qStats.ok+qStats.ng+queue.length+(hasCard&&currentCard?1:0);
   const done=qStats.ok+qStats.ng;
   document.getElementById('q-bar').style.width=total?Math.round(done/total*100)+'%':'0%';
+}
+
+// ── Quiz mode toggle（単語テスト / 状況文で練習） ────────────────────────────
+function initQuizTab() {
+  switchQuizMode(LS.get('quizMode') || 'flashcard', true);
+}
+function switchQuizMode(mode, skipSave) {
+  document.querySelectorAll('.quiz-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  document.getElementById('quiz-flashcard-area').style.display   = mode === 'flashcard'   ? 'block' : 'none';
+  document.getElementById('quiz-situational-area').style.display = mode === 'situational' ? 'block' : 'none';
+  if (!skipSave) LS.set('quizMode', mode);
+  if (mode === 'flashcard') startQuiz(); else startSituationalPractice();
+}
+
+// ── シチュエーション文練習（発話・タイピング両対応、SRSで出す単語を決定） ──
+const SITUATIONAL_CTX = {
+  micBtn: 'situational-mic-btn', result: 'situational-speech-result', text: 'situational-speech-text',
+  onFinal: (transcript) => gradeSituationalAnswer(transcript),
+};
+
+const SITUATIONAL_SENTENCE_SCHEMA = {
+  type: 'object',
+  properties: {
+    scenario_jp: { type: 'string' },
+    target_words: { type: 'array', items: { type: 'string' } },
+  },
+  required: ['scenario_jp', 'target_words'],
+};
+const SITUATIONAL_GRADE_SCHEMA = {
+  type: 'object',
+  properties: {
+    correct: { type: 'boolean' },
+    used_target_words: { type: 'array', items: { type: 'string' } },
+    corrected: { type: 'string' },
+    feedback: { type: 'string' },
+  },
+  required: ['correct', 'used_target_words', 'corrected', 'feedback'],
+};
+
+function buildSituationalPrompt(words) {
+  return `Create a short, natural Japanese sentence (1-2 sentences) describing an everyday situation, such that a natural English response would require using ${words.length > 1 ? 'these words' : 'this word'}: ${words.join(', ')}.
+Return the scenario in "scenario_jp", and in "target_words" list which of the given words are actually required to answer naturally (normally all of them, but omit any that don't fit).`;
+}
+function buildSituationalGradePrompt(scenarioJp, targetWords, studentAnswer) {
+  return `A Japanese English-learner was given this scenario and must respond in English using the target word(s):
+Scenario (Japanese): "${scenarioJp}"
+Target word(s) to use: ${targetWords.join(', ')}
+Student's English answer: "${studentAnswer}"
+
+Judge whether the answer is a natural, grammatically correct English response AND correctly uses the target word(s) (a natural inflection/synonym counts). Set "correct" true only if both hold reasonably well. List in "used_target_words" which target words were actually used correctly. Provide an improved version in "corrected" (repeat the student's answer if already good). Give one short, encouraging sentence of feedback in "feedback", written in ${t('feedback-lang')}.`;
+}
+
+let currentSituational = null;
+
+async function startSituationalPractice() {
+  const empty = document.getElementById('situational-empty'), area = document.getElementById('situational-area');
+  const { data: vocab } = await sb.from('vocab').select('*');
+  allVocab = vocab || [];
+  if (!allVocab.length) { empty.style.display='block'; area.style.display='none'; return; }
+  empty.style.display='none'; area.style.display='block';
+
+  document.getElementById('situational-result').style.display = 'none';
+  document.getElementById('situational-speech-result').style.display = 'none';
+  document.getElementById('situational-answer').value = '';
+  document.getElementById('situational-scenario').textContent = t('loading-situational');
+  document.getElementById('situational-target-words').innerHTML = '';
+
+  const words = await fetchDueVocab(2, allVocab);
+  if (!words.length) { empty.style.display='block'; area.style.display='none'; return; }
+
+  try {
+    const res = await callGemini(buildSituationalPrompt(words.map(w => w.en)), SITUATIONAL_SENTENCE_SCHEMA);
+    const data = JSON.parse(res);
+    currentSituational = {
+      scenarioJp: data.scenario_jp,
+      targetWords: (data.target_words && data.target_words.length) ? data.target_words : words.map(w => w.en),
+      vocabRows: words,
+    };
+    document.getElementById('situational-scenario').textContent = currentSituational.scenarioJp;
+    document.getElementById('situational-target-words').innerHTML = currentSituational.targetWords
+      .map(w => `<span class="word-hint-item">${escapeHtml(w)}</span>`).join('');
+  } catch (e) {
+    document.getElementById('situational-scenario').textContent = t('error-ai') + e.message;
+  }
+}
+
+async function submitSituationalTyped() {
+  const answer = document.getElementById('situational-answer').value.trim();
+  if (answer) await gradeSituationalAnswer(answer);
+}
+
+async function gradeSituationalAnswer(answer) {
+  if (!currentSituational || !answer) return;
+  const resultBox = document.getElementById('situational-result');
+  const banner = document.getElementById('situational-result-banner');
+  resultBox.style.display = 'block';
+  banner.className = 'result-banner';
+  banner.textContent = t('loading-situational-grading');
+  document.getElementById('situational-corrected').textContent = '';
+  document.getElementById('situational-feedback').textContent = '';
+  try {
+    const res = await callGemini(
+      buildSituationalGradePrompt(currentSituational.scenarioJp, currentSituational.targetWords, answer),
+      SITUATIONAL_GRADE_SCHEMA
+    );
+    const data = JSON.parse(res);
+    banner.className = 'result-banner ' + (data.correct ? 'result-ok' : 'result-ng');
+    banner.textContent = data.correct ? t('situational-correct') : t('situational-incorrect');
+    document.getElementById('situational-corrected').textContent = data.corrected || '';
+    document.getElementById('situational-feedback').textContent  = data.feedback || '';
+    await applySituationalSrsUpdate(data);
+  } catch (e) {
+    banner.className = 'result-banner result-ng';
+    banner.textContent = t('error-ai') + e.message;
+  }
+}
+
+async function applySituationalSrsUpdate(data) {
+  const usedLower = (data.used_target_words || []).map(w => w.toLowerCase());
+  for (const v of currentSituational.vocabRows) {
+    const enLower = v.en.toLowerCase();
+    const wasUsed = usedLower.some(w => w.includes(enLower) || enLower.includes(w));
+    const srs = computeSrsUpdate(v, wasUsed);
+    await sb.from('vocab').update({
+      ...srs,
+      correct: wasUsed ? (v.correct||0)+1 : (v.correct||0),
+      wrong:   wasUsed ? (v.wrong||0)     : (v.wrong||0)+1,
+    }).eq('id', v.id);
+  }
 }
 
 // ── Gemini (Cloudflare Worker 経由) ─────────────────────────────────────────
