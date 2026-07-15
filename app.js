@@ -94,6 +94,8 @@ const TRANSLATIONS = {
     'loading-pron-tips': '発音のヒントを生成中…', 'pron-tips-label': '💡 発音のヒント',
     // Vocab lookup
     'loading-vocab-lookup': 'AIで調べています…', 'error-vocab-lookup': '単語検索エラー: ',
+    // Timeout
+    'error-ai-timeout': '応答に時間がかかりすぎたため中断しました。もう一度お試しください',
   },
   en: {
     'setup-title': 'English Diary', 'setup-sub': 'Please log in',
@@ -177,6 +179,8 @@ const TRANSLATIONS = {
     'loading-pron-tips': 'Generating pronunciation tips…', 'pron-tips-label': '💡 Pronunciation tips',
     // Vocab lookup
     'loading-vocab-lookup': 'Looking up with AI…', 'error-vocab-lookup': 'Lookup error: ',
+    // Timeout
+    'error-ai-timeout': 'Timed out — please try again',
   }
 };
 
@@ -468,6 +472,9 @@ async function autoLookupOnBlur(input, direction) {
 function goStep4() {
   const jp = document.getElementById('diary-jp').value.trim();
   document.getElementById('jp-ref-4').textContent = jp;
+
+  const en2El = document.getElementById('diary-en2');
+  if (!en2El.value.trim()) en2El.value = document.getElementById('diary-en1').value.trim();
 
   const hints = document.getElementById('word-hints');
   hints.innerHTML = '';
@@ -1375,17 +1382,28 @@ function updateQStats(hasCard) {
 }
 
 // ── Gemini (Cloudflare Worker 経由) ─────────────────────────────────────────
-async function callGemini(prompt, schema) {
+async function callGemini(prompt, schema, timeoutMs = 20000) {
   const body = JSON.stringify({ prompt, schema });
 
   for (let attempt = 0; ; attempt++) {
     const { data: { session } } = await sb.auth.getSession();
     const token = session?.access_token || '';
-    const res = await fetch(WORKER_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body,
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let res;
+    try {
+      res = await fetch(WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body,
+        signal: controller.signal,
+      });
+    } catch (e) {
+      if (e.name === 'AbortError') throw new Error(t('error-ai-timeout'));
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
     if ((res.status === 429 || res.status >= 500) && attempt === 0) {
       await new Promise(r => setTimeout(r, 2500));
       continue;

@@ -56,7 +56,7 @@ export default {
       });
     }
 
-    const generationConfig = { temperature: 0.3 };
+    const generationConfig = { temperature: 0.3, maxOutputTokens: 1024 };
     if (schema) {
       generationConfig.responseMimeType = 'application/json';
       generationConfig.responseSchema = schema;
