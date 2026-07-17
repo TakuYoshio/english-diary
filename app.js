@@ -1150,7 +1150,7 @@ async function saveDiary() {
       return true;
     });
     if (toAdd.length) {
-      await sb.from('vocab').insert(toAdd.map(w => ({ ...w, correct: 0, wrong: 0, user_id: currentUserId })));
+      await sb.from('vocab').insert(toAdd.map(w => ({ ...w, correct: 0, wrong: 0, user_id: currentUserId, image_url: vocabImageUrl(w.en) })));
     }
   }
 
@@ -1311,12 +1311,23 @@ async function saveEntryEdit() {
 }
 
 // ── Vocab ─────────────────────────────────────────────────────────────────
+function _hashSeed(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+  return h;
+}
+function vocabImageUrl(en) {
+  const prompt = encodeURIComponent(`simple flat illustration of ${en}, minimal, white background, flashcard style`);
+  const seed = _hashSeed(en.toLowerCase().trim());
+  return `https://image.pollinations.ai/prompt/${prompt}?width=256&height=256&seed=${seed}&nologo=true`;
+}
+
 async function addVocab() {
   const en   = document.getElementById('v-en').value.trim();
   const jp   = document.getElementById('v-jp').value.trim();
   const note = document.getElementById('v-note').value.trim();
   if (!en || !jp) { showToast(t('alert-vocab-fill'), 'warn'); return; }
-  const { error } = await sb.from('vocab').insert({ en, jp, note, correct: 0, wrong: 0, user_id: currentUserId });
+  const { error } = await sb.from('vocab').insert({ en, jp, note, correct: 0, wrong: 0, user_id: currentUserId, image_url: vocabImageUrl(en) });
   if (error) { showToast(t('error-vocab') + error.message, 'error'); return; }
   document.getElementById('v-en').value = '';
   document.getElementById('v-jp').value = '';
@@ -1348,7 +1359,7 @@ async function saveEditVocab(id) {
   const jp   = document.getElementById(`ve-jp-${id}`).value.trim();
   const note = document.getElementById(`ve-note-${id}`).value.trim();
   if (!en || !jp) { showToast(t('alert-vocab-fill'), 'warn'); return; }
-  const { error } = await sb.from('vocab').update({ en, jp, note }).eq('id', id);
+  const { error } = await sb.from('vocab').update({ en, jp, note, image_url: vocabImageUrl(en) }).eq('id', id);
   if (error) { showToast(t('error-vocab') + error.message, 'error'); return; }
   editingVocabId = null;
   await renderVocab();
@@ -1391,6 +1402,7 @@ function filterAndRenderVocab() {
     const rate  = total ? Math.round(v.correct/total*100) : null;
     const cls   = rate===null ? 'rate-new' : rate>=70 ? 'rate-ok' : 'rate-ng';
     return `<div class="vocab-row">
+      <img class="v-thumb" src="${v.image_url || vocabImageUrl(v.en)}" alt="${escapeHtml(v.en)}" loading="lazy" onerror="this.style.visibility='hidden'" />
       <div class="v-en">${escapeHtml(v.en)}</div>
       <div class="v-jp">${escapeHtml(v.jp)}</div>
       <div class="v-note">${escapeHtml(v.note||'')}</div>
