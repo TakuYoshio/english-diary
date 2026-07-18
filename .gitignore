@@ -1,4 +1,5 @@
 pass
 *.png
 *.jpg
+!character/*.png
 .DS_Store

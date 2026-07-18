@@ -38,7 +38,7 @@ const TRANSLATIONS = {
     'speech-recognized': '認識された文', 'entries-title': '過去の日記',
     'ph-entries-search': '日記を検索…', 'btn-prev': '前へ', 'btn-next-page': '次へ',
     'entries-empty': 'まだ日記がありません', 'entries-no-results': '検索結果がありません',
-    'btn-back-entries': '← 履歴に戻る',
+    'btn-back-entries': '← 履歴に戻る', 'btn-back-step': '← 戻る',
     'ph-v-jp': '日本語', 'ph-v-note': 'メモ（任意）', 'btn-vocab-add': '追加',
     'vocab-empty-text': '単語帳が空です<br>日記を書いて追加しよう',
     'quiz-empty': '単語帳に単語を追加してからテストしよう',
@@ -125,6 +125,7 @@ const TRANSLATIONS = {
     'badge-streak-7': '7日連続', 'badge-streak-30': '30日連続',
     'badge-vocab-50': '単語50語登録', 'badge-vocab-100': '単語100語登録',
     'badge-pronunciation-90': '発音スコア90%達成',
+    'toast-levelup': '🎉 レベル{level}になりました！', 'toast-badge-earned': '🏅「{badge}」を獲得しました！',
   },
   en: {
     'setup-title': 'English Diary', 'setup-sub': 'Please log in',
@@ -152,7 +153,7 @@ const TRANSLATIONS = {
     'speech-recognized': 'Recognized speech', 'entries-title': 'Past Entries',
     'ph-entries-search': 'Search diary entries…', 'btn-prev': 'Prev', 'btn-next-page': 'Next',
     'entries-empty': 'No diary entries yet', 'entries-no-results': 'No matching entries',
-    'btn-back-entries': '← Back to history',
+    'btn-back-entries': '← Back to history', 'btn-back-step': '← Back',
     'ph-v-jp': 'Translation', 'ph-v-note': 'Note (optional)', 'btn-vocab-add': 'Add',
     'vocab-empty-text': 'Your vocabulary is empty<br>Write a diary to add words',
     'quiz-empty': 'Add words to your vocabulary first',
@@ -239,6 +240,7 @@ const TRANSLATIONS = {
     'badge-streak-7': '7-day streak', 'badge-streak-30': '30-day streak',
     'badge-vocab-50': '50 words registered', 'badge-vocab-100': '100 words registered',
     'badge-pronunciation-90': '90%+ pronunciation score',
+    'toast-levelup': '🎉 Reached level {level}!', 'toast-badge-earned': '🏅 Earned "{badge}"!',
   }
 };
 
@@ -404,9 +406,9 @@ async function logoutUser() {
 // ── Tabs ──────────────────────────────────────────────────────────────────
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-btn, .bottom-tab-btn').forEach(el => el.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
-  document.querySelector(`[data-tab="${name}"]`).classList.add('active');
+  document.querySelectorAll(`[data-tab="${name}"]`).forEach(el => el.classList.add('active'));
   if (name === 'entries') loadEntries();
   if (name === 'vocab')   renderVocab();
   if (name === 'quiz')    initQuizTab();
@@ -429,27 +431,41 @@ function setDateLabel() {
 }
 function todayISO() { return new Date().toISOString().split('T')[0]; }
 
-// ── Step unlocking ────────────────────────────────────────────────────────
-function unlock(cardId) {
-  const el = document.getElementById(cardId);
-  el.classList.remove('locked');
-  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  el.classList.add('just-unlocked');
-  setTimeout(() => el.classList.remove('just-unlocked'), 500);
+// ── 日記ステップ切り替え（1画面1機能ウィザード）────────────────────────────
+let currentDiaryStep = 1, maxDiaryStepReached = 1;
+function goToDiaryStep(n) {
+  if (n > maxDiaryStepReached + 1) return; // ドットで未到達の先のステップへ飛ぶのは不可（次の1歩は許可）
+  document.querySelectorAll('.step-card').forEach(el => el.classList.remove('active'));
+  const target = document.getElementById('step' + n + '-card');
+  target.classList.add('active');
+  target.classList.add('just-unlocked');
+  setTimeout(() => target.classList.remove('just-unlocked'), 500);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  currentDiaryStep = n;
+  maxDiaryStepReached = Math.max(maxDiaryStepReached, n);
+  renderDiaryProgress();
+  if (typeof mascotShowDiaryStep === 'function') mascotShowDiaryStep(n);
 }
-function lock(cardId) { document.getElementById(cardId).classList.add('locked'); }
+function backDiaryStep() { if (currentDiaryStep > 1) goToDiaryStep(currentDiaryStep - 1); }
+function renderDiaryProgress() {
+  document.querySelectorAll('.diary-progress-dot').forEach(dot => {
+    const step = Number(dot.dataset.step);
+    dot.classList.toggle('current', step === currentDiaryStep);
+    dot.classList.toggle('done', step !== currentDiaryStep && step <= maxDiaryStepReached);
+  });
+}
 
 // ── STEP 1 → 2 ───────────────────────────────────────────────────────────
 function goStep2() {
   const jp = document.getElementById('diary-jp').value.trim();
   if (!jp) { showToast(t('alert-write-jp'), 'warn'); return; }
   document.getElementById('jp-ref-2').textContent = jp;
-  unlock('step2-card');
+  goToDiaryStep(2);
 }
 
 // ── STEP 2 → 3 ───────────────────────────────────────────────────────────
 function goStep3() {
-  unlock('step3-card');
+  goToDiaryStep(3);
 }
 
 // ── STEP 3 word rows ──────────────────────────────────────────────────────
@@ -564,7 +580,7 @@ function goStep4() {
     }
   });
 
-  unlock('step4-card');
+  goToDiaryStep(4);
 }
 
 // ── STEP 4 → 5 (Gemini, 高速添削 + 詳細フィードバックの並列2コール) ──────────
@@ -667,7 +683,8 @@ async function goStep5() {
   const en2 = document.getElementById('diary-en2').value.trim();
   if (!en2) { showToast(t('alert-write-en2'), 'warn'); return; }
 
-  unlock('step5-card');
+  goToDiaryStep(5);
+  if (typeof mascotSetMood === 'function') mascotSetMood('step5-mascot', 'excited');
   const correctedEl = document.getElementById('ai-corrected-text');
   const feedbackEl  = document.getElementById('ai-feedback-text');
   correctedEl.innerHTML = `<span class="loading-text">${t('loading-correcting')}</span>`;
@@ -719,6 +736,7 @@ async function goStep5() {
 
   await Promise.allSettled([fastPromise, detailedPromise]);
   stopProgress();
+  if (typeof mascotSetMood === 'function') mascotSetMood('step5-mascot', 'delighted');
 }
 
 function renderFeedback(data, feedbackElId = 'ai-feedback-text') {
@@ -852,7 +870,7 @@ function speakModalText() { if (_modalCorrectedText) speakText(_modalCorrectedTe
 function goStep6() {
   const corrected = window._correctedText || document.getElementById('ai-corrected-text').textContent;
   document.getElementById('target-sentence').textContent = corrected;
-  unlock('step6-card');
+  goToDiaryStep(6);
   resetShadowingGate();
   firstPronunciationAttempt = null;
   document.getElementById('speech-first-attempt').style.display = 'none';
@@ -1131,6 +1149,7 @@ async function saveDiary() {
   });
 
   const prevStreak = computeStreaks(entriesMeta).current;
+  const prevStats = (typeof computeProgressStats === 'function') ? computeProgressStats() : null;
 
   const { error } = await sb.from('entries').insert({
     date: todayISO(), jp, en1, en2, corrected, feedback: window._lastFeedback || null,
@@ -1162,7 +1181,8 @@ async function saveDiary() {
   addWordRow();
   window._correctedText = '';
   window._lastFeedback  = null;
-  ['step2-card','step3-card','step4-card','step5-card','step6-card'].forEach(id => lock(id));
+  maxDiaryStepReached = 1;
+  goToDiaryStep(1);
   document.getElementById('speech-result').style.display = 'none';
   document.getElementById('ai-corrected-text').textContent = '';
   document.getElementById('ai-feedback-text').textContent  = '';
@@ -1176,9 +1196,18 @@ async function saveDiary() {
   await loadEntriesMeta();
   refreshProgressUI();
   const newStreak = computeStreaks(entriesMeta).current;
-  if (typeof mascotCelebrateSave === 'function') mascotCelebrateSave(newStreak > prevStreak);
+  const newStats = (typeof computeProgressStats === 'function') ? computeProgressStats() : null;
+  const leveledUp = !!(prevStats && newStats && newStats.level > prevStats.level);
+  const badgeEarned = (prevStats && newStats)
+    ? newStats.badges.find(b => b.done && !prevStats.badges.find(p => p.id === b.id && p.done))
+    : null;
+  if (typeof mascotCelebrateSave === 'function') {
+    mascotCelebrateSave({ streakGrew: newStreak > prevStreak, leveledUp, badgeEarned: !!badgeEarned });
+  }
   const wordsMsg = toAdd.length ? `${toAdd.length}${t('toast-words-added')}` : '';
   showToast(t('toast-saved') + (wordsMsg ? ' ' + wordsMsg : ''), 'success');
+  if (leveledUp) showToast(t('toast-levelup').replace('{level}', newStats.level), 'success');
+  else if (badgeEarned) showToast(t('toast-badge-earned').replace('{badge}', t('badge-' + badgeEarned.id)), 'success');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -1271,7 +1300,7 @@ async function openEntryDetail(id) {
   setEntryEditMode(false);
 
   document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-btn, .bottom-tab-btn').forEach(el => el.classList.remove('active'));
   document.getElementById('tab-entry-detail').classList.add('active');
   window.scrollTo({ top: 0 });
 }
@@ -1513,6 +1542,7 @@ function nextQ() {
   updateQStats(true);
 }
 function renderQuizCard(card) {
+  if (typeof mascotResetQuizMood === 'function') mascotResetQuizMood();
   const {v,dir,type}=card;
   const input=document.getElementById('quiz-input');
   input.disabled=false;
@@ -1608,6 +1638,7 @@ async function recordQuizResult(isOk, correctText, card, typo=false) {
     await sb.from('vocab').update({ wrong:(v.wrong||0)+1, ...srs }).eq('id',v.id);
   }
   pulseQuizCard(isOk);
+  if (typeof mascotReactQuiz === 'function') mascotReactQuiz(isOk);
   updateQStats(true);
   setTimeout(nextQ,1600);
 }

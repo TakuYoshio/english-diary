@@ -1,9 +1,9 @@
 'use strict';
 
 // ── コトラ（マスコット）─────────────────────────────────────────────────────
-// シャドーイング＝忍び寄って仕留める猫の狩り遊びから着想したマスコット。
-// SVGはインラインテンプレートで生成し、成長段階(stage)とポーズ(pose)は
-// data属性経由でCSS側から見た目を切り替える（app.jsやprogress.jsとは疎結合）。
+// 1枚のイラスト（character/kotora.png）を土台に、感情/ゲーミフィケーション状態(mood)・
+// 首輪ティア(tier)・成長段階(stage)をdata属性経由でCSS側から見た目を切り替える
+// （app.jsやprogress.jsとは疎結合）。moodはCSSのfilter/animation/::afterの絵文字で表現する。
 
 function mascotGrowthStage(level) {
   return level >= 8 ? 'adult' : level >= 4 ? 'young' : 'kitten';
@@ -13,60 +13,11 @@ function mascotCollarTier(level) {
   return level >= 10 ? 'diamond' : level >= 7 ? 'gold' : level >= 4 ? 'silver' : 'bronze';
 }
 
-function kotoraSVG(stage = 'kitten', pose = 'idle', tier = 'bronze') {
+function kotoraImg(mood = 'idle', tier = 'bronze', stage = 'kitten') {
   return `
-  <svg class="kotora" data-stage="${stage}" data-pose="${pose}" data-tier="${tier}"
-       viewBox="0 0 140 140" role="img" aria-label="コトラ">
-    <g class="kotora-tail-group">
-      <path class="kotora-tail" d="M40,92 C18,92 10,70 22,54" fill="none"
-            stroke="var(--mascot-fur)" stroke-width="12" stroke-linecap="round" />
-    </g>
-    <g class="kotora-body-group">
-      <ellipse class="kotora-body" cx="70" cy="92" rx="34" ry="27" fill="var(--mascot-fur)" />
-      <ellipse cx="70" cy="99" rx="17" ry="15" fill="var(--mascot-fur-light)" />
-      <path d="M56,80 q6,-6 12,0" fill="none" stroke="var(--mascot-fur-dark)" stroke-width="3" stroke-linecap="round" />
-      <path d="M72,80 q6,-6 12,0" fill="none" stroke="var(--mascot-fur-dark)" stroke-width="3" stroke-linecap="round" />
-      <rect class="kotora-collar" x="55" y="63" width="30" height="7" rx="3.5" fill="var(--mascot-collar)" />
-      <circle class="kotora-bell" cx="70" cy="72" r="3.5" fill="var(--mascot-collar)" />
-    </g>
-    <g class="kotora-head-group">
-      <path class="kotora-ear kotora-ear-l" d="M46,38 L40,18 L60,32 Z" fill="var(--mascot-fur)" />
-      <path class="kotora-ear kotora-ear-l-inner" d="M47,34 L44,23 L56,31 Z" fill="var(--mascot-ear-inner)" />
-      <path class="kotora-ear kotora-ear-r" d="M94,38 L100,18 L80,32 Z" fill="var(--mascot-fur)" />
-      <path class="kotora-ear kotora-ear-r-inner" d="M93,34 L96,23 L84,31 Z" fill="var(--mascot-ear-inner)" />
-      <circle class="kotora-head" cx="70" cy="54" r="27" fill="var(--mascot-fur)" />
-      <path d="M50,44 q4,-5 9,-2" fill="none" stroke="var(--mascot-fur-dark)" stroke-width="2.5" stroke-linecap="round" />
-      <path d="M81,42 q5,-3 9,2" fill="none" stroke="var(--mascot-fur-dark)" stroke-width="2.5" stroke-linecap="round" />
-
-      <g class="kotora-eyes kotora-eyes-open">
-        <ellipse cx="60" cy="55" rx="5" ry="6.5" fill="var(--mascot-eye)" />
-        <ellipse cx="80" cy="55" rx="5" ry="6.5" fill="var(--mascot-eye)" />
-        <circle cx="61.5" cy="52" r="1.6" fill="#fff" />
-        <circle cx="81.5" cy="52" r="1.6" fill="#fff" />
-      </g>
-      <g class="kotora-eyes kotora-eyes-happy">
-        <path d="M55,56 q5,-6 10,0" fill="none" stroke="var(--mascot-eye)" stroke-width="2.6" stroke-linecap="round" />
-        <path d="M75,56 q5,-6 10,0" fill="none" stroke="var(--mascot-eye)" stroke-width="2.6" stroke-linecap="round" />
-      </g>
-      <g class="kotora-eyes kotora-eyes-wide">
-        <circle cx="60" cy="55" r="7" fill="var(--mascot-eye)" />
-        <circle cx="80" cy="55" r="7" fill="var(--mascot-eye)" />
-        <circle cx="62" cy="52" r="2.2" fill="#fff" />
-        <circle cx="82" cy="52" r="2.2" fill="#fff" />
-      </g>
-
-      <path class="kotora-nose" d="M67,63 L73,63 L70,67 Z" fill="var(--mascot-nose)" />
-      <path class="kotora-mouth" d="M70,67 q-5,5 -10,2 M70,67 q5,5 10,2" fill="none"
-            stroke="var(--mascot-fur-dark)" stroke-width="1.6" stroke-linecap="round" />
-
-      <g class="kotora-whiskers">
-        <line x1="42" y1="58" x2="24" y2="54" />
-        <line x1="42" y1="63" x2="23" y2="63" />
-        <line x1="98" y1="58" x2="116" y2="54" />
-        <line x1="98" y1="63" x2="117" y2="63" />
-      </g>
-    </g>
-  </svg>`;
+  <div class="kotora-wrap" data-mood="${mood}" data-tier="${tier}" data-stage="${stage}">
+    <img class="kotora-img" src="character/kotora.png" alt="コトラ" />
+  </div>`;
 }
 
 // ── フック: シャドーイング（忍び足→キャッチ）────────────────────────────────
@@ -80,21 +31,21 @@ function mascotUpdateShadowPose(pct, reachedGoal) {
   const tier = mascotCollarTier(level);
 
   clearTimeout(_mascotShadowSettleTimer);
-  let pose = 'idle';
-  if (reachedGoal) pose = 'catch';
-  else if (pct > 0) pose = 'pounce';
+  let mood = 'idle';
+  if (reachedGoal) mood = 'delighted';
+  else if (pct > 0) mood = 'excited';
 
-  slot.innerHTML = kotoraSVG(stage, pose, tier);
+  slot.innerHTML = kotoraImg(mood, tier, stage);
 
-  if (pose === 'catch') {
+  if (mood === 'delighted') {
     _mascotShadowSettleTimer = setTimeout(() => {
-      slot.innerHTML = kotoraSVG(stage, 'loaf', tier);
+      slot.innerHTML = kotoraImg('happy', tier, stage);
     }, 700);
   }
 }
 
-// ── フック: 日記保存完了 / ストリーク更新 ───────────────────────────────────
-function mascotCelebrateSave(streakGrew) {
+// ── フック: 日記保存完了 / ストリーク更新・レベルアップ・バッジ獲得 ──────────
+function mascotCelebrateSave({ streakGrew = false, leveledUp = false, badgeEarned = false } = {}) {
   let popup = document.getElementById('mascot-popup');
   if (!popup) {
     popup = document.createElement('div');
@@ -105,9 +56,9 @@ function mascotCelebrateSave(streakGrew) {
   const level = (typeof computeProgressStats === 'function') ? computeProgressStats().level : 1;
   const stage = mascotGrowthStage(level);
   const tier = mascotCollarTier(level);
-  const pose = streakGrew ? 'stretch' : 'loaf';
+  const mood = leveledUp ? 'levelup' : badgeEarned ? 'badge' : streakGrew ? 'happy' : 'idle';
 
-  popup.innerHTML = kotoraSVG(stage, pose, tier);
+  popup.innerHTML = kotoraImg(mood, tier, stage);
   popup.classList.remove('mascot-popup-in');
   // reflow してから再度アニメーションを付与（連続保存時にも毎回再生させる）
   void popup.offsetWidth;
@@ -120,9 +71,54 @@ function mascotCelebrateSave(streakGrew) {
 // ── progress.js の再計算後に呼ばれる（Step6の待機ポーズなどを最新化） ────────
 function mascotOnProgressRefresh() {
   const slot = document.getElementById('step6-mascot');
-  if (!slot || slot.innerHTML) return; // 既に表示中なら上書きしない
-  const level = computeProgressStats().level;
-  slot.innerHTML = kotoraSVG(mascotGrowthStage(level), 'idle', mascotCollarTier(level));
+  if (slot && !slot.innerHTML) {
+    const level = computeProgressStats().level;
+    slot.innerHTML = kotoraImg('idle', mascotCollarTier(level), mascotGrowthStage(level));
+  }
+  // 初回ロード時など、現在表示中の日記ステップのマスコットが未描画なら埋める
+  if (typeof currentDiaryStep !== 'undefined' && typeof mascotShowDiaryStep === 'function') {
+    const dslot = document.getElementById('step' + currentDiaryStep + '-mascot');
+    if (dslot && !dslot.innerHTML) mascotShowDiaryStep(currentDiaryStep);
+  }
+}
+
+// ── フック: クイズの正誤（喜怒哀楽の実演出）──────────────────────────────────
+let _mascotQuizSettleTimer = null;
+
+function mascotResetQuizMood() {
+  const slot = document.getElementById('quiz-mascot');
+  if (!slot) return;
+  clearTimeout(_mascotQuizSettleTimer);
+  const level = (typeof computeProgressStats === 'function') ? computeProgressStats().level : 1;
+  slot.innerHTML = kotoraImg('idle', mascotCollarTier(level), mascotGrowthStage(level));
+}
+
+function mascotReactQuiz(isOk) {
+  const slot = document.getElementById('quiz-mascot');
+  if (!slot) return;
+  const level = (typeof computeProgressStats === 'function') ? computeProgressStats().level : 1;
+  const stage = mascotGrowthStage(level);
+  const tier = mascotCollarTier(level);
+
+  clearTimeout(_mascotQuizSettleTimer);
+  slot.innerHTML = kotoraImg(isOk ? 'delighted' : 'sad', tier, stage);
+  _mascotQuizSettleTimer = setTimeout(() => {
+    slot.innerHTML = kotoraImg('idle', tier, stage);
+  }, 1200);
+}
+
+// ── 汎用: 指定スロットのmoodを直接設定 ────────────────────────────────────
+function mascotSetMood(slotId, mood) {
+  const slot = document.getElementById(slotId);
+  if (!slot) return;
+  const level = (typeof computeProgressStats === 'function') ? computeProgressStats().level : 1;
+  slot.innerHTML = kotoraImg(mood, mascotCollarTier(level), mascotGrowthStage(level));
+}
+
+// ── フック: 日記ウィザードの各ステップ表示時（待機中はidle） ─────────────────
+function mascotShowDiaryStep(n) {
+  if (n === 5 || n === 6) return; // Step5/6は専用の反応ロジックを持つ
+  mascotSetMood('step' + n + '-mascot', 'idle');
 }
 
 // ── マスコットモーダル（成長段階＋XPバー＋バッジ一覧） ───────────────────────
@@ -137,7 +133,7 @@ function openMascotModal() {
     t('mascot-modal-title') + ' ・ ' + t('mascot-level-label').replace('{level}', stats.level);
 
   document.getElementById('mascot-modal-body').innerHTML = `
-    <div class="mascot-modal-display">${kotoraSVG(stage, 'idle', tier)}</div>
+    <div class="mascot-modal-display">${kotoraImg('idle', tier, stage)}</div>
     <div class="mascot-stage-label">${escapeHtml(stageLabel)}</div>
     <div class="mascot-xp-track"><div class="mascot-xp-fill" style="width:${pct}%"></div></div>
     <div class="mascot-xp-caption">${escapeHtml(t('mascot-next-level').replace('{xp}', stats.xpForNextLevel - stats.xpIntoLevel))}</div>
