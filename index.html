@@ -77,147 +77,171 @@
 
       <!-- STEP 1 -->
       <div class="step-card active" id="step1-card">
-        <div class="step-header">
-          <span class="step-badge">1</span>
-          <span class="step-title-text" data-i18n="step1-title">日本語で今日の出来事を書く</span>
+        <div class="step-hero">
+          <div class="step-header">
+            <span class="step-badge">1</span>
+            <span class="step-title-text" data-i18n="step1-title">日本語で今日の出来事を書く</span>
+          </div>
+          <div id="step1-mascot" class="mascot-hero"></div>
         </div>
-        <div id="step1-mascot" class="mascot-inline mascot-inline-sm"></div>
-        <div class="date-label" id="today-label"></div>
-        <textarea id="diary-jp" class="textarea" data-i18n-placeholder="ph-diary-jp" placeholder="今日は..."></textarea>
-        <div class="step-actions">
-          <button class="btn btn-primary" onclick="goStep2()" data-i18n="btn-next">次へ →</button>
+        <div class="step-body">
+          <div class="date-label" id="today-label"></div>
+          <textarea id="diary-jp" class="textarea" data-i18n-placeholder="ph-diary-jp" placeholder="今日は..."></textarea>
+          <div class="step-actions">
+            <button class="btn btn-primary" onclick="goStep2()" data-i18n="btn-next">次へ →</button>
+          </div>
         </div>
       </div>
 
       <!-- STEP 2 -->
       <div class="step-card" id="step2-card">
-        <div class="step-header">
-          <span class="step-badge">2</span>
-          <span class="step-title-text" data-i18n="step2-title">自分で英訳してみる（1回目）</span>
+        <div class="step-hero">
+          <div class="step-header">
+            <span class="step-badge">2</span>
+            <span class="step-title-text" data-i18n="step2-title">自分で英訳してみる（1回目）</span>
+          </div>
+          <div id="step2-mascot" class="mascot-hero"></div>
         </div>
-        <div id="step2-mascot" class="mascot-inline mascot-inline-sm"></div>
-        <div class="jp-ref" id="jp-ref-2"></div>
-        <textarea id="diary-en1" class="textarea" placeholder="Today, I..."></textarea>
-        <div class="word-note-add">
-          <input type="text" class="input" id="s2-word-note" data-i18n-placeholder="ph-word-note-add" placeholder="これ英語で何て言うんだろう…をメモ" />
-          <button class="btn btn-sm" onclick="addWordNote()" data-i18n="btn-word-note-add">＋ メモ</button>
-        </div>
-        <div class="step-actions">
-          <button class="btn" onclick="backDiaryStep()" data-i18n="btn-back-step">← 戻る</button>
-          <button class="btn btn-primary" onclick="goStep3()" data-i18n="btn-next">次へ →</button>
+        <div class="step-body">
+          <div class="jp-ref" id="jp-ref-2"></div>
+          <textarea id="diary-en1" class="textarea" placeholder="Today, I..."></textarea>
+          <div class="word-note-add">
+            <input type="text" class="input" id="s2-word-note" data-i18n-placeholder="ph-word-note-add" placeholder="これ英語で何て言うんだろう…をメモ" />
+            <button class="btn btn-sm" onclick="addWordNote()" data-i18n="btn-word-note-add">＋ メモ</button>
+          </div>
+          <div class="step-actions">
+            <button class="btn" onclick="backDiaryStep()" data-i18n="btn-back-step">← 戻る</button>
+            <button class="btn btn-primary" onclick="goStep3()" data-i18n="btn-next">次へ →</button>
+          </div>
         </div>
       </div>
 
       <!-- STEP 3 -->
       <div class="step-card" id="step3-card">
-        <div class="step-header">
-          <span class="step-badge">3</span>
-          <span class="step-title-text" data-i18n="step3-title">わからない単語を控えておく</span>
-        </div>
-        <div id="step3-mascot" class="mascot-inline mascot-inline-sm"></div>
-        <div class="hint-text-small" data-i18n="step3-hint">英訳できなかった・自信がない単語をメモしておこう</div>
-        <div id="unknown-words-list">
-          <div class="word-row">
-            <div class="word-row-main">
-              <input type="text" class="input word-jp" data-i18n-placeholder="ph-word-jp" placeholder="日本語の単語" onblur="autoLookupOnBlur(this,'jp2en')" />
-              <span class="arrow">→</span>
-              <input type="text" class="input word-en" data-i18n-placeholder="ph-word-en" placeholder="英語（後で調べる）" onblur="autoLookupOnBlur(this,'en2jp')" />
-              <button class="icon-btn red" onclick="removeWordRow(this)">✕</button>
-            </div>
-            <textarea class="input word-note" data-i18n-placeholder="ph-word-note" placeholder="メモ・解説（任意）"></textarea>
+        <div class="step-hero">
+          <div class="step-header">
+            <span class="step-badge">3</span>
+            <span class="step-title-text" data-i18n="step3-title">わからない単語を控えておく</span>
           </div>
+          <div id="step3-mascot" class="mascot-hero"></div>
         </div>
-        <button class="btn btn-sm" onclick="findOrCreateEmptyWordRow()" style="margin-top:8px" data-i18n="btn-add-word">＋ 追加</button>
-        <div class="step-actions">
-          <button class="btn" onclick="backDiaryStep()" data-i18n="btn-back-step">← 戻る</button>
-          <button class="btn btn-primary" onclick="goStep4()" data-i18n="btn-step4-next">調べたら次へ →</button>
+        <div class="step-body">
+          <div class="hint-text-small" data-i18n="step3-hint">英訳できなかった・自信がない単語をメモしておこう</div>
+          <div id="unknown-words-list">
+            <div class="word-row">
+              <div class="word-row-main">
+                <input type="text" class="input word-jp" data-i18n-placeholder="ph-word-jp" placeholder="日本語の単語" onblur="autoLookupOnBlur(this,'jp2en')" />
+                <span class="arrow">→</span>
+                <input type="text" class="input word-en" data-i18n-placeholder="ph-word-en" placeholder="英語（後で調べる）" onblur="autoLookupOnBlur(this,'en2jp')" />
+                <button class="icon-btn red" onclick="removeWordRow(this)">✕</button>
+              </div>
+              <textarea class="input word-note" data-i18n-placeholder="ph-word-note" placeholder="メモ・解説（任意）"></textarea>
+            </div>
+          </div>
+          <button class="btn btn-sm" onclick="findOrCreateEmptyWordRow()" style="margin-top:8px" data-i18n="btn-add-word">＋ 追加</button>
+          <div class="step-actions">
+            <button class="btn" onclick="backDiaryStep()" data-i18n="btn-back-step">← 戻る</button>
+            <button class="btn btn-primary" onclick="goStep4()" data-i18n="btn-step4-next">調べたら次へ →</button>
+          </div>
         </div>
       </div>
 
       <!-- STEP 4 -->
       <div class="step-card" id="step4-card">
-        <div class="step-header">
-          <span class="step-badge">4</span>
-          <span class="step-title-text" data-i18n="step4-title">調べた上で再英訳（2回目）</span>
+        <div class="step-hero">
+          <div class="step-header">
+            <span class="step-badge">4</span>
+            <span class="step-title-text" data-i18n="step4-title">調べた上で再英訳（2回目）</span>
+          </div>
+          <div id="step4-mascot" class="mascot-hero"></div>
         </div>
-        <div id="step4-mascot" class="mascot-inline mascot-inline-sm"></div>
-        <div class="jp-ref" id="jp-ref-4"></div>
-        <div id="word-hints" class="word-hints"></div>
-        <textarea id="diary-en2" class="textarea" placeholder="Today, I... (improved version)"></textarea>
-        <div class="step-actions">
-          <button class="btn" onclick="backDiaryStep()" data-i18n="btn-back-step">← 戻る</button>
-          <button class="btn btn-primary" onclick="goStep5()" data-i18n="btn-ai">AIに添削してもらう →</button>
+        <div class="step-body">
+          <div class="jp-ref" id="jp-ref-4"></div>
+          <div id="word-hints" class="word-hints"></div>
+          <textarea id="diary-en2" class="textarea" placeholder="Today, I... (improved version)"></textarea>
+          <div class="step-actions">
+            <button class="btn" onclick="backDiaryStep()" data-i18n="btn-back-step">← 戻る</button>
+            <button class="btn btn-primary" onclick="goStep5()" data-i18n="btn-ai">AIに添削してもらう →</button>
+          </div>
         </div>
       </div>
 
       <!-- STEP 5 -->
       <div class="step-card" id="step5-card">
-        <div class="step-header">
-          <span class="step-badge">5</span>
-          <span class="step-title-text" data-i18n="step5-title">AIが添削</span>
-        </div>
-        <div id="step5-mascot" class="mascot-inline mascot-inline-sm"></div>
-        <div class="progress-track" id="ai-progress-track" style="display:none"><div class="progress-fill" id="ai-progress-bar"></div></div>
-        <div id="ai-corrected-box" class="ai-box">
-          <div class="ai-label" data-i18n="ai-corrected-label">✨ 添削後の英文</div>
-          <div id="ai-corrected-text" class="ai-text"></div>
-          <div class="tts-bar">
-            <button class="btn btn-sm tts-btn" id="tts-btn" onclick="speakCorrected()" data-i18n="btn-tts">🔊 音声を再生</button>
-            <span class="tts-hint" data-i18n="tts-hint">再生したらシャドーイングしてみよう</span>
+        <div class="step-hero">
+          <div class="step-header">
+            <span class="step-badge">5</span>
+            <span class="step-title-text" data-i18n="step5-title">AIが添削</span>
           </div>
+          <div id="step5-mascot" class="mascot-hero"></div>
         </div>
-        <div id="ai-feedback-box" class="ai-box" style="margin-top:10px">
-          <div class="ai-label" data-i18n="ai-feedback-label">📝 フィードバック</div>
-          <div id="ai-feedback-text" class="ai-text"></div>
-        </div>
-        <div id="ai-corrections-box" class="ai-box" style="margin-top:10px;display:none">
-          <div class="ai-label" data-i18n="ai-corrections-label">🔍 修正ポイント</div>
-          <div id="ai-corrections-list" class="corrections-list"></div>
-        </div>
-        <div class="step-actions">
-          <button class="btn" onclick="backDiaryStep()" data-i18n="btn-back-step">← 戻る</button>
-          <button class="btn btn-primary" onclick="goStep6()" data-i18n="btn-shadow">シャドーイングできたら次へ →</button>
+        <div class="step-body">
+          <div class="progress-track" id="ai-progress-track" style="display:none"><div class="progress-fill" id="ai-progress-bar"></div></div>
+          <div id="ai-corrected-box" class="ai-box">
+            <div class="ai-label" data-i18n="ai-corrected-label">✨ 添削後の英文</div>
+            <div id="ai-corrected-text" class="ai-text"></div>
+            <div class="tts-bar">
+              <button class="btn btn-sm tts-btn" id="tts-btn" onclick="speakCorrected()" data-i18n="btn-tts">🔊 音声を再生</button>
+              <span class="tts-hint" data-i18n="tts-hint">再生したらシャドーイングしてみよう</span>
+            </div>
+          </div>
+          <div id="ai-feedback-box" class="ai-box" style="margin-top:10px">
+            <div class="ai-label" data-i18n="ai-feedback-label">📝 フィードバック</div>
+            <div id="ai-feedback-text" class="ai-text"></div>
+          </div>
+          <div id="ai-corrections-box" class="ai-box" style="margin-top:10px;display:none">
+            <div class="ai-label" data-i18n="ai-corrections-label">🔍 修正ポイント</div>
+            <div id="ai-corrections-list" class="corrections-list"></div>
+          </div>
+          <div class="step-actions">
+            <button class="btn" onclick="backDiaryStep()" data-i18n="btn-back-step">← 戻る</button>
+            <button class="btn btn-primary" onclick="goStep6()" data-i18n="btn-shadow">シャドーイングできたら次へ →</button>
+          </div>
         </div>
       </div>
 
       <!-- STEP 6 -->
       <div class="step-card" id="step6-card">
-        <div class="step-header">
-          <span class="step-badge">6</span>
-          <span class="step-title-text" data-i18n="step6-title">音声入力で発音チェック</span>
-        </div>
-        <div class="ai-box" style="margin-bottom:12px">
-          <div class="ai-label" data-i18n="target-label">目標文</div>
-          <div id="target-sentence" class="ai-text target-text"></div>
-          <button class="btn btn-sm" id="hear-target-btn" style="margin-top:8px" onclick="speakTarget()" data-i18n="btn-hear-target">🔊 もう一度聞く</button>
-        </div>
-        <div id="step6-mascot" class="mascot-inline" aria-hidden="true"></div>
-        <div class="shadow-progress">
-          <div class="progress-track"><div class="progress-fill" id="shadow-progress-bar"></div></div>
-          <div class="shadow-progress-label" id="shadow-progress-label">0 / 20</div>
-          <div class="center"><button class="btn btn-sm" onclick="skipShadowingGate()" data-i18n="btn-shadow-skip">スキップして発音チェックへ</button></div>
-        </div>
-        <div id="speech-first-attempt" class="first-attempt-box" style="display:none">
-          <div class="first-attempt-label" data-i18n="first-attempt-label">📌 初回の結果</div>
-          <div class="first-attempt-score speech-score"></div>
-          <div class="first-attempt-words word-feedback"></div>
-        </div>
-        <div class="speech-area gated" id="step6-speech-area">
-          <button class="mic-btn" id="mic-btn" onclick="toggleMic()">
-            <span class="mic-icon">🎤</span>
-            <span class="mic-label" data-i18n="mic-label">タップして話す</span>
-          </button>
-          <div id="speech-result" class="speech-result" style="display:none">
-            <div class="speech-label" data-i18n="speech-recognized">認識された文</div>
-            <div id="speech-text" class="speech-text"></div>
-            <div id="speech-score" class="speech-score"></div>
-            <div id="word-feedback" class="word-feedback"></div>
-            <div id="pron-tips" class="pron-tips" style="display:none"></div>
+        <div class="step-hero">
+          <div class="step-header">
+            <span class="step-badge">6</span>
+            <span class="step-title-text" data-i18n="step6-title">音声入力で発音チェック</span>
           </div>
+          <div id="step6-mascot" class="mascot-hero" aria-hidden="true"></div>
         </div>
-        <div class="step-actions">
-          <button class="btn" onclick="backDiaryStep()" data-i18n="btn-back-step">← 戻る</button>
-          <button class="btn btn-primary" onclick="saveDiary()" data-i18n="btn-save-diary">💾 日記を保存</button>
+        <div class="step-body">
+          <div class="ai-box" style="margin-bottom:12px">
+            <div class="ai-label" data-i18n="target-label">目標文</div>
+            <div id="target-sentence" class="ai-text target-text"></div>
+            <button class="btn btn-sm" id="hear-target-btn" style="margin-top:8px" onclick="speakTarget()" data-i18n="btn-hear-target">🔊 もう一度聞く</button>
+          </div>
+          <div class="shadow-progress">
+            <div class="progress-track"><div class="progress-fill" id="shadow-progress-bar"></div></div>
+            <div class="shadow-progress-label" id="shadow-progress-label">0 / 20</div>
+            <div class="center"><button class="btn btn-sm" onclick="skipShadowingGate()" data-i18n="btn-shadow-skip">スキップして発音チェックへ</button></div>
+          </div>
+          <div id="speech-first-attempt" class="first-attempt-box" style="display:none">
+            <div class="first-attempt-label" data-i18n="first-attempt-label">📌 初回の結果</div>
+            <div class="first-attempt-score speech-score"></div>
+            <div class="first-attempt-words word-feedback"></div>
+          </div>
+          <div class="speech-area gated" id="step6-speech-area">
+            <button class="mic-btn" id="mic-btn" onclick="toggleMic()">
+              <span class="mic-icon">🎤</span>
+              <span class="mic-label" data-i18n="mic-label">タップして話す</span>
+            </button>
+            <div id="speech-result" class="speech-result" style="display:none">
+              <div class="speech-label" data-i18n="speech-recognized">認識された文</div>
+              <div id="speech-text" class="speech-text"></div>
+              <div id="speech-score" class="speech-score"></div>
+              <div id="word-feedback" class="word-feedback"></div>
+              <div id="pron-tips" class="pron-tips" style="display:none"></div>
+            </div>
+          </div>
+          <div class="step-actions">
+            <button class="btn" onclick="backDiaryStep()" data-i18n="btn-back-step">← 戻る</button>
+            <button class="btn btn-primary" onclick="saveDiary()" data-i18n="btn-save-diary">💾 日記を保存</button>
+          </div>
         </div>
       </div>
     </section>

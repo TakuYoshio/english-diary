@@ -163,23 +163,36 @@ body {
 .diary-progress-dot.done { background: var(--accent-light); cursor: pointer; }
 .diary-progress-dot.current { background: var(--accent); transform: scale(1.35); }
 
-/* ── STEP CARDS（1画面1機能: activeの1枚だけ表示）── */
+/* ── STEP CARDS（1画面1機能: activeの1枚だけ表示、グラデーションヒーロー＋白ボディの二層構成）── */
 .step-card {
   display: none;
-  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 1.5rem;
   margin-bottom: 14px;
   box-shadow: var(--shadow);
+  overflow: hidden;
 }
 .step-card.active { display: block; }
+
+.step-hero {
+  background: linear-gradient(135deg, var(--accent-light), var(--secondary-light));
+  padding: 1.75rem 1.5rem 2.25rem;
+  text-align: center;
+  position: relative;
+}
+.step-body {
+  background: var(--surface);
+  border-radius: 20px 20px 0 0;
+  padding: 2rem 1.5rem 1.5rem;
+  position: relative;
+}
 
 .step-header {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 4px;
 }
 .step-badge {
   width: 26px; height: 26px;
@@ -191,7 +204,22 @@ body {
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.step-title-text { font-family: var(--font-display); font-size: 16px; font-weight: 700; }
+.step-title-text { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
+
+.mascot-hero {
+  width: 130px; height: 130px;
+  margin: 14px auto -22px;
+  position: relative;
+}
+.mascot-hero::after {
+  content: '';
+  position: absolute; left: 50%; bottom: 18px;
+  width: 60%; height: 12px;
+  background: rgba(0,0,0,0.15);
+  border-radius: 50%; filter: blur(4px);
+  transform: translateX(-50%);
+  z-index: -1;
+}
 
 .date-label {
   font-size: 12px; font-weight: 600;
@@ -811,7 +839,8 @@ body {
   .vocab-add-row { flex-direction: column; }
   .header-inner { padding: 0 0.75rem; gap: 6px; }
   .main { padding: 1rem 1rem calc(4rem + var(--tabbar-h)); }
-  .step-card { padding: 1.25rem; }
+  .step-hero { padding: 1.5rem 1.25rem 2rem; }
+  .step-body { padding: 1.75rem 1.25rem 1.25rem; }
   .nav { display: none; }
   .logo [data-i18n="app-title"] { display: none; }
   .streak-badge { padding: 6px 9px; font-size: 12px; min-height: 40px; }
