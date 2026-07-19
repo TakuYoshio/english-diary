@@ -207,14 +207,14 @@ body {
 .step-title-text { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
 
 .mascot-hero {
-  width: 130px; height: 130px;
-  margin: 14px auto -22px;
+  width: 160px; height: 160px;
+  margin: 14px auto -26px;
   position: relative;
 }
 .mascot-hero::after {
   content: '';
-  position: absolute; left: 50%; bottom: 18px;
-  width: 60%; height: 12px;
+  position: absolute; left: 50%; bottom: 20px;
+  width: 60%; height: 14px;
   background: rgba(0,0,0,0.15);
   border-radius: 50%; filter: blur(4px);
   transform: translateX(-50%);
@@ -448,7 +448,6 @@ body {
 
 /* 首輪ティア（画像を囲むリンググロー） */
 .kotora-wrap { border-radius: 50%; transition: box-shadow 0.3s ease; }
-.kotora-wrap[data-tier="bronze"]  { box-shadow: 0 0 0 3px var(--mascot-collar-bronze) inset; }
 .kotora-wrap[data-tier="silver"]  { box-shadow: 0 0 0 3px var(--mascot-collar-silver) inset; }
 .kotora-wrap[data-tier="gold"]    { box-shadow: 0 0 0 3px var(--mascot-collar-gold) inset, 0 0 14px rgba(232,185,58,0.55); }
 .kotora-wrap[data-tier="diamond"] { box-shadow: 0 0 0 3px var(--mascot-collar-diamond) inset, 0 0 16px rgba(126,200,227,0.6); }
