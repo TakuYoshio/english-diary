@@ -126,6 +126,14 @@ const TRANSLATIONS = {
     'badge-vocab-50': '単語50語登録', 'badge-vocab-100': '単語100語登録',
     'badge-pronunciation-90': '発音スコア90%達成',
     'toast-levelup': '🎉 レベル{level}になりました！', 'toast-badge-earned': '🏅「{badge}」を獲得しました！',
+    // Home
+    'nav-home': 'ホーム',
+    'home-greeting-morning': 'おはよう！', 'home-greeting-afternoon': 'こんにちは！', 'home-greeting-evening': 'おかえり！',
+    'home-sub': '今日も英語で書いてみよう',
+    'home-missions-title': '今日のミッション',
+    'mission-diary': '今日の日記を書く', 'mission-review': '単語を復習する（{count}語）',
+    'mission-review-none': '復習する単語はなし', 'mission-quiz': 'クイズに挑戦する',
+    'mission-done-chip': 'クリア！',
   },
   en: {
     'setup-title': 'English Diary', 'setup-sub': 'Please log in',
@@ -241,6 +249,14 @@ const TRANSLATIONS = {
     'badge-vocab-50': '50 words registered', 'badge-vocab-100': '100 words registered',
     'badge-pronunciation-90': '90%+ pronunciation score',
     'toast-levelup': '🎉 Reached level {level}!', 'toast-badge-earned': '🏅 Earned "{badge}"!',
+    // Home
+    'nav-home': 'Home',
+    'home-greeting-morning': 'Good morning!', 'home-greeting-afternoon': 'Hello!', 'home-greeting-evening': 'Welcome back!',
+    'home-sub': "Let's write in English today",
+    'home-missions-title': "Today's Missions",
+    'mission-diary': "Write today's diary", 'mission-review': 'Review words ({count})',
+    'mission-review-none': 'No words due for review', 'mission-quiz': 'Try a quiz',
+    'mission-done-chip': 'Done!',
   }
 };
 
@@ -292,6 +308,8 @@ function applyLang() {
 function toggleLang() {
   LS.set('lang', getLang() === 'ja' ? 'en' : 'ja');
   applyLang();
+  const homeTab = document.getElementById('tab-home');
+  if (currentUserId && homeTab && homeTab.classList.contains('active')) renderHome();
 }
 
 // ── Supabase ──────────────────────────────────────────────────────────────
@@ -311,6 +329,7 @@ async function enterApp(session) {
   await Promise.all([loadEntries(), renderVocab(), loadEntriesMeta()]);
   initQuizTab();
   refreshProgressUI();
+  switchTab('home');
   if (!currentProfile.onboarding_completed) openOnboarding();
 }
 
@@ -409,9 +428,63 @@ function switchTab(name) {
   document.querySelectorAll('.nav-btn, .bottom-tab-btn').forEach(el => el.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
   document.querySelectorAll(`[data-tab="${name}"]`).forEach(el => el.classList.add('active'));
+  if (name === 'home')    renderHome();
   if (name === 'entries') loadEntries();
   if (name === 'vocab')   renderVocab();
   if (name === 'quiz')    initQuizTab();
+}
+
+// ── ホーム画面 ─────────────────────────────────────────────────────────────
+function countDueVocab() {
+  const list = (typeof allVocab !== 'undefined' && allVocab) ? allVocab : [];
+  const now = Date.now();
+  return list.filter(v => new Date(v.next_review_at || 0).getTime() <= now).length;
+}
+
+function renderHome() {
+  const el = document.getElementById('home-greeting');
+  if (!el) return;
+  const h = new Date().getHours();
+  el.textContent = t(h >= 5 && h < 11 ? 'home-greeting-morning' : h >= 11 && h < 18 ? 'home-greeting-afternoon' : 'home-greeting-evening');
+
+  renderStreakBadge('home-streak');
+
+  const stats = computeProgressStats();
+  document.getElementById('home-level-label').textContent = t('mascot-level-label').replace('{level}', stats.level);
+  const xpLeft = stats.xpForNextLevel - stats.xpIntoLevel;
+  const capEl = document.getElementById('home-xp-caption');
+  if (typeof animateNumber === 'function' && renderHome._lastXpLeft != null && renderHome._lastXpLeft !== xpLeft) {
+    animateNumber(capEl, renderHome._lastXpLeft, xpLeft, 600, n => t('mascot-next-level').replace('{xp}', n));
+  } else {
+    capEl.textContent = t('mascot-next-level').replace('{xp}', xpLeft);
+  }
+  renderHome._lastXpLeft = xpLeft;
+  document.getElementById('home-xp-fill').style.width = Math.round(stats.xpIntoLevel / stats.xpForNextLevel * 100) + '%';
+
+  if (typeof kotoraImg === 'function') {
+    document.getElementById('home-kotora').innerHTML =
+      kotoraImg('idle', mascotCollarTier(stats.level), mascotGrowthStage(stats.level));
+  }
+
+  const diaryDone = entriesMeta.some(e => e.date === todayISO());
+  const dueCount = countDueVocab();
+  const quizDone = LS.get('missionQuiz:' + todayISO()) === '1';
+  const missions = [
+    { icon: 'i-pencil', cls: 'mission-coral', title: t('mission-diary'), done: diaryDone, tab: 'diary' },
+    { icon: 'i-book',   cls: 'mission-teal',
+      title: dueCount > 0 ? t('mission-review').replace('{count}', dueCount) : t('mission-review-none'),
+      done: dueCount === 0, tab: 'quiz' },
+    { icon: 'i-quiz',   cls: 'mission-gold', title: t('mission-quiz'), done: quizDone, tab: 'quiz' },
+  ];
+  document.getElementById('home-missions').innerHTML = missions.map(m => `
+    <button class="home-mission-card${m.done ? ' mission-done' : ''}" onclick="switchTab('${m.tab}')">
+      <span class="mission-icon ${m.cls}"><svg class="icon"><use href="#${m.icon}"/></svg></span>
+      <span class="mission-title">${escapeHtml(m.title)}</span>
+      ${m.done
+        ? `<span class="mission-status mission-clear">${escapeHtml(t('mission-done-chip'))}</span>`
+        : `<span class="mission-status mission-chevron"><svg class="icon"><use href="#i-chevron"/></svg></span>`}
+    </button>
+  `).join('');
 }
 
 // ── Modal ─────────────────────────────────────────────────────────────────
@@ -453,6 +526,8 @@ function renderDiaryProgress() {
     dot.classList.toggle('current', step === currentDiaryStep);
     dot.classList.toggle('done', step !== currentDiaryStep && step <= maxDiaryStepReached);
   });
+  const label = document.getElementById('diary-progress-label');
+  if (label) label.textContent = currentDiaryStep + ' / 6';
 }
 
 // ── STEP 1 → 2 ───────────────────────────────────────────────────────────
@@ -1195,6 +1270,7 @@ async function saveDiary() {
   await loadEntries();
   await loadEntriesMeta();
   refreshProgressUI();
+  renderHome();
   const newStreak = computeStreaks(entriesMeta).current;
   const newStats = (typeof computeProgressStats === 'function') ? computeProgressStats() : null;
   const leveledUp = !!(prevStats && newStats && newStats.level > prevStats.level);
@@ -1204,6 +1280,7 @@ async function saveDiary() {
   if (typeof mascotCelebrateSave === 'function') {
     mascotCelebrateSave({ streakGrew: newStreak > prevStreak, leveledUp, badgeEarned: !!badgeEarned });
   }
+  if (typeof burstConfetti === 'function') burstConfetti();
   const wordsMsg = toAdd.length ? `${toAdd.length}${t('toast-words-added')}` : '';
   showToast(t('toast-saved') + (wordsMsg ? ' ' + wordsMsg : ''), 'success');
   if (leveledUp) showToast(t('toast-levelup').replace('{level}', newStats.level), 'success');
@@ -1526,6 +1603,7 @@ function nextQ() {
   document.getElementById('hint-btn').textContent=t('btn-hint');
   if (!queue.length) {
     const total=qStats.ok+qStats.ng;
+    if (total > 0) LS.set('missionQuiz:' + todayISO(), '1');
     document.getElementById('quiz-word').textContent=t('quiz-complete');
     document.getElementById('quiz-dir').textContent=total ? t('quiz-rate')+Math.round(qStats.ok/total*100)+'%' : '';
     document.getElementById('quiz-input').style.display='none';
@@ -1543,6 +1621,8 @@ function nextQ() {
 }
 function renderQuizCard(card) {
   if (typeof mascotResetQuizMood === 'function') mascotResetQuizMood();
+  const cardEl = document.querySelector('#quiz-flashcard-area .quiz-card');
+  if (cardEl) { cardEl.classList.remove('card-enter'); void cardEl.offsetWidth; cardEl.classList.add('card-enter'); }
   const {v,dir,type}=card;
   const input=document.getElementById('quiz-input');
   input.disabled=false;
@@ -1772,6 +1852,7 @@ async function gradeSituationalAnswer(answer) {
     const data = JSON.parse(res);
     banner.className = 'result-banner ' + (data.correct ? 'result-ok' : 'result-ng');
     banner.textContent = data.correct ? t('situational-correct') : t('situational-incorrect');
+    if (data.correct) LS.set('missionQuiz:' + todayISO(), '1');
     document.getElementById('situational-corrected').textContent = data.corrected || '';
     document.getElementById('situational-feedback').textContent  = data.feedback || '';
     await applySituationalSrsUpdate(data);

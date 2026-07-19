@@ -95,8 +95,8 @@ function computeVocabSummary() {
 }
 
 // ── Header streak badge ─────────────────────────────────────────────────
-function renderStreakBadge() {
-  const badge = document.getElementById('streak-badge');
+function renderStreakBadge(id = 'streak-badge') {
+  const badge = document.getElementById(id);
   if (!badge) return;
   const { current, longest } = computeStreaks(entriesMeta);
   if (current === 0) {

@@ -66,6 +66,16 @@ function mascotCelebrateSave({ streakGrew = false, leveledUp = false, badgeEarne
 
   clearTimeout(popup._t);
   popup._t = setTimeout(() => { popup.classList.remove('mascot-popup-in'); }, 2600);
+
+  if (streakGrew) {
+    ['streak-badge', 'home-streak'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.remove('streak-pulse');
+      void el.offsetWidth;
+      el.classList.add('streak-pulse');
+    });
+  }
 }
 
 // ── progress.js の再計算後に呼ばれる（Step6の待機ポーズなどを最新化） ────────
