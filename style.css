@@ -1010,14 +1010,17 @@ body {
     background: var(--border-strong); margin: -6px auto 14px;
   }
   .confirm-modal-card { max-width: none; }
-  /* ウィザードの主要CTAをスティッキー化 */
+  /* ウィザードの主要CTAを固定化（.step-cardのoverflow:hiddenの影響を受けないposition:fixedを使用） */
   #tab-diary .step-actions {
-    position: sticky; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 8px);
+    position: fixed; left: 0; right: 0;
+    bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
     background: var(--surface); z-index: 5;
-    padding: 10px 0 2px; margin-top: 16px;
+    padding: 10px 1.25rem calc(10px + env(safe-area-inset-bottom));
     box-shadow: 0 -12px 10px -10px rgba(61,46,35,0.10);
   }
   #tab-diary .step-actions .btn-primary { flex: 1; }
+  /* 固定CTAの下に隠れないよう、カード側に同等の余白を確保 */
+  #tab-diary .step-body { padding-bottom: calc(90px + var(--tabbar-h) + env(safe-area-inset-bottom)); }
 }
 
 @media (max-width: 520px) {
@@ -1028,6 +1031,7 @@ body {
   .home-hero { margin: -1rem -1rem 0; }
   .step-hero { padding: 1.5rem 1.25rem 2rem; }
   .step-body { padding: 1.75rem 1.25rem 1.25rem; }
+  #tab-diary .step-actions { padding-left: 1rem; padding-right: 1rem; }
   .logo [data-i18n="app-title"] { display: none; }
   .streak-badge { padding: 6px 9px; font-size: 12px; min-height: 40px; }
   .entries-view-btn { font-size: 12px; padding: 7px 4px; }
