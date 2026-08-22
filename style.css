@@ -879,6 +879,20 @@ body {
 .login-error { color: var(--danger-dark); }
 .hint a { color: var(--accent-mid); }
 .hint.center { text-align: center; margin-top: 14px; }
+.link-btn {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  background: none;
+  border: none;
+  color: var(--accent-mid);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.link-btn:hover { color: var(--accent-dark); }
 .center { text-align: center; }
 .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-faint); font-size: 14px; line-height: 2.2; }
 .empty-icon { font-size: 36px; margin-bottom: 8px; }

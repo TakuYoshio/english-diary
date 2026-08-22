@@ -30,18 +30,47 @@
   <img src="character/kotora.png" class="setup-kotora" alt="コトラ" />
   <div class="setup-card">
     <h1 class="setup-title" data-i18n="setup-title">英語日記</h1>
-    <p class="setup-sub" data-i18n="setup-sub">ログインしてください</p>
-    <div class="form-group">
-      <label><span data-i18n="label-email">メールアドレス</span></label>
-      <input type="email" id="s-email" class="input" placeholder="you@example.com" autocomplete="username" />
+
+    <div id="login-view">
+      <p class="setup-sub" data-i18n="setup-sub">ログインしてください</p>
+      <div class="form-group">
+        <label><span data-i18n="label-email">メールアドレス</span></label>
+        <input type="email" id="s-email" class="input" placeholder="you@example.com" autocomplete="username" />
+      </div>
+      <div class="form-group">
+        <label><span data-i18n="label-password">パスワード</span></label>
+        <input type="password" id="s-password" class="input" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <p id="login-error" class="hint login-error"></p>
+      <button class="btn btn-primary btn-full" onclick="loginUser()" data-i18n="btn-start">ログイン →</button>
+      <button type="button" class="link-btn" onclick="showResetRequestView()" data-i18n="link-forgot">パスワードをお忘れですか？</button>
+      <p class="hint center" data-i18n="hint-keys">招待されたメールアドレスでログインできます</p>
     </div>
-    <div class="form-group">
-      <label><span data-i18n="label-password">パスワード</span></label>
-      <input type="password" id="s-password" class="input" placeholder="••••••••" autocomplete="current-password" />
+
+    <div id="reset-request-view" style="display:none">
+      <p class="setup-sub" data-i18n="reset-desc">登録済みのメールアドレスにパスワード再設定用のリンクを送ります</p>
+      <div class="form-group">
+        <label><span data-i18n="label-email">メールアドレス</span></label>
+        <input type="email" id="reset-email" class="input" placeholder="you@example.com" autocomplete="username" />
+      </div>
+      <p id="reset-error" class="hint login-error"></p>
+      <button class="btn btn-primary btn-full" onclick="requestPasswordReset()" data-i18n="btn-send-reset">リセットメールを送信</button>
+      <button type="button" class="link-btn" onclick="showLoginView()" data-i18n="link-back-login">← ログインに戻る</button>
     </div>
-    <p id="login-error" class="hint login-error"></p>
-    <button class="btn btn-primary btn-full" onclick="loginUser()" data-i18n="btn-start">ログイン →</button>
-    <p class="hint center" data-i18n="hint-keys">招待されたメールアドレスでログインできます</p>
+
+    <div id="reset-update-view" style="display:none">
+      <p class="setup-sub" data-i18n="reset-new-title">新しいパスワードを設定してください</p>
+      <div class="form-group">
+        <label><span data-i18n="label-new-password">新しいパスワード</span></label>
+        <input type="password" id="reset-new-password" class="input" placeholder="••••••••" autocomplete="new-password" />
+      </div>
+      <div class="form-group">
+        <label><span data-i18n="label-new-password2">新しいパスワード（確認）</span></label>
+        <input type="password" id="reset-new-password2" class="input" placeholder="••••••••" autocomplete="new-password" />
+      </div>
+      <p id="reset-update-error" class="hint login-error"></p>
+      <button class="btn btn-primary btn-full" onclick="submitNewPassword()" data-i18n="btn-update-password">パスワードを変更</button>
+    </div>
   </div>
 </div>
 

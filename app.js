@@ -58,6 +58,20 @@ const TRANSLATIONS = {
     'alert-no-speech': 'このブラウザは音声認識に対応していません。ChromeかSafariをお使いください。',
     'alert-auth-error': 'ログインが必要です。ログインし直してください。',
     'alert-login-fill': 'メールアドレスとパスワードを入力してね',
+    'link-forgot': 'パスワードをお忘れですか？',
+    'reset-desc': '登録済みのメールアドレスにパスワード再設定用のリンクを送ります',
+    'btn-send-reset': 'リセットメールを送信',
+    'link-back-login': '← ログインに戻る',
+    'alert-reset-fill': 'メールアドレスを入力してね',
+    'toast-reset-sent': '登録済みのアドレスなら再設定メールを送信しました。メールをご確認ください',
+    'reset-new-title': '新しいパスワードを設定してください',
+    'label-new-password': '新しいパスワード',
+    'label-new-password2': '新しいパスワード（確認）',
+    'btn-update-password': 'パスワードを変更',
+    'toast-password-updated': 'パスワードを変更しました！',
+    'error-password-mismatch': 'パスワードが一致しません',
+    'error-password-short': 'パスワードは6文字以上にしてください',
+    'error-reset-expired': 'リンクの有効期限が切れています。もう一度リセットメールを送信してください',
     'loading-correcting': 'AIが添削中…', 'loading-feedback': 'フィードバック生成中…',
     'error-ai': 'AI添削エラー: ', 'error-save': '保存エラー: ', 'error-vocab': 'エラー: ',
     'toast-saved': '日記を保存しました！', 'toast-words-added': '件の単語を単語帳に追加。',
@@ -181,6 +195,20 @@ const TRANSLATIONS = {
     'alert-no-speech': 'Speech recognition is not supported. Please use Chrome or Safari.',
     'alert-auth-error': 'You need to be logged in. Please log in again.',
     'alert-login-fill': 'Please enter your email and password',
+    'link-forgot': 'Forgot your password?',
+    'reset-desc': 'We\'ll send a password reset link to your registered email address',
+    'btn-send-reset': 'Send reset email',
+    'link-back-login': '← Back to login',
+    'alert-reset-fill': 'Please enter your email address',
+    'toast-reset-sent': 'If the address is registered, a reset email has been sent. Please check your inbox',
+    'reset-new-title': 'Set a new password',
+    'label-new-password': 'New password',
+    'label-new-password2': 'New password (confirm)',
+    'btn-update-password': 'Update password',
+    'toast-password-updated': 'Password updated!',
+    'error-password-mismatch': 'Passwords do not match',
+    'error-password-short': 'Password must be at least 6 characters',
+    'error-reset-expired': 'This link has expired. Please request a new reset email',
     'loading-correcting': 'AI is correcting…', 'loading-feedback': 'Generating feedback…',
     'error-ai': 'AI correction error: ', 'error-save': 'Save error: ', 'error-vocab': 'Error: ',
     'toast-saved': 'Diary saved!', 'toast-words-added': ' words added to vocabulary.',
@@ -391,13 +419,74 @@ function showLogin() {
   currentUserEmail = '';
   document.getElementById('app').style.display = 'none';
   document.getElementById('setup-screen').style.display = 'flex';
+  setSetupView('login-view');
+}
+
+// ── パスワードリセット ────────────────────────────────────────────────────
+function setSetupView(id) {
+  ['login-view', 'reset-request-view', 'reset-update-view'].forEach(v => {
+    const el = document.getElementById(v);
+    if (el) el.style.display = v === id ? 'block' : 'none';
+  });
+}
+
+function showLoginView() { setSetupView('login-view'); }
+
+function showResetRequestView() {
+  const loginEmail = document.getElementById('s-email').value.trim();
+  if (loginEmail) document.getElementById('reset-email').value = loginEmail;
+  document.getElementById('reset-error').textContent = '';
+  setSetupView('reset-request-view');
+}
+
+function showPasswordUpdateView() {
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('setup-screen').style.display = 'flex';
+  setSetupView('reset-update-view');
+}
+
+async function requestPasswordReset() {
+  const email = document.getElementById('reset-email').value.trim();
+  const errEl = document.getElementById('reset-error');
+  errEl.textContent = '';
+  if (!email) { errEl.textContent = t('alert-reset-fill'); return; }
+  // 成否を出し分けるとアドレスの登録有無が推測できてしまうため、常に中立メッセージを出す
+  await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+  showToast(t('toast-reset-sent'), 'success');
+  showLoginView();
+}
+
+async function submitNewPassword() {
+  const pw    = document.getElementById('reset-new-password').value;
+  const pw2   = document.getElementById('reset-new-password2').value;
+  const errEl = document.getElementById('reset-update-error');
+  errEl.textContent = '';
+  if (pw.length < 6) { errEl.textContent = t('error-password-short'); return; }
+  if (pw !== pw2)    { errEl.textContent = t('error-password-mismatch'); return; }
+  const { error } = await sb.auth.updateUser({ password: pw });
+  if (error) { errEl.textContent = error.message; return; }
+  showToast(t('toast-password-updated'), 'success');
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) { await enterApp(session); } else { showLogin(); }
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
   applyLang();
+  // supabase-jsがハッシュのトークンを消費する前に、リカバリーリンク経由かを覚えておく
+  const bootHash = location.hash;
   initSB();
+  sb.auth.onAuthStateChange((event) => {
+    if (event === 'PASSWORD_RECOVERY') showPasswordUpdateView();
+  });
   const { data: { session } } = await sb.auth.getSession();
-  if (session) { await enterApp(session); } else { showLogin(); }
+  if (bootHash.includes('type=recovery')) {
+    history.replaceState(null, '', location.pathname + location.search);
+    showPasswordUpdateView();
+  } else if (bootHash.includes('error=')) {
+    history.replaceState(null, '', location.pathname + location.search);
+    showLogin();
+    showToast(t('error-reset-expired'), 'error');
+  } else if (session) { await enterApp(session); } else { showLogin(); }
 });
 
 // ── Login / Logout ───────────────────────────────────────────────────────
