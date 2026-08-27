@@ -49,8 +49,8 @@
   --cat-vocabulary: #9A6BB8; --cat-vocabulary-bg: #F5EEFA;
   --cat-expression: #D9822B; --cat-expression-bg: #FAEFDF;
   --cat-other: #8A8073;      --cat-other-bg: #F3EFE9;
-  --mascot-fur: #E8934F;       --mascot-fur-light: #FBEADA;  --mascot-fur-dark: #C9702E;
-  --mascot-ear-inner: #F7C9B6; --mascot-eye: #3C7A4E;        --mascot-nose: #D97C63;
+  --mascot-fur: #F0BB82;       --mascot-fur-light: #FFF7EA;  --mascot-fur-dark: #C4854C;
+  --mascot-ear-inner: #F7C4B0; --mascot-eye: #8A5A2E;        --mascot-nose: #E8908A;
   --mascot-collar-bronze: #C08552; --mascot-collar-silver: #AEB7C0;
   --mascot-collar-gold: #E8B93A;   --mascot-collar-diamond: #7EC8E3;
   --mascot-collar: var(--mascot-collar-bronze);
@@ -1035,6 +1035,229 @@ body {
   #tab-diary .step-actions .btn-primary { flex: 1; }
   /* 固定CTAの下に隠れないよう、カード側に同等の余白を確保 */
   #tab-diary .step-body { padding-bottom: calc(90px + var(--tabbar-h) + env(safe-area-inset-bottom)); }
+}
+
+/* ── MASCOT SVG（kotora-svg.js のパーツ制御。旧PNG向けルールより後置して上書き） ── */
+svg.kotora-img { overflow: visible; }
+svg.kotora-img * { transform-box: fill-box; }
+
+/* まばたき（openの目だけ。左右同時） */
+.kt-eye { transform-origin: center; animation: kt-blink 4.4s ease-in-out infinite; }
+@keyframes kt-blink {
+  0%, 94.5%, 100% { transform: scaleY(1); }
+  96.5%           { transform: scaleY(0.06); }
+  98.5%           { transform: scaleY(1); }
+}
+
+/* しっぽ（常時ゆったり、excitedで高速化） */
+.kt-tail { transform-origin: 15% 92%; animation: kt-tail-sway 3.2s ease-in-out infinite; }
+@keyframes kt-tail-sway {
+  0%, 100% { transform: rotate(-3deg); }
+  50%      { transform: rotate(5deg); }
+}
+.kotora-wrap[data-mood="excited"] .kt-tail,
+.kotora-wrap[data-mood="delighted"] .kt-tail { animation-duration: 0.6s; }
+
+/* 耳・眉の変形起点 */
+.kt-ear  { transform-origin: 50% 88%; transition: transform 0.25s ease; }
+.kt-brow { transform-origin: center; }
+
+/* ── mood → パーツ状態 ── */
+/* excited: 目を見開いて口を開ける */
+.kotora-wrap[data-mood="excited"] .kt-pupil { transform: scale(1.3); transform-origin: center; }
+.kotora-wrap[data-mood="excited"] .kt-mouth-smile { display: none; }
+.kotora-wrap[data-mood="excited"] .kt-mouth-open { display: inline; }
+
+/* delighted: にっこり目＋大きく開けた口 */
+.kotora-wrap[data-mood="delighted"] .kt-eyes-open { display: none; }
+.kotora-wrap[data-mood="delighted"] .kt-eyes-happy { display: inline; }
+.kotora-wrap[data-mood="delighted"] .kt-mouth-smile { display: none; }
+.kotora-wrap[data-mood="delighted"] .kt-mouth-open { display: inline; }
+
+/* happy: にっこり目＋ほっぺ濃く */
+.kotora-wrap[data-mood="happy"] .kt-eyes-open { display: none; }
+.kotora-wrap[data-mood="happy"] .kt-eyes-happy { display: inline; }
+.kotora-wrap[data-mood="happy"] .kt-cheek { opacity: 0.85; }
+.kotora-wrap[data-mood="happy"] .kotora-img { filter: none; }
+
+/* sad: 半目＋への字口＋眉＋耳ぺたん */
+.kotora-wrap[data-mood="sad"] .kt-eyes-open { display: none; }
+.kotora-wrap[data-mood="sad"] .kt-eyes-sad { display: inline; }
+.kotora-wrap[data-mood="sad"] .kt-mouth-smile { display: none; }
+.kotora-wrap[data-mood="sad"] .kt-mouth-frown { display: inline; }
+.kotora-wrap[data-mood="sad"] .kt-brow { display: inline; }
+.kotora-wrap[data-mood="sad"] .kt-brow-l { transform: rotate(-12deg); }
+.kotora-wrap[data-mood="sad"] .kt-brow-r { transform: rotate(12deg); }
+.kotora-wrap[data-mood="sad"] .kt-ear-l { transform: rotate(-16deg); }
+.kotora-wrap[data-mood="sad"] .kt-ear-r { transform: rotate(16deg); }
+.kotora-wrap[data-mood="sad"] .kotora-img { filter: none; }
+
+/* angry: つり目＋つり眉＋への字口＋耳を後ろに */
+.kotora-wrap[data-mood="angry"] .kt-pupil { transform: scale(0.8); transform-origin: center; }
+.kotora-wrap[data-mood="angry"] .kt-mouth-smile { display: none; }
+.kotora-wrap[data-mood="angry"] .kt-mouth-frown { display: inline; }
+.kotora-wrap[data-mood="angry"] .kt-brow { display: inline; }
+.kotora-wrap[data-mood="angry"] .kt-brow-l { transform: rotate(14deg); }
+.kotora-wrap[data-mood="angry"] .kt-brow-r { transform: rotate(-14deg); }
+.kotora-wrap[data-mood="angry"] .kt-ear-l { transform: rotate(-24deg) translateY(6px); }
+.kotora-wrap[data-mood="angry"] .kt-ear-r { transform: rotate(24deg) translateY(6px); }
+.kotora-wrap[data-mood="angry"] .kotora-img { filter: none; }
+
+/* levelup: 星の目＋大口＋2回ジャンプ */
+.kotora-wrap[data-mood="levelup"] .kt-eyes-open { display: none; }
+.kotora-wrap[data-mood="levelup"] .kt-eyes-star { display: inline; }
+.kotora-wrap[data-mood="levelup"] .kt-mouth-smile { display: none; }
+.kotora-wrap[data-mood="levelup"] .kt-mouth-open { display: inline; }
+.kotora-wrap[data-mood="levelup"] svg.kotora-img { filter: drop-shadow(0 0 10px rgba(246,185,59,0.6)); }
+.kotora-wrap[data-mood="levelup"] .kotora-img { animation: kotora-jump 0.9s ease; }
+@keyframes kotora-jump {
+  0%, 100% { transform: translateY(0); }
+  18%      { transform: translateY(-22px) scale(1.02); }
+  38%      { transform: translateY(0); }
+  56%      { transform: translateY(-13px); }
+  74%      { transform: translateY(0); }
+}
+
+/* badge: にっこり目 */
+.kotora-wrap[data-mood="badge"] .kt-eyes-open { display: none; }
+.kotora-wrap[data-mood="badge"] .kt-eyes-happy { display: inline; }
+
+/* 口パク（吹き出し表示中はスロット要素に .kt-talking が付与される。mood側の口より優先） */
+.kt-talking .kotora-wrap .kt-mouth-smile,
+.kt-talking .kotora-wrap .kt-mouth-frown { display: none; }
+.kt-talking .kotora-wrap .kt-mouth-open { display: inline; transform-origin: 50% 20%; animation: kt-talk 0.28s ease-in-out infinite alternate; }
+@keyframes kt-talk {
+  from { transform: scaleY(0.45); }
+  to   { transform: scaleY(1); }
+}
+
+/* ── 吹き出し（kotora-speech.js） ── */
+.kt-bubble {
+  position: absolute; z-index: 20;
+  transform: translate(-50%, -100%);
+  max-width: min(280px, 78vw); width: max-content;
+  background: var(--surface); color: var(--text);
+  border: 2px solid var(--border-strong);
+  border-radius: 16px; padding: 9px 14px;
+  font-family: var(--font-display);
+  font-size: 14px; font-weight: 700; line-height: 1.5;
+  box-shadow: var(--shadow);
+  opacity: 0; pointer-events: none; cursor: pointer;
+  transition: opacity 0.22s ease, transform 0.22s ease;
+  white-space: pre-line; text-align: left;
+}
+.kt-bubble::after {
+  content: ''; position: absolute; left: 50%; bottom: -8.5px;
+  width: 14px; height: 14px;
+  transform: translateX(-50%) rotate(45deg);
+  background: var(--surface);
+  border-right: 2px solid var(--border-strong);
+  border-bottom: 2px solid var(--border-strong);
+}
+.kt-bubble-in { opacity: 1; pointer-events: auto; transform: translate(-50%, calc(-100% - 8px)); }
+.quiz-card { position: relative; }
+@media (prefers-reduced-motion: reduce) {
+  .kt-bubble { transition: opacity 0.01s linear; transform: translate(-50%, calc(-100% - 8px)); }
+}
+
+/* ── MICRO-INTERACTIONS（全体リッチ化） ── */
+/* タブ切替のフェード（transformは固定CTAの座標系を壊すためopacityのみ） */
+.tab.active { animation: tab-in 0.22s ease; }
+@keyframes tab-in { from { opacity: 0.25; } to { opacity: 1; } }
+
+/* ボタン押下のスカッシュ（既存の3D沈み込みに追加） */
+.btn:active { transform: scale(0.96); }
+.btn-primary:active { transform: translateY(3px) scale(0.98); box-shadow: none; }
+
+/* XPバーのシャイン */
+.mascot-xp-fill { position: relative; overflow: hidden; }
+.mascot-xp-fill::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.55) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: xp-shine 3s ease-in-out infinite;
+}
+@keyframes xp-shine {
+  0%, 55% { transform: translateX(-100%); }
+  100%    { transform: translateX(100%); }
+}
+
+/* 日記進捗ドットの現在位置バウンス */
+.diary-progress-dot.current { animation: dot-bounce 0.35s ease; }
+@keyframes dot-bounce {
+  0%   { transform: scale(0.7); }
+  60%  { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+/* ホームヒーローの浮遊ドット装飾 */
+.home-hero::before, .home-hero::after {
+  content: ''; position: absolute; border-radius: 50%;
+  background: rgba(255,255,255,0.5); pointer-events: none;
+}
+.home-hero::before { width: 44px; height: 44px; top: 16%; left: 7%; animation: hero-float 6s ease-in-out infinite; }
+.home-hero::after  { width: 24px; height: 24px; top: 52%; right: 9%; animation: hero-float 7.5s ease-in-out infinite reverse; }
+@keyframes hero-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-12px); }
+}
+
+/* ホームのコトラ登場ポップ */
+.home-kotora .kotora-wrap { animation: pop-in 0.3s ease; }
+
+/* ミッションクリアチップのポップ */
+.mission-done .mission-clear { animation: badge-pop 0.4s ease; }
+
+/* ストリーク炎の揺らぎ（0日のときは静止） */
+.streak-flame:not(.streak-flame-off) { display: inline-block; animation: flame-flicker 1.6s ease-in-out infinite; }
+@keyframes flame-flicker {
+  0%, 100% { transform: scale(1) rotate(-2deg); }
+  30%      { transform: scale(1.08) rotate(2deg); }
+  60%      { transform: scale(0.96) rotate(-1deg); }
+}
+
+/* 「+XP」フローティングテキスト（fx.js floatXpText） */
+.fx-float-xp {
+  position: fixed; z-index: 1001; pointer-events: none;
+  transform: translateX(-50%);
+  font-family: var(--font-display); font-weight: 800; font-size: 22px;
+  color: var(--accent);
+  text-shadow: 0 2px 0 rgba(255,255,255,0.9), 0 3px 8px rgba(209,122,66,0.3);
+  animation: fx-float-up 1.3s ease-out forwards;
+}
+@keyframes fx-float-up {
+  0%   { opacity: 0; transform: translate(-50%, 10px) scale(0.8); }
+  18%  { opacity: 1; transform: translate(-50%, 0) scale(1.05); }
+  100% { opacity: 0; transform: translate(-50%, -48px) scale(1.1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab.active, .mascot-xp-fill::after, .diary-progress-dot.current,
+  .home-hero::before, .home-hero::after, .home-kotora .kotora-wrap,
+  .mission-done .mission-clear, .streak-flame, .fx-float-xp { animation: none !important; }
+}
+
+/* 首輪ティア（SVGでは首輪本体で表現するため旧リンググローは無効化） */
+.kotora-wrap:has(svg.kotora-img) { box-shadow: none !important; border-radius: 0; }
+.kotora-wrap[data-tier="silver"]  .kt-collar { fill: var(--mascot-collar-silver); }
+.kotora-wrap[data-tier="gold"]    .kt-collar { fill: var(--mascot-collar-gold); }
+.kotora-wrap[data-tier="diamond"] .kt-collar { fill: var(--mascot-collar-diamond); }
+.kotora-wrap[data-tier="gold"] .kt-collar-charm { display: inline; }
+.kotora-wrap[data-tier="diamond"] .kt-collar-charm {
+  display: inline; fill: #FFFFFF;
+  filter: drop-shadow(0 0 6px var(--mascot-collar-diamond));
+}
+
+/* 成長段階: adult は縞が増える（スケール差は既存ルールを継続利用） */
+.kotora-wrap[data-stage="adult"] .kt-stripes-adult { display: inline; }
+
+/* 小サイズ（クイズ56px）では細部を間引く */
+.mascot-inline-sm .kt-whiskers,
+.mascot-inline-sm .kt-face-stripes { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .kt-eye, .kt-tail, .kotora-wrap.kt-talking .kt-mouth-open,
+  .kotora-wrap[data-mood="levelup"] .kotora-img { animation: none !important; }
 }
 
 @media (max-width: 520px) {

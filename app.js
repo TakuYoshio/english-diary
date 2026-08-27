@@ -554,6 +554,14 @@ function renderHome() {
     document.getElementById('home-kotora').innerHTML =
       kotoraImg('idle', mascotCollarTier(stats.level), mascotGrowthStage(stats.level));
   }
+  if (typeof kotoraSay === 'function') {
+    const curStreak = computeStreaks(entriesMeta).current;
+    if (curStreak >= 3) {
+      kotoraSay('home-kotora', 'greet-streak', { vars: { n: curStreak }, once: true });
+    } else {
+      kotoraSay('home-kotora', h >= 5 && h < 11 ? 'greet-morning' : h >= 11 && h < 18 ? 'greet-afternoon' : 'greet-evening', { once: true });
+    }
+  }
 
   const diaryDone = entriesMeta.some(e => e.date === todayISO());
   const dueCount = countDueVocab();
@@ -901,6 +909,7 @@ async function goStep5() {
   await Promise.allSettled([fastPromise, detailedPromise]);
   stopProgress();
   if (typeof mascotSetMood === 'function') mascotSetMood('step5-mascot', 'delighted');
+  if (typeof kotoraSay === 'function') kotoraSay('step5-mascot', 'step5-done');
 }
 
 function renderFeedback(data, feedbackElId = 'ai-feedback-text') {
@@ -1370,6 +1379,7 @@ async function saveDiary() {
     mascotCelebrateSave({ streakGrew: newStreak > prevStreak, leveledUp, badgeEarned: !!badgeEarned });
   }
   if (typeof burstConfetti === 'function') burstConfetti();
+  if (typeof floatXpText === 'function') floatXpText('+15 XP');
   const wordsMsg = toAdd.length ? `${toAdd.length}${t('toast-words-added')}` : '';
   showToast(t('toast-saved') + (wordsMsg ? ' ' + wordsMsg : ''), 'success');
   if (leveledUp) showToast(t('toast-levelup').replace('{level}', newStats.level), 'success');

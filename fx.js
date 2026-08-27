@@ -48,6 +48,19 @@ function burstConfetti() {
   });
 }
 
+// 「+15 XP」のようなテキストをふわっと浮かせて消す（保存・正解時の獲得演出）
+function floatXpText(text, anchorEl = null) {
+  if (fxReducedMotion()) return;
+  const el = document.createElement('div');
+  el.className = 'fx-float-xp';
+  el.textContent = text;
+  const r = anchorEl && anchorEl.getBoundingClientRect ? anchorEl.getBoundingClientRect() : null;
+  el.style.left = (r ? r.left + r.width / 2 : window.innerWidth / 2) + 'px';
+  el.style.top = (r ? r.top : window.innerHeight * 0.38) + 'px';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1400);
+}
+
 // 数値をなめらかにカウントアップ（formatで文字列テンプレートに埋め込める）
 function animateNumber(el, from, to, ms = 500, format = String) {
   if (!el) return;

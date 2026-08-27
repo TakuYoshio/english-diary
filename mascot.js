@@ -14,9 +14,13 @@ function mascotCollarTier(level) {
 }
 
 function kotoraImg(mood = 'idle', tier = 'bronze', stage = 'kitten') {
+  // kotora-svg.js が読み込まれていればパーツアニメーション可能なSVG、なければ旧PNG
+  const body = (typeof kotoraSvg === 'function')
+    ? kotoraSvg()
+    : '<img class="kotora-img" src="character/kotora.png" alt="コトラ" />';
   return `
   <div class="kotora-wrap" data-mood="${mood}" data-tier="${tier}" data-stage="${stage}">
-    <img class="kotora-img" src="character/kotora.png" alt="コトラ" />
+    ${body}
   </div>`;
 }
 
@@ -38,6 +42,7 @@ function mascotUpdateShadowPose(pct, reachedGoal) {
   slot.innerHTML = kotoraImg(mood, tier, stage);
 
   if (mood === 'delighted') {
+    if (typeof kotoraSay === 'function') kotoraSay('step6-mascot', 'shadow-goal', { once: true });
     _mascotShadowSettleTimer = setTimeout(() => {
       slot.innerHTML = kotoraImg('happy', tier, stage);
     }, 700);
@@ -66,6 +71,11 @@ function mascotCelebrateSave({ streakGrew = false, leveledUp = false, badgeEarne
 
   clearTimeout(popup._t);
   popup._t = setTimeout(() => { popup.classList.remove('mascot-popup-in'); }, 2600);
+
+  if (typeof kotoraSay === 'function') {
+    const lineKey = leveledUp ? 'save-levelup' : badgeEarned ? 'save-badge' : streakGrew ? 'save-streak' : 'save-done';
+    kotoraSay('mascot-popup', lineKey, { duration: 2400 });
+  }
 
   if (streakGrew) {
     ['streak-badge', 'home-streak'].forEach(id => {
@@ -112,6 +122,9 @@ function mascotReactQuiz(isOk) {
 
   clearTimeout(_mascotQuizSettleTimer);
   slot.innerHTML = kotoraImg(isOk ? 'delighted' : 'sad', tier, stage);
+  if (typeof kotoraSay === 'function') {
+    kotoraSay('quiz-mascot', isOk ? 'quiz-ok' : 'quiz-ng', { typewriter: false, duration: 1600 });
+  }
   _mascotQuizSettleTimer = setTimeout(() => {
     slot.innerHTML = kotoraImg('idle', tier, stage);
   }, 1200);
@@ -129,6 +142,7 @@ function mascotSetMood(slotId, mood) {
 function mascotShowDiaryStep(n) {
   if (n === 5 || n === 6) return; // Step5/6は専用の反応ロジックを持つ
   mascotSetMood('step' + n + '-mascot', 'idle');
+  if (typeof kotoraSay === 'function') kotoraSay('step' + n + '-mascot', 'step' + n + '-guide', { once: true });
 }
 
 // ── マスコットモーダル（成長段階＋XPバー＋バッジ一覧） ───────────────────────
