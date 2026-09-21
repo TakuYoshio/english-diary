@@ -80,6 +80,8 @@ const TRANSLATIONS = {
     'aria-streak': '連続記録とレベルを見る',
     'page-size-10': '10件', 'page-size-20': '20件', 'page-size-50': '50件',
     'toast-update-ready': '新しいバージョンがあります。次回起動時に更新されます',
+    'pref-vocab-images-label': '単語帳にイラストを表示する',
+    'pref-vocab-images-hint': 'オンにすると、登録した英単語が画像生成サービス（Pollinations.ai）に送信されます。',
     'error-ai-quota': '今日のAI利用が上限に達しました。また明日どうぞ',
     'error-tts': '音声を再生できませんでした',
     'error-srs': '学習記録を保存できませんでした: ',
@@ -237,6 +239,8 @@ const TRANSLATIONS = {
     'aria-streak': 'View your streak and level',
     'page-size-10': '10', 'page-size-20': '20', 'page-size-50': '50',
     'toast-update-ready': 'A new version is ready. It will apply next time you open the app',
+    'pref-vocab-images-label': 'Show illustrations in the word list',
+    'pref-vocab-images-hint': 'When on, the English words you save are sent to an image generation service (Pollinations.ai).',
     'error-ai-quota': "You've reached today's AI limit. See you tomorrow!",
     'error-tts': "Couldn't play the audio",
     'error-srs': "Couldn't save your progress: ",
@@ -435,6 +439,12 @@ function collectPreferenceForm(prefix) {
   };
 }
 
+// イラスト表示は端末ごとの設定なのでprofilesには入れず、ここで保存する
+function saveVocabImagePref(prefix) {
+  const el = document.getElementById(`${prefix}-vocab-images`);
+  if (el) setVocabImagesEnabled(el.checked);
+}
+
 function openOnboarding() {
   // 設定は任意なのでEscapeで閉じられてよい（閉じられないと詰む不具合があった）
   openModal('onboarding-modal');
@@ -442,6 +452,7 @@ function openOnboarding() {
 
 async function completeOnboarding() {
   const payload = collectPreferenceForm('onboarding');
+  saveVocabImagePref('onboarding');
   const { error } = await sb.from('profiles').upsert(payload, { onConflict: 'user_id' });
   // 保存に失敗してもモーダルは閉じる。閉じられないとアプリ全体が操作不能になるため、
   // 選択内容はメモリ上のプロフィールにだけ反映し、設定画面から再保存できる状態にする。
@@ -464,13 +475,16 @@ function populateSettingsPreferences(profile) {
     el.checked = el.value === (profile.shadowing_level || 'normal');
   });
   document.getElementById('settings-auto-lookup').checked = !!profile.auto_vocab_lookup;
+  document.getElementById('settings-vocab-images').checked = vocabImagesEnabled();
 }
 
 async function savePreferences() {
   const payload = collectPreferenceForm('settings');
+  saveVocabImagePref('settings');
   const { error } = await sb.from('profiles').upsert(payload, { onConflict: 'user_id' });
   if (error) { showToast(t('error-save') + error.message, 'error'); return; }
   currentProfile = payload;
+  filterAndRenderVocab();
   showToast(t('toast-prefs-saved'), 'success');
 }
 
@@ -1763,7 +1777,14 @@ function _hashSeed(str) {
   for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
   return h;
 }
+// 単語カードのイラスト生成は第三者サービス（Pollinations.ai）に英単語を送る。
+// 表示するかどうかは端末ごとの設定としてlocalStorageに持つ（既定はオン）。
+// profilesテーブルに列を足すと手動マイグレーションが必要になるため。
+function vocabImagesEnabled() { return LS.get('vocabImages') !== '0'; }
+function setVocabImagesEnabled(on) { LS.set('vocabImages', on ? '1' : '0'); }
+
 function vocabImageUrl(en) {
+  if (!vocabImagesEnabled()) return '';
   const prompt = encodeURIComponent(`simple flat illustration of ${en}, minimal, white background, flashcard style`);
   const seed = _hashSeed(en.toLowerCase().trim());
   return `https://image.pollinations.ai/prompt/${prompt}?width=256&height=256&seed=${seed}&nologo=true`;
@@ -1860,8 +1881,10 @@ function filterAndRenderVocab() {
     const total = (v.correct||0) + (v.wrong||0);
     const rate  = total ? Math.round(v.correct/total*100) : null;
     const cls   = rate===null ? 'rate-new' : rate>=70 ? 'rate-ok' : 'rate-ng';
+    // 設定がオフなら保存済みのURLも読みに行かない（第三者へのリクエストを出さない）
+    const imgSrc = vocabImagesEnabled() ? (v.image_url || vocabImageUrl(v.en)) : '';
     return `<div class="vocab-row">
-      <img class="v-thumb" src="${escapeHtml(v.image_url || vocabImageUrl(v.en))}" alt="${escapeHtml(v.en)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'" />
+      ${imgSrc ? `<img class="v-thumb" src="${escapeHtml(imgSrc)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'" />` : ''}
       <div class="v-en">${escapeHtml(v.en)}</div>
       <div class="v-jp">${escapeHtml(v.jp)}</div>
       <div class="v-note">${escapeHtml(v.note||'')}</div>

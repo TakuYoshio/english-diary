@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # ビルド工程が無いぶん、HTMLとJSの結線ズレ・コントラスト・lintで守る
+      - name: 結線チェック（DOM id・onclick・i18nキー）
+        run: npm run check
+
+      - name: コントラスト（WCAG AA）
+        run: node scripts/check-contrast.mjs
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Chromiumを取得
+        run: npx playwright install --with-deps chromium
+
+      - name: テスト（Worker + 実ブラウザのスモーク）
+        run: npm test
