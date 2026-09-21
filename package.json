@@ -8,7 +8,7 @@
     "serve": "http-server -p 8931 -c-1",
     "check": "node scripts/check-wiring.mjs",
     "lint": "eslint .",
-    "test": "node test/worker.test.mjs && node test/run.mjs",
+    "test": "node test/unit.test.mjs && node test/worker.test.mjs && node test/run.mjs",
     "verify": "npm run check && node scripts/check-contrast.mjs && npm run lint && npm test",
     "update-vendor": "node scripts/update-vendor.mjs",
     "icons": "node scripts/make-icons.mjs"

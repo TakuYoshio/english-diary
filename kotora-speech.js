@@ -58,6 +58,26 @@ const KOTORA_LINES = {
     'save-streak': ['ストリーク更新🔥この調子で続けよう！'],
     'save-levelup': ['レベルアップ🎉どんどん成長してるにゃ！'],
     'save-badge': ['新しいバッジをゲット🏅おめでとう！'],
+    'weak-graduate': [
+      '「{word}」ついに覚えたにゃ🎉',
+      '苦手だった「{word}」を克服！えらい✨',
+    ],
+    'weekly-ready': [
+      '先週のレポートができたよ📮 見てみる？',
+      '先週のがんばり、まとめておいたにゃ📮',
+    ],
+    'weekly-great': [
+      '先週は最高だったにゃ🔥 この調子！',
+      'よくがんばったにゃ！自分をほめていいよ✨',
+    ],
+    'weekly-good': [
+      'いい感じだったにゃ😊 今週も少しずつ！',
+      '着実に進んでるにゃ🌱',
+    ],
+    'weekly-comeback': [
+      '今週はまた書いてみようにゃ🐾 1日1行でもOK！',
+      'ゆっくりでいいよ。また一緒にやろうにゃ😺',
+    ],
   },
   en: {
     'greet-morning': [
@@ -94,6 +114,26 @@ const KOTORA_LINES = {
     'save-streak': ['Streak extended 🔥 Keep it going!'],
     'save-levelup': ["Level up 🎉 You're growing fast!"],
     'save-badge': ['New badge earned 🏅 Congrats!'],
+    'weak-graduate': [
+      'You finally got "{word}"! 🎉',
+      '"{word}" used to trip you up — not anymore ✨',
+    ],
+    'weekly-ready': [
+      'Last week\'s report is ready 📮 Want to see it?',
+      'I wrapped up last week for you 📮',
+    ],
+    'weekly-great': [
+      'Last week was brilliant 🔥 Keep it going!',
+      'You did great — give yourself credit ✨',
+    ],
+    'weekly-good': [
+      'Solid week 😊 Let\'s keep chipping away!',
+      'Steady progress 🌱',
+    ],
+    'weekly-comeback': [
+      'Let\'s write again this week 🐾 Even one line counts!',
+      'No rush. I\'m here whenever you\'re ready 😺',
+    ],
   },
 };
 

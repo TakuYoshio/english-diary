@@ -57,7 +57,7 @@ const used = new Set([
   ...[...js.matchAll(/\bt\(\s*'([^']+)'\s*\)/g)].map(m => m[1]),
 ]);
 for (const k of [...used].sort()) if (!ja.has(k)) errors.push(`i18n: 使われているキー '${k}' が未定義`);
-for (const k of [...ja].sort()) if (!used.has(k) && !/^(cat|badge|type|score|quiz-dir|mascot-stage|home-greeting|fb|entries-(empty|no-results)|vocab-empty)/.test(k)) warn.push(`i18n: 未使用の可能性 '${k}'`);
+for (const k of [...ja].sort()) if (!used.has(k) && !/^(cat|badge|type|score|quiz-dir|mascot-stage|home-greeting|fb|entries-(empty|no-results)|vocab-empty|stage-|dq-kind-|weekly-stat-)/.test(k)) warn.push(`i18n: 未使用の可能性 '${k}'`);
 
 if (warn.length) console.log(warn.map(w => 'warn: ' + w).join('\n'));
 if (errors.length) { console.error('\n' + errors.join('\n')); console.error(`\n${errors.length} 件のエラー`); process.exit(1); }

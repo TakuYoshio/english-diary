@@ -42,6 +42,82 @@ async function loadFeedbackWindow() {
 // 日記を保存・編集したら次に統計を開いたときに取り直す
 function invalidateFeedbackWindow() { _feedbackLoaded = false; }
 
+// ── 週の境界（月曜始まり・日曜終わり） ───────────────────────────────────
+// weeklyBuckets() は「今日起点のローリング7日窓」で暦週ではないため、
+// 週報はこちらを使う。'YYYY-MM-DD' はタイムゾーンを持たない暦日なので、
+// computeStreaks と同じくUTC正午で扱ってDSTのズレを避ける。
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+function dayUTC(dateStr) { return new Date(dateStr + 'T12:00:00Z').getTime(); }
+function dayStr(ms) { return new Date(ms).toISOString().split('T')[0]; }
+
+// その日を含む週の月曜日を返す
+function weekStartOf(dateStr) {
+  const ms = dayUTC(dateStr);
+  const dow = new Date(ms).getUTCDay();       // 0=日 .. 6=土
+  const backToMonday = (dow + 6) % 7;         // 月=0, 日=6
+  return dayStr(ms - backToMonday * ONE_DAY_MS);
+}
+function previousWeekStart(dateStr) {
+  return dayStr(dayUTC(weekStartOf(dateStr)) - 7 * ONE_DAY_MS);
+}
+function weekDates(weekStartISO) {
+  const start = dayUTC(weekStartISO);
+  return Array.from({ length: 7 }, (_, i) => dayStr(start + i * ONE_DAY_MS));
+}
+
+// ── 週報の集計 ───────────────────────────────────────────────────────────
+// DBに触らない純粋な関数。entries は [{date, jp, corrected, pronunciation_first_attempt}]、
+// vocab は [{created_at}] を含む配列。テストから直接呼べる。
+//
+// 注意: 「クイズ正解◯問」は含めない。vocab.correct/wrong は累計値で日付別の記録が
+// 無く、「先週何問正解したか」は既存データから算出できないため。
+function computeWeeklyReport(weekStartISO, { entries = [], vocab = [] } = {}) {
+  const days = weekDates(weekStartISO);
+  const dayset = new Set(days);
+  const weekEndISO = days[6];
+
+  const inWeek = entries.filter(e => dayset.has(e.date));
+  const daysWritten = new Set(inWeek.map(e => e.date)).size;
+
+  const startMs = dayUTC(weekStartISO) - 12 * 3600 * 1000;      // 月曜 00:00 UTC
+  const endMs   = dayUTC(weekEndISO) + 12 * 3600 * 1000;        // 日曜 24:00 UTC
+  const newWords = (vocab || []).filter(v => {
+    const ms = new Date(v.created_at || 0).getTime();
+    return Number.isFinite(ms) && ms >= startMs && ms < endMs;
+  }).length;
+
+  const scores = inWeek
+    .map(e => e.pronunciation_first_attempt?.score)
+    .filter(s => typeof s === 'number');
+  const bestPronunciation = scores.length ? Math.max(...scores) : null;
+
+  // ハイライト: その週の添削済み英文から最も長い1文を引用する。
+  // 分割は日記クイズと同じ splitSentences（略語のピリオドで切らない）を使う。
+  let highlight = null;
+  inWeek.forEach(e => {
+    splitSentences(e.corrected)
+      .filter(s => s.split(' ').length >= 4)
+      .forEach(sentence => {
+        if (!highlight || sentence.length > highlight.sentence.length) {
+          highlight = { sentence, date: e.date };
+        }
+      });
+  });
+
+  // その週の中で何日連続して書けたか
+  let bestRun = 0, run = 0;
+  days.forEach(d => { run = dayset.has(d) && inWeek.some(e => e.date === d) ? run + 1 : 0; bestRun = Math.max(bestRun, run); });
+
+  // 応援メッセージの出し分け（AI不使用）
+  const tone = daysWritten >= 5 ? 'great' : daysWritten >= 2 ? 'good' : 'comeback';
+
+  return {
+    weekStart: weekStartISO, weekEnd: weekEndISO,
+    entryCount: inWeek.length, daysWritten, newWords,
+    bestPronunciation, bestRun, highlight, tone,
+  };
+}
+
 // ── Streak ───────────────────────────────────────────────────────────────
 function computeStreaks(meta) {
   const dateSet = new Set(meta.map(e => e.date));
@@ -120,7 +196,21 @@ function computeVocabSummary() {
   const list = (typeof allVocab !== 'undefined' && allVocab) ? allVocab : [];
   const correctTotal = list.reduce((sum, v) => sum + (v.correct || 0), 0);
   const wrongTotal   = list.reduce((sum, v) => sum + (v.wrong || 0), 0);
-  return { count: list.length, correctTotal, wrongTotal };
+  return { count: list.length, correctTotal, wrongTotal, garden: computeGardenCounts(list) };
+}
+
+// srs_stage 0〜6 を 芽/双葉/つぼみ/花 の4段階に畳んで数える（Word Garden用）。
+// app.js の SRS_STAGE_KEYS と対応。純粋な集計なのでテストから直接呼べる。
+function computeGardenCounts(list) {
+  const counts = { seed: 0, sprout: 0, bud: 0, bloom: 0 };
+  (list || []).forEach(v => {
+    const s = Math.max(0, Math.min(6, v.srs_stage || 0));
+    if (s <= 1) counts.seed++;
+    else if (s <= 3) counts.sprout++;
+    else if (s <= 5) counts.bud++;
+    else counts.bloom++;
+  });
+  return counts;
 }
 
 // ── Header streak badge ─────────────────────────────────────────────────
@@ -281,7 +371,9 @@ function categoryFeedbackCounts(meta) {
 }
 
 function renderStatsDashboard() {
-  const container = document.getElementById('entries-stats');
+  // #entries-stats には週報を開くボタンが常設されているので、
+  // グラフ本体はその内側の専用コンテナにだけ描く。
+  const container = document.getElementById('entries-stats-body');
   if (!container) return;
 
   if (!entriesMeta.length) {
@@ -338,4 +430,116 @@ function renderStatsDashboard() {
       </div>
     </div>
   `;
+}
+
+// ── コトラの週報（ローカル集計のみ・AI不使用） ─────────────────────────────
+// entriesMeta は Phase 2 で本文（corrected）を持たなくなったため、
+// 週報を開くときだけ対象週の日記を別途取得する（7件程度の軽いクエリ）。
+async function fetchWeekEntries(weekStartISO) {
+  const days = weekDates(weekStartISO);
+  const { data, error } = await sb.from('entries')
+    .select('id,date,jp,corrected,pronunciation_first_attempt')
+    .gte('date', days[0])
+    .lte('date', days[6])
+    .order('date', { ascending: true })
+    .limit(50);
+  if (error) { showToast(t('error-load-entries'), 'error'); return null; }
+  return data || [];
+}
+
+let _weeklyShownWeek = null;
+
+// 直近の「閉じた週」＝先週。月曜に週が切り替わる。
+function lastCompletedWeekStart() { return previousWeekStart(todayISO()); }
+
+async function openWeeklyReport(weekStartISO) {
+  const weekStart = weekStartISO || lastCompletedWeekStart();
+  const entries = await fetchWeekEntries(weekStart);
+  if (entries === null) return;
+
+  const vocab = (typeof allVocab !== 'undefined' && allVocab) ? allVocab : [];
+  const report = computeWeeklyReport(weekStart, { entries, vocab });
+  _weeklyShownWeek = weekStart;
+
+  renderWeeklyReport(report);
+  openModal('weekly-modal');
+  // 既読にする（同じ週の通知を繰り返さない）
+  LS.set('weeklyReport:' + weekStart, '1');
+  const badge = document.getElementById('weekly-home-cta');
+  if (badge) badge.style.display = 'none';
+}
+
+function renderWeeklyReport(r) {
+  const body = document.getElementById('weekly-modal-body');
+  if (!body) return;
+
+  const range = `${fmtShortDate(r.weekStart)} – ${fmtShortDate(r.weekEnd)}`;
+  const stage = (typeof computeProgressStats === 'function') ? computeProgressStats() : null;
+  const kotora = (typeof kotoraImg === 'function' && stage)
+    ? kotoraImg(r.daysWritten >= 2 ? 'delighted' : 'idle',
+        mascotCollarTier(stage.level), mascotGrowthStage(stage.level))
+    : '';
+
+  // 数字カード。値が無いものは出さない（0件表示で落ち込ませない）
+  const cards = [
+    { key: 'weekly-stat-days',  value: r.daysWritten, suffix: t('weekly-unit-days') },
+    { key: 'weekly-stat-words', value: r.newWords,    suffix: t('weekly-unit-words') },
+  ];
+  if (r.bestPronunciation !== null) {
+    cards.push({ key: 'weekly-stat-pron', value: r.bestPronunciation, suffix: t('weekly-unit-score') });
+  }
+  if (r.bestRun >= 2) {
+    cards.push({ key: 'weekly-stat-run', value: r.bestRun, suffix: t('weekly-unit-days') });
+  }
+
+  body.innerHTML = `
+    <div class="weekly-hero weekly-card">
+      <div class="weekly-kotora">${kotora}</div>
+      <div class="weekly-range">${escapeHtml(range)}</div>
+      <div class="weekly-headline">${escapeHtml(t('weekly-headline').replace('{n}', r.daysWritten))}</div>
+    </div>
+    <div class="stat-grid weekly-stats">
+      ${cards.map(c => `
+        <div class="stat-card weekly-card">
+          <div class="stat-card-label">${escapeHtml(t(c.key))}</div>
+          <div class="stat-card-big" data-weekly-to="${c.value}">0</div>
+          <div class="stat-card-value">${escapeHtml(c.suffix)}</div>
+        </div>
+      `).join('')}
+    </div>
+    ${r.highlight ? `
+      <div class="weekly-quote weekly-card">
+        <div class="stat-card-label">${escapeHtml(t('weekly-highlight'))}</div>
+        <blockquote class="weekly-quote-text">${escapeHtml(r.highlight.sentence)}</blockquote>
+        <div class="weekly-quote-date">${escapeHtml(fmtShortDate(r.highlight.date))}</div>
+      </div>` : ''}
+    <p class="weekly-message">${escapeHtml(ktLine('weekly-' + r.tone) || '')}</p>
+  `;
+
+  // 数字をカウントアップさせる（reduced-motion時は animateNumber 側が即座に確定させる）
+  if (typeof animateNumber === 'function') {
+    body.querySelectorAll('[data-weekly-to]').forEach(el => {
+      animateNumber(el, 0, Number(el.dataset.weeklyTo) || 0, 700);
+    });
+  }
+}
+
+function closeWeeklyReport() {
+  closeModal('weekly-modal');
+  if (typeof burstConfetti === 'function') burstConfetti();
+}
+
+// 週が明けて最初にホームを開いたとき、コトラが知らせる。
+// モーダルを勝手に開かず、ホームに導線を出すだけにする。
+function checkWeeklyReport() {
+  const weekStart = lastCompletedWeekStart();
+  const cta = document.getElementById('weekly-home-cta');
+  if (!cta) return;
+  const unread = LS.get('weeklyReport:' + weekStart) !== '1';
+  // 先週1日も書いていないなら通知しない（いきなり責められている感じになるため）
+  const wroteLastWeek = entriesMeta.some(e => weekDates(weekStart).includes(e.date));
+  cta.style.display = unread && wroteLastWeek ? 'flex' : 'none';
+  if (unread && wroteLastWeek && typeof kotoraSay === 'function') {
+    kotoraSay('home-kotora', 'weekly-ready', { once: true });
+  }
 }

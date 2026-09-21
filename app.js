@@ -139,6 +139,38 @@ const TRANSLATIONS = {
     'first-attempt-all-correct': 'すべて認識されました！',
     // Situational sentence practice
     'quiz-mode-flashcard': '単語テスト', 'quiz-mode-situational': '状況文で練習',
+    'quiz-mode-diary': '日記から復習',
+    // 記憶の育ち具合（Word Garden）
+    'stage-seed': '芽が出たところ', 'stage-sprout': '双葉', 'stage-bud': 'つぼみ', 'stage-bloom': '満開',
+    'review-next-label': '次の復習',
+    'review-due-now': '今日', 'review-due-tomorrow': '明日', 'review-due-days': 'あと{n}日',
+    'vocab-weak-chip': '苦手 {n}語',
+    'quiz-weak-only': '苦手な{n}語だけ',
+    'toast-weak-graduated': '「{word}」が苦手から卒業！🎉',
+    // 日記から復習
+    'diary-quiz-empty': 'AI添削まで終えた日記がまだありません<br>日記を書いて添削してもらおう',
+    'dq-source': '{date} の日記より',
+    'dq-kind-cloze': '空いているところに入る単語は？',
+    'dq-kind-order': '正しい順に並べてみよう',
+    'dq-jp-hint': 'そのとき書いたこと:',
+    'dq-tap-words': '下の単語をタップして並べよう',
+    'dq-pick-first': '単語を並べてから確認してね',
+    'dq-finished': 'おつかれさま！{total}問中{ok}問正解',
+    // コトラの週報
+    'weekly-title': 'コトラの週報',
+    'weekly-cta': '先週のレポートができたよ',
+    'weekly-open': '📮 先週の週報を見る',
+    'weekly-close': '今週もがんばる 🔥',
+    'weekly-headline': '先週は{n}日書けたにゃ！',
+    'weekly-stat-days': '書いた日',
+    'weekly-stat-words': '新しい単語',
+    'weekly-stat-pron': '発音ベスト',
+    'weekly-stat-run': '連続で書けた',
+    'weekly-unit-days': '日',
+    'weekly-unit-words': '語',
+    'weekly-unit-score': '点',
+    'weekly-highlight': 'この文、良かったにゃ',
+    'btn-close': '閉じる',
     'situational-target-label': '使う単語', 'situational-or': 'または英語でタイピング',
     'ph-situational-answer': 'ここに英語で回答…', 'btn-situational-grade': 'AI採点',
     'btn-situational-next': '次の問題へ →',
@@ -298,6 +330,38 @@ const TRANSLATIONS = {
     'first-attempt-all-correct': 'All words recognized!',
     // Situational sentence practice
     'quiz-mode-flashcard': 'Word Quiz', 'quiz-mode-situational': 'Situational Practice',
+    'quiz-mode-diary': 'From Your Diary',
+    // 記憶の育ち具合（Word Garden）
+    'stage-seed': 'Just sprouted', 'stage-sprout': 'Growing', 'stage-bud': 'Budding', 'stage-bloom': 'In full bloom',
+    'review-next-label': 'Next review',
+    'review-due-now': 'today', 'review-due-tomorrow': 'tomorrow', 'review-due-days': 'in {n} days',
+    'vocab-weak-chip': '{n} tricky',
+    'quiz-weak-only': 'Only my {n} tricky words',
+    'toast-weak-graduated': '"{word}" is no longer tricky! 🎉',
+    // 日記から復習
+    'diary-quiz-empty': "You don't have any AI-corrected diaries yet<br>Write one and get it corrected",
+    'dq-source': 'From your diary on {date}',
+    'dq-kind-cloze': 'Which word fills the blank?',
+    'dq-kind-order': 'Put the words in the right order',
+    'dq-jp-hint': 'What you wrote:',
+    'dq-tap-words': 'Tap the words below to build the sentence',
+    'dq-pick-first': 'Build the sentence first',
+    'dq-finished': 'Nice work! {ok} out of {total} correct',
+    // コトラの週報
+    'weekly-title': "Kotora's Weekly Report",
+    'weekly-cta': "Last week's report is ready",
+    'weekly-open': "📮 See last week's report",
+    'weekly-close': "Let's go this week 🔥",
+    'weekly-headline': 'You wrote on {n} days last week!',
+    'weekly-stat-days': 'Days written',
+    'weekly-stat-words': 'New words',
+    'weekly-stat-pron': 'Best pronunciation',
+    'weekly-stat-run': 'Longest run',
+    'weekly-unit-days': 'days',
+    'weekly-unit-words': 'words',
+    'weekly-unit-score': 'points',
+    'weekly-highlight': 'I liked this sentence',
+    'btn-close': 'Close',
     'situational-target-label': 'Words to use', 'situational-or': 'or type your answer in English',
     'ph-situational-answer': 'Type your English answer…', 'btn-situational-grade': 'AI Grade',
     'btn-situational-next': 'Next question →',
@@ -659,6 +723,8 @@ function renderHome() {
     capEl.textContent = t('mascot-next-level').replace('{xp}', xpLeft);
   }
   renderHome._lastXpLeft = xpLeft;
+  // 週が明けて先週のレポートが未読なら、ホームに導線を出す（モーダルは勝手に開かない）
+  if (typeof checkWeeklyReport === 'function') checkWeeklyReport();
   document.getElementById('home-xp-fill').style.width = Math.round(stats.xpIntoLevel / stats.xpForNextLevel * 100) + '%';
 
   if (typeof kotoraImg === 'function') {
@@ -1855,6 +1921,8 @@ function filterAndRenderVocab() {
     ? allVocab.filter(v => v.en.toLowerCase().includes(term) || v.jp.toLowerCase().includes(term))
     : allVocab;
 
+  renderVocabGarden();
+
   if (!vocab.length) {
     count.textContent = '';
     if (allVocab.length && term) {
@@ -1883,16 +1951,44 @@ function filterAndRenderVocab() {
     const cls   = rate===null ? 'rate-new' : rate>=70 ? 'rate-ok' : 'rate-ng';
     // 設定がオフなら保存済みのURLも読みに行かない（第三者へのリクエストを出さない）
     const imgSrc = vocabImagesEnabled() ? (v.image_url || vocabImageUrl(v.en)) : '';
-    return `<div class="vocab-row">
+    // 記憶の育ち具合。.vocab-rowはflex-wrapで、伸びるのは3つのテキストセルだけなので
+    // flex-shrink:0 の要素を足しても既存レイアウトは潰れない。
+    const stageTitle = `${t('stage-' + srsStageKey(v.srs_stage))} ・ ${t('review-next-label')} ${nextReviewLabel(v)}`;
+    return `<div class="vocab-row${isWeakWord(v) ? ' vocab-row-weak' : ''}">
       ${imgSrc ? `<img class="v-thumb" src="${escapeHtml(imgSrc)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'" />` : ''}
       <div class="v-en">${escapeHtml(v.en)}</div>
       <div class="v-jp">${escapeHtml(v.jp)}</div>
       <div class="v-note">${escapeHtml(v.note||'')}</div>
+      <span class="v-stage" title="${escapeHtml(stageTitle)}" aria-label="${escapeHtml(stageTitle)}">${srsStageIcon(v.srs_stage)}</span>
       <span class="v-rate ${cls}">${rate===null ? t('vocab-untested') : rate+'%'}</span>
       <button class="icon-btn" onclick="startEditVocab(${v.id})" title="${escapeHtml(t('btn-edit'))}" aria-label="${escapeHtml(t('btn-edit'))} ${escapeHtml(v.en)}">✏️</button>
       <button class="icon-btn red" onclick="deleteVocab(${v.id})" title="${escapeHtml(t('btn-delete'))}" aria-label="${escapeHtml(t('btn-delete'))} ${escapeHtml(v.en)}">✕</button>
     </div>`;
   }).join('');
+}
+
+// 単語帳ヘッダーの「🌸12 🌷8 🌿15 🌱20 ／ 苦手5語」チップ。
+// #vocab-count は textContent 前提なので、兄弟の専用コンテナに描く。
+function renderVocabGarden() {
+  const el = document.getElementById('vocab-garden');
+  if (!el) return;
+  if (!allVocab.length) { el.innerHTML = ''; el.style.display = 'none'; return; }
+
+  const g = computeGardenCounts(allVocab);
+  const chips = [
+    { icon: '🌸', n: g.bloom,  key: 'bloom'  },
+    { icon: '🌷', n: g.bud,    key: 'bud'    },
+    { icon: '🌿', n: g.sprout, key: 'sprout' },
+    { icon: '🌱', n: g.seed,   key: 'seed'   },
+  ].filter(c => c.n > 0);
+
+  const weak = weakVocab(allVocab).length;
+  el.style.display = 'flex';
+  el.innerHTML = chips.map(c =>
+    `<span class="stat-chip" title="${escapeHtml(t('stage-' + c.key))}">${c.icon} <strong>${c.n}</strong></span>`
+  ).join('') + (weak
+    ? `<span class="stat-chip chip-weak">${escapeHtml(t('vocab-weak-chip').replace('{n}', weak))}</span>`
+    : '');
 }
 
 // 1打鍵ごとにリスト全体のHTMLを組み直すと（1行につき画像1枚）重いのでデバウンスする
@@ -1934,15 +2030,75 @@ function computeSrsUpdate(v, isOk) {
   };
 }
 
+// ── 記憶の育ち具合（Word Garden） ──────────────────────────────────────────
+// srs_stage 0〜6 を 芽→双葉→つぼみ→花 の4段階に畳んで見せる。
+// SRSは以前から動いていたが画面に一切出ておらず、「賢く出題されている」ことが
+// ユーザーから見えていなかった。
+const SRS_STAGE_ICONS = ['🌱', '🌱', '🌿', '🌿', '🌷', '🌷', '🌸'];
+const SRS_STAGE_KEYS  = ['seed', 'seed', 'sprout', 'sprout', 'bud', 'bud', 'bloom'];
+
+function srsStageIndex(stage) {
+  const s = Math.max(0, Math.min(SRS_INTERVALS_DAYS.length - 1, stage || 0));
+  return s;
+}
+function srsStageIcon(stage) { return SRS_STAGE_ICONS[srsStageIndex(stage)]; }
+function srsStageKey(stage)  { return SRS_STAGE_KEYS[srsStageIndex(stage)]; }
+
+// 「あと3日」「今日」のように残り日数を返す
+function nextReviewLabel(v) {
+  const at = v.next_review_at ? new Date(v.next_review_at) : null;
+  if (!at || Number.isNaN(at.getTime())) return t('review-due-now');
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const due = new Date(at); due.setHours(0, 0, 0, 0);
+  const days = Math.round((due - today) / 86400000);
+  if (days <= 0) return t('review-due-now');
+  if (days === 1) return t('review-due-tomorrow');
+  return t('review-due-days').replace('{n}', days);
+}
+
+// 苦手判定。win_streak列を足さずに既存のcorrect/wrongだけで決める。
+// 正解を重ねて正答率が60%を超えた時点で自動的に苦手から外れる＝卒業。
+function isWeakWord(v) {
+  const wrong = v.wrong || 0;
+  const total = (v.correct || 0) + wrong;
+  return wrong >= 2 && total > 0 && (v.correct || 0) / total < 0.6;
+}
+
+function weakVocab(list) { return (list || []).filter(isWeakWord); }
+
 // ── Quiz ──────────────────────────────────────────────────────────────────
 let queue=[], currentCard=null, qStats={ok:0,ng:0,streak:0};
+// 「苦手だけ」トグルの状態。出題プールの絞り込みにだけ使い、出題形式は変えない。
+let weakOnlyMode = false;
+
+function renderWeakToggle() {
+  const wrap = document.getElementById('weak-toggle-wrap');
+  const btn  = document.getElementById('weak-toggle-btn');
+  if (!wrap || !btn) return;
+  const weak = weakVocab(allVocab);
+  // 該当0件なら押せても意味がないので出さない
+  wrap.style.display = weak.length ? 'flex' : 'none';
+  if (!weak.length) weakOnlyMode = false;
+  btn.classList.toggle('active', weakOnlyMode);
+  btn.setAttribute('aria-pressed', String(weakOnlyMode));
+  btn.textContent = t('quiz-weak-only').replace('{n}', weak.length);
+}
+
+function toggleWeakOnly() {
+  weakOnlyMode = !weakOnlyMode;
+  renderWeakToggle();
+  startQuiz();
+}
+
 async function startQuiz() {
   const { data: vocab } = await sb.from('vocab').select('*').limit(VOCAB_LIMIT);
   allVocab = vocab || [];
   const empty=document.getElementById('quiz-empty'), area=document.getElementById('quiz-area');
-  if (!allVocab.length) { empty.style.display='block'; area.style.display='none'; return; }
+  if (!allVocab.length) { empty.style.display='block'; area.style.display='none'; renderWeakToggle(); return; }
   empty.style.display='none'; area.style.display='block';
-  const due = await fetchDueVocab(30, allVocab);
+  renderWeakToggle();
+  const pool = weakOnlyMode ? weakVocab(allVocab) : allVocab;
+  const due = await fetchDueVocab(30, pool);
   queue = due.map(v => {
     const type = pickQuestionType();
     const dir = type === 'listen' ? 'en2jp' : (Math.random()<0.5?'en2jp':'jp2en');
@@ -2079,12 +2235,37 @@ function checkChoice(btn, isOk, correctText) {
   btn.classList.add(isOk ? 'choice-correct' : 'choice-wrong');
   recordQuizResult(isOk, correctText, currentCard, false);
 }
+// 単語1語の正誤をSRSと単語帳に反映する。出題形式に依存しないので、
+// 単語テストからも日記クイズからも呼べる。
+// 戻り値の graduated は「苦手単語から卒業した」フラグ（回答前後で判定が変わったか）。
+async function applySrsResult(v, isOk) {
+  const wasWeak = isWeakWord(v);
+  const srs = computeSrsUpdate(v, isOk);
+  const delta = isOk ? { correct: (v.correct || 0) + 1 } : { wrong: (v.wrong || 0) + 1 };
+
+  const { error } = await sb.from('vocab').update({ ...delta, ...srs }).eq('id', v.id);
+  if (error) { showToast(t('error-srs') + error.message, 'error'); return { ok: false, graduated: false }; }
+
+  // allVocabはホームの「復習する単語」件数と単語帳表示の元データ。ここを更新しないと、
+  // 復習し終えた単語がいつまでも期限切れとして数えられる。
+  Object.assign(v, delta, srs);
+  const inList = allVocab.find(x => x.id === v.id);
+  if (inList && inList !== v) Object.assign(inList, delta, srs);
+  LS.set('missionReview:' + todayISO(), '1');
+
+  return { ok: true, graduated: wasWeak && !isWeakWord(v) };
+}
+
+// 苦手を卒業したらコトラが祝う（単語テスト・日記クイズ共通）
+function celebrateGraduation(slotId, word) {
+  showToast(t('toast-weak-graduated').replace('{word}', word), 'success');
+  if (typeof kotoraSay === 'function') kotoraSay(slotId, 'weak-graduate', { vars: { word } });
+}
+
 async function recordQuizResult(isOk, correctText, card, typo=false) {
   const {v} = card;
   const banner=document.getElementById('result-banner');
   banner.style.display='block';
-  const srs = computeSrsUpdate(v, isOk);
-  const delta = isOk ? { correct: (v.correct || 0) + 1 } : { wrong: (v.wrong || 0) + 1 };
   if (isOk) {
     qStats.ok++; qStats.streak++;
     banner.className='result-banner result-ok';
@@ -2095,23 +2276,16 @@ async function recordQuizResult(isOk, correctText, card, typo=false) {
     banner.className='result-banner result-ng';
     banner.textContent=t('quiz-wrong')+correctText+'」';
   }
-  const { error: srsError } = await sb.from('vocab').update({ ...delta, ...srs }).eq('id', v.id);
-  if (srsError) showToast(t('error-srs') + srsError.message, 'error');
-  else {
-    // allVocabはホームの「復習する単語」件数の元データ。ここを更新しないと、
-    // 復習し終えた単語がいつまでも期限切れとして数えられる。
-    Object.assign(v, delta, srs);
-    const inList = allVocab.find(x => x.id === v.id);
-    if (inList && inList !== v) Object.assign(inList, delta, srs);
-    LS.set('missionReview:' + todayISO(), '1');
-  }
-  pulseQuizCard(isOk);
+  const { graduated } = await applySrsResult(v, isOk);
+  pulseQuizCard(isOk, document.querySelector('#quiz-flashcard-area .quiz-card'));
   if (typeof mascotReactQuiz === 'function') mascotReactQuiz(isOk);
   updateQStats(true);
+  if (graduated) celebrateGraduation('quiz-mascot', v.en);
   setTimeout(nextQ,1600);
 }
-function pulseQuizCard(isOk) {
-  const card = document.querySelector('.quiz-card');
+// card は対象の .quiz-card 要素。省略時に document.querySelector('.quiz-card') へ
+// 落とすと、モードが増えたときに常に先頭のカードが光ってしまう。
+function pulseQuizCard(isOk, card) {
   if (!card) return;
   const cls = isOk ? 'card-correct-pulse' : 'card-wrong-pulse';
   card.classList.add(cls);
@@ -2134,31 +2308,344 @@ function updateQStats(hasCard) {
   document.getElementById('q-bar').style.width=total?Math.round(done/total*100)+'%':'0%';
 }
 
-// ── Quiz mode toggle（単語テスト / 状況文で練習） ────────────────────────────
+// ── 日記から復習（Diary Quiz） ────────────────────────────────────────────
+// 自分が書いて添削してもらった英文から、穴埋めと並べ替えをローカル生成する。
+// 自分の言葉・自分の出来事なので記憶に定着しやすく、書きっぱなしの日記が資産になる。
+// AIは使わない（運用費ゼロの制約を守る）。
+
+// 穴埋めの空所にしない語。冠詞・前置詞・代名詞・be動詞・助動詞など、
+// 文脈が無くても当てられてしまう機能語を外す。
+const DQ_STOPWORDS = new Set([
+  'a','an','the','and','or','but','so','if','then','than','that','this','these','those',
+  'i','you','he','she','it','we','they','me','him','her','us','them','my','your','his',
+  'its','our','their','mine','yours','ours','theirs','myself','yourself',
+  'am','is','are','was','were','be','been','being','do','does','did','done',
+  'have','has','had','will','would','can','could','shall','should','may','might','must',
+  'of','in','on','at','to','for','with','from','by','as','about','into','over','after',
+  'before','when','while','because','very','just','also','too','not','no','yes',
+  'there','here','what','which','who','how','why','all','some','any','more','most',
+]);
+
+const DQ_MIN_WORDS = 5;
+const DQ_MAX_WORDS = 12;
+const DQ_POOL_ENTRIES = 20;
+const DQ_QUESTIONS = 10;
+
+// 「Mr.」のような略語の直後で文を切らないための除外リスト
+const DQ_ABBREVIATIONS = /(?:^|\s)(?:Mr|Mrs|Ms|Dr|Prof|St|Jr|Sr|vs|etc|No|Fig|Ave|Rd)\.$/i;
+
+// 添削済み英文を文に割る。終止符のあとに空白＋大文字が続く箇所を境界とみなしつつ、
+// 直前が略語なら結合し直す。誤って切ると意味の通らない断片が出題されてしまう。
+function splitSentences(text) {
+  const parts = String(text || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(/(?<=[.!?])\s+(?=[A-Z"'])/);
+
+  const out = [];
+  parts.forEach(part => {
+    const piece = part.trim();
+    if (!piece) return;
+    if (out.length && DQ_ABBREVIATIONS.test(out[out.length - 1])) {
+      out[out.length - 1] += ' ' + piece;
+    } else {
+      out.push(piece);
+    }
+  });
+  return out;
+}
+
+// 判定・表示用に語を切り出す（末尾の句読点は落とす）
+function dqWords(sentence) {
+  return sentence.split(' ').filter(Boolean);
+}
+function dqBareWord(w) {
+  return w.replace(/^[^A-Za-z']+|[^A-Za-z']+$/g, '');
+}
+
+// 空所にする語を選ぶ。優先度: ①単語帳にありSRS期限切れ ②単語帳にある
+// ③4文字以上の内容語。どれも無ければ null（その文は穴埋めに使わない）。
+function pickClozeIndex(words, vocabByWord) {
+  const now = Date.now();
+  const candidates = words.map((w, i) => {
+    const bare = dqBareWord(w).toLowerCase();
+    if (!bare || bare.length < 3 || DQ_STOPWORDS.has(bare)) return null;
+    const v = vocabByWord.get(bare);
+    if (v) {
+      const due = new Date(v.next_review_at || 0).getTime() <= now;
+      return { i, priority: due ? 0 : 1, v };
+    }
+    if (bare.length >= 4) return { i, priority: 2, v: null };
+    return null;
+  }).filter(Boolean);
+
+  if (!candidates.length) return null;
+  const best = Math.min(...candidates.map(c => c.priority));
+  const tier = candidates.filter(c => c.priority === best);
+  return tier[Math.floor(Math.random() * tier.length)];
+}
+
+let dqQueue = [], dqCard = null, dqStats = { ok: 0, ng: 0 };
+let dqPicked = [];   // 並べ替えで回答欄に積んだ語 [{word, bankIndex}]
+
+async function startDiaryQuiz() {
+  const empty = document.getElementById('diary-quiz-empty');
+  const area  = document.getElementById('diary-quiz-area');
+
+  const { data, error } = await sb.from('entries')
+    .select('id,date,jp,corrected')
+    .not('corrected', 'is', null)
+    .order('date', { ascending: false })
+    .limit(DQ_POOL_ENTRIES);
+  if (error) { showToast(t('error-load-entries'), 'error'); return; }
+
+  dqQueue = buildDiaryQuizPool(data || [], allVocab);
+  if (!dqQueue.length) { empty.style.display = 'block'; area.style.display = 'none'; return; }
+  empty.style.display = 'none'; area.style.display = 'block';
+
+  dqStats = { ok: 0, ng: 0 };
+  nextDiaryQ();
+}
+
+// 出題リストを組み立てる。DBに触らない純粋な関数なのでテストから直接呼べる。
+function buildDiaryQuizPool(entries, vocab) {
+  const vocabByWord = new Map();
+  (vocab || []).forEach(v => {
+    const key = String(v.en || '').trim().toLowerCase();
+    if (key && !vocabByWord.has(key)) vocabByWord.set(key, v);
+  });
+
+  const questions = [];
+  (entries || []).forEach(e => {
+    splitSentences(e.corrected).forEach(sentence => {
+      const words = dqWords(sentence);
+      if (words.length < DQ_MIN_WORDS || words.length > DQ_MAX_WORDS) return;
+
+      const cloze = pickClozeIndex(words, vocabByWord);
+      if (cloze) {
+        questions.push({
+          kind: 'cloze', entry: e, sentence, words,
+          blankIndex: cloze.i, answer: dqBareWord(words[cloze.i]), vocab: cloze.v,
+        });
+      }
+      // 短めの文は並べ替えにも向く
+      if (words.length <= 9) {
+        questions.push({ kind: 'order', entry: e, sentence, words });
+      }
+    });
+  });
+
+  // 同じ文が穴埋めと並べ替えで連続しないようシャッフルしてから頭を取る
+  return questions.sort(() => Math.random() - 0.5).slice(0, DQ_QUESTIONS);
+}
+
+function nextDiaryQ() {
+  const banner = document.getElementById('dq-banner');
+  banner.style.display = 'none';
+  document.getElementById('dq-recall').style.display = 'none';
+  document.getElementById('dq-actions').style.display = 'flex';
+
+  dqCard = dqQueue.shift() || null;
+  updateDqStats();
+  if (!dqCard) { finishDiaryQuiz(); return; }
+
+  if (typeof mascotSetMood === 'function') mascotSetMood('diary-quiz-mascot', 'idle');
+  document.getElementById('dq-source').textContent =
+    t('dq-source').replace('{date}', fmtShortDate(dqCard.entry.date));
+  document.getElementById('dq-kind').textContent = t('dq-kind-' + dqCard.kind);
+
+  const clozeBox = document.getElementById('dq-cloze');
+  const orderBox = document.getElementById('dq-order');
+  clozeBox.style.display = dqCard.kind === 'cloze' ? 'block' : 'none';
+  orderBox.style.display = dqCard.kind === 'order' ? 'block' : 'none';
+
+  if (dqCard.kind === 'cloze') renderClozeQuestion(dqCard);
+  else renderOrderQuestion(dqCard);
+}
+
+function renderClozeQuestion(card) {
+  const el = document.getElementById('dq-sentence');
+  el.innerHTML = card.words.map((w, i) =>
+    i === card.blankIndex
+      ? `<span class="dq-blank">${'_'.repeat(Math.max(4, card.answer.length))}</span>`
+      : escapeHtml(w)
+  ).join(' ');
+  const input = document.getElementById('dq-input');
+  input.value = '';
+  input.disabled = false;
+  input.focus({ preventScroll: true });
+}
+
+function renderOrderQuestion(card) {
+  dqPicked = [];
+  document.getElementById('dq-jp-hint').textContent = card.entry.jp
+    ? t('dq-jp-hint') + ' ' + card.entry.jp
+    : '';
+  const bank = document.getElementById('dq-bank');
+  // シャッフルした語を「バンク」に並べ、タップで回答欄へ積む
+  const shuffled = card.words.map((w, i) => ({ w, i })).sort(() => Math.random() - 0.5);
+  bank.innerHTML = shuffled.map(({ w }, idx) =>
+    `<button type="button" class="quiz-choice-btn dq-chip" data-bank="${idx}" onclick="dqPickWord(${idx})">${escapeHtml(w)}</button>`
+  ).join('');
+  bank._words = shuffled.map(x => x.w);
+  renderDqAnswer();
+}
+
+function renderDqAnswer() {
+  const el = document.getElementById('dq-answer');
+  el.innerHTML = dqPicked.length
+    ? dqPicked.map((p, i) =>
+        `<button type="button" class="dq-chip dq-chip-picked" onclick="dqUnpickWord(${i})">${escapeHtml(p.word)}</button>`
+      ).join('')
+    : `<span class="dq-answer-placeholder">${escapeHtml(t('dq-tap-words'))}</span>`;
+}
+
+function dqPickWord(bankIndex) {
+  const bank = document.getElementById('dq-bank');
+  const btn = bank.querySelector(`[data-bank="${bankIndex}"]`);
+  if (!btn || btn.disabled) return;
+  btn.disabled = true;
+  dqPicked.push({ word: bank._words[bankIndex], bankIndex });
+  renderDqAnswer();
+}
+
+function dqUnpickWord(pos) {
+  const [removed] = dqPicked.splice(pos, 1);
+  if (!removed) return;
+  const btn = document.getElementById('dq-bank').querySelector(`[data-bank="${removed.bankIndex}"]`);
+  if (btn) btn.disabled = false;
+  renderDqAnswer();
+}
+
+async function checkDiaryAnswer() {
+  if (!dqCard) return;
+  let isOk, typo = false;
+  if (dqCard.kind === 'cloze') {
+    const input = document.getElementById('dq-input');
+    const res = judgeAnswer(input.value, dqCard.answer);
+    isOk = res.ok; typo = res.typo;
+    input.disabled = true;
+  } else {
+    if (!dqPicked.length) { showToast(t('dq-pick-first'), 'warn'); return; }
+    // 語の並びだけを見る（元の文の句読点・大文字小文字は問わない）
+    const got  = dqPicked.map(p => dqBareWord(p.word).toLowerCase()).join(' ');
+    const want = dqCard.words.map(w => dqBareWord(w).toLowerCase()).join(' ');
+    isOk = got === want;
+  }
+  await recordDiaryResult(isOk, typo);
+}
+
+async function recordDiaryResult(isOk, typo) {
+  const banner = document.getElementById('dq-banner');
+  banner.style.display = 'block';
+  banner.className = 'result-banner ' + (isOk ? 'result-ok' : 'result-ng');
+  const answerText = dqCard.kind === 'cloze' ? dqCard.answer : dqCard.sentence;
+  banner.textContent = (isOk ? t('quiz-correct') : t('quiz-wrong')) + answerText + '」'
+    + (isOk && typo ? t('quiz-typo-note') : '');
+
+  if (isOk) dqStats.ok++; else dqStats.ng++;
+  updateDqStats();
+  pulseQuizCard(isOk, document.getElementById('diary-quiz-card'));
+  if (typeof mascotSetMood === 'function') mascotSetMood('diary-quiz-mascot', isOk ? 'delighted' : 'sad');
+  if (typeof kotoraSay === 'function') {
+    kotoraSay('diary-quiz-mascot', isOk ? 'quiz-ok' : 'quiz-ng', { typewriter: false, duration: 1600 });
+  }
+  LS.set('missionQuiz:' + todayISO(), '1');
+
+  // 正解したら元の日記を思い出しカードとして見せる（記憶のフック）
+  if (isOk) showRecallCard(dqCard.entry);
+
+  // 出題した語が単語帳にあれば、単語テストと同じようにSRSへ反映する
+  if (dqCard.vocab) {
+    const { graduated } = await applySrsResult(dqCard.vocab, isOk);
+    if (graduated) celebrateGraduation('diary-quiz-mascot', dqCard.vocab.en);
+  }
+
+  document.getElementById('dq-actions').style.display = 'none';
+  setTimeout(nextDiaryQ, isOk ? 2600 : 2200);
+}
+
+function showRecallCard(entry) {
+  document.getElementById('dq-recall-date').textContent = fmtShortDate(entry.date);
+  document.getElementById('dq-recall-jp').textContent = entry.jp || '';
+  document.getElementById('dq-recall-en').textContent = entry.corrected || '';
+  document.getElementById('dq-recall').style.display = 'block';
+}
+
+function skipDiaryQ() {
+  if (!dqCard) return;
+  dqQueue.push(dqCard);
+  nextDiaryQ();
+}
+
+function updateDqStats() {
+  document.getElementById('dq-ok').textContent = dqStats.ok;
+  document.getElementById('dq-ng').textContent = dqStats.ng;
+  document.getElementById('dq-left').textContent = dqQueue.length + (dqCard ? 1 : 0);
+  const total = dqStats.ok + dqStats.ng + dqQueue.length + (dqCard ? 1 : 0);
+  const done  = dqStats.ok + dqStats.ng;
+  document.getElementById('dq-bar').style.width = total ? Math.round(done / total * 100) + '%' : '0%';
+}
+
+function finishDiaryQuiz() {
+  document.getElementById('dq-cloze').style.display = 'none';
+  document.getElementById('dq-order').style.display = 'none';
+  document.getElementById('dq-actions').style.display = 'none';
+  document.getElementById('dq-kind').textContent = '';
+  document.getElementById('dq-source').textContent = '';
+  const banner = document.getElementById('dq-banner');
+  banner.style.display = 'block';
+  banner.className = 'result-banner result-ok';
+  banner.textContent = t('dq-finished').replace('{ok}', dqStats.ok).replace('{total}', dqStats.ok + dqStats.ng);
+  if (dqStats.ok > 0 && typeof burstConfetti === 'function') burstConfetti();
+  if (typeof mascotSetMood === 'function') mascotSetMood('diary-quiz-mascot', 'happy');
+}
+
+// 「8/1」のような短い日付表記
+function fmtShortDate(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  if (Number.isNaN(d.getTime())) return iso;
+  return getLang() === 'ja'
+    ? `${d.getMonth() + 1}/${d.getDate()}`
+    : `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+}
+
+// ── Quiz mode toggle（単語テスト / 日記から復習 / 状況文で練習） ──────────────
+// モードを足すたびに複数箇所を直すとズレるので、ここ1つに集約する。
+// area: 表示を切り替えるコンテナのid / start: 初回に出題を組み立てる関数
+const QUIZ_MODES = {
+  flashcard:   { area: 'quiz-flashcard-area',   start: () => startQuiz() },
+  diary:       { area: 'quiz-diary-area',       start: () => startDiaryQuiz() },
+  situational: { area: 'quiz-situational-area', start: () => startSituationalPractice() },
+};
+const DEFAULT_QUIZ_MODE = 'flashcard';
+
 // 出題を開始済みのモード。テストタブを開くたびに作り直すと、進行中のクイズが巻き戻り、
 // シチュエーション練習では毎回Gemini（＝無料枠）を消費してしまう。
-const _quizStarted = { flashcard: false, situational: false };
+let _quizStarted = {};
 
-function currentQuizMode() { return LS.get('quizMode') || 'flashcard'; }
+function currentQuizMode() {
+  const saved = LS.get('quizMode');
+  return QUIZ_MODES[saved] ? saved : DEFAULT_QUIZ_MODE;
+}
 
 // 表示の切り替えだけを行う。出題開始もAI呼び出しもしない。
 function applyQuizMode(mode) {
   document.querySelectorAll('.quiz-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
-  document.getElementById('quiz-flashcard-area').style.display   = mode === 'flashcard'   ? 'block' : 'none';
-  document.getElementById('quiz-situational-area').style.display = mode === 'situational' ? 'block' : 'none';
+  Object.entries(QUIZ_MODES).forEach(([name, def]) => {
+    const el = document.getElementById(def.area);
+    if (el) el.style.display = name === mode ? 'block' : 'none';
+  });
 }
 
 function startQuizMode(mode) {
   if (_quizStarted[mode]) return;
   _quizStarted[mode] = true;
-  if (mode === 'flashcard') startQuiz(); else startSituationalPractice();
+  QUIZ_MODES[mode].start();
 }
 
-// 単語帳が変わったら次にテストタブを開いたときに作り直す
-function invalidateQuiz() {
-  _quizStarted.flashcard = false;
-  _quizStarted.situational = false;
-}
+// 単語帳や日記が変わったら次にテストタブを開いたときに作り直す
+function invalidateQuiz() { _quizStarted = {}; }
 
 // 起動時に呼ばれる。表示を整えるだけで、出題はテストタブを開くまで遅延させる。
 function initQuizTab() { applyQuizMode(currentQuizMode()); }

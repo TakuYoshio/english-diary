@@ -735,6 +735,84 @@ body {
 .rate-ok { background: var(--success-light); color: var(--success); }
 .rate-ng { background: var(--danger-light); color: var(--danger); }
 
+/* ── WORD GARDEN（記憶の育ち具合） ── */
+/* .vocab-row は flex-wrap で、伸びるのは .v-en/.v-jp/.v-note の3つだけ。
+   flex-shrink:0 の要素を足しても既存の min-width は割り込まれない。 */
+.v-stage {
+  flex-shrink: 0; font-size: 18px; line-height: 1;
+  cursor: help; user-select: none;
+}
+.vocab-row-weak { border-color: var(--warn); background: var(--warn-light); }
+.vocab-garden {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.vocab-garden .stat-chip { padding: 4px 11px; font-size: 12px; }
+.chip-weak {
+  background: var(--warn-light); border-color: var(--warn);
+  color: var(--warn-text); font-weight: 700;
+}
+
+/* 苦手特訓トグル */
+.weak-toggle-wrap { display: flex; justify-content: center; margin-bottom: 14px; }
+.weak-toggle-btn {
+  appearance: none; font: inherit; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  border-radius: 20px; padding: 6px 16px; font-size: 13px; font-weight: 700;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.weak-toggle-btn:hover { border-color: var(--warn); }
+.weak-toggle-btn.active {
+  background: var(--warn-light); border-color: var(--warn); color: var(--warn-text);
+}
+
+/* ── 日記から復習（Diary Quiz） ── */
+.dq-sentence {
+  font-size: 17px; line-height: 2; text-align: left;
+  margin-bottom: 16px; color: var(--text);
+}
+.dq-blank {
+  display: inline-block; min-width: 56px;
+  border-bottom: 2.5px solid var(--accent);
+  color: var(--accent-mid); font-weight: 700; letter-spacing: 0.1em;
+}
+.dq-hint-jp {
+  font-size: 13px; color: var(--text-muted); text-align: left;
+  margin-bottom: 12px; line-height: 1.6;
+}
+/* 並べ替えの回答欄。空でも高さを保って、積むたびに画面が跳ねないようにする */
+.dq-answer-slot {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  min-height: 54px; padding: 8px;
+  background: var(--surface2); border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-sm); margin-bottom: 14px;
+}
+.dq-answer-placeholder { font-size: 13px; color: var(--text-faint); margin: 0 auto; }
+.dq-bank { grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); }
+.dq-chip {
+  appearance: none; font: inherit; cursor: pointer;
+  padding: 7px 13px; font-size: 15px; font-weight: 600;
+  border-radius: 10px; min-height: 0;
+}
+.dq-chip:disabled { opacity: 0.3; cursor: default; }
+.dq-chip-picked {
+  background: var(--accent-light); border: 1.5px solid var(--accent);
+  color: var(--accent-dark);
+}
+/* 正解したときに出す「思い出しカード」 */
+.dq-recall {
+  text-align: left; margin-top: 14px; padding: 12px 14px;
+  background: var(--surface2); border-radius: var(--radius-sm);
+  animation: rise-in 0.3s ease;
+}
+.dq-recall-date {
+  font-size: 11px; font-weight: 700; color: var(--text-faint);
+  text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px;
+}
+.dq-recall-jp { font-size: 14px; color: var(--text-muted); margin-bottom: 6px; line-height: 1.7; }
+.dq-recall-en { font-size: 15px; color: var(--text); line-height: 1.7; }
+
 /* ── QUIZ ── */
 .quiz-stats-row { display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; flex-wrap: wrap; }
 .stat-chip {
@@ -1008,7 +1086,8 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .toast { transition: opacity 0.01s linear; transform: none !important; }
   .modal-card, .result-banner, .quiz-card.card-enter, .home-mission-card,
-  .step-card.just-unlocked, .streak-badge.streak-pulse { animation: none !important; }
+  .step-card.just-unlocked, .streak-badge.streak-pulse,
+  .dq-recall, .weekly-card { animation: none !important; }
 }
 
 /* ── FX ── */
@@ -1290,4 +1369,46 @@ svg.kotora-img * { transform-box: fill-box; }
   .mascot-modal-display { width: 96px; height: 96px; }
   .home-kotora { width: 170px; height: 170px; }
   .home-greeting { font-size: 23px; }
+}
+
+/* ── コトラの週報 ── */
+.weekly-home-cta {
+  appearance: none; font: inherit; cursor: pointer; width: 100%;
+  display: flex; align-items: center; gap: 12px;
+  background: linear-gradient(135deg, var(--warn-light) 0%, var(--accent-light) 100%);
+  border: 1px solid var(--gold); border-radius: var(--radius);
+  padding: 13px 15px; margin-bottom: 14px;
+  box-shadow: var(--shadow); text-align: left;
+  animation: rise-in 0.35s ease;
+}
+.weekly-cta-icon { font-size: 22px; line-height: 1; flex-shrink: 0; }
+.weekly-cta-text { flex: 1; font-size: 14px; font-weight: 700; color: var(--text); }
+
+.weekly-hero { text-align: center; margin-bottom: 1.1rem; }
+.weekly-kotora { width: 120px; height: 120px; margin: 0 auto 8px; }
+.weekly-range {
+  font-size: 11px; font-weight: 700; color: var(--text-faint);
+  text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px;
+}
+.weekly-headline { font-family: var(--font-display); font-size: 20px; font-weight: 700; color: var(--text); }
+/* .stat-grid は768px以下で1列になる（統計のグラフは幅が要るため）。
+   週報の数字カードは中身が小さく、4枚縦積みだとスクロールが長くなるので2列を保つ。 */
+.weekly-stats { margin-bottom: 1.1rem; }
+@media (max-width: 768px) {
+  .stat-grid.weekly-stats { grid-template-columns: 1fr 1fr; }
+}
+.weekly-stats .stat-card { text-align: center; }
+.weekly-stats .stat-card-big { font-size: 26px; }
+.weekly-quote {
+  background: var(--surface2); border-radius: var(--radius-sm);
+  padding: 12px 14px; margin-bottom: 1.1rem;
+}
+.weekly-quote-text {
+  margin: 6px 0; font-size: 15px; line-height: 1.7; color: var(--text);
+  border-left: 3px solid var(--accent); padding-left: 10px;
+}
+.weekly-quote-date { font-size: 12px; color: var(--text-faint); }
+.weekly-message {
+  font-size: 14px; line-height: 1.7; color: var(--text-muted);
+  text-align: center; margin-bottom: 1rem;
 }

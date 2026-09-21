@@ -7,6 +7,11 @@
 
   const DB = {
     entries: [
+      // 日記クイズは corrected の文を出題元にするので、5〜12語の文を持たせておく
+      { id: 2, user_id: 'u1', created_at: iso(now - 2 * day), date: new Date(now - 2 * day).toLocaleDateString('sv-SE'),
+        jp: '締め切り前で気が進まなかった', en1: 'I am reluctant', en2: 'I felt reluctant before the deadline',
+        corrected: 'I felt reluctant before the deadline. My commute was long today.',
+        feedback: null, pronunciation_first_attempt: { score: 64, scoredAt: iso(now - 2 * day) } },
       { id: 1, user_id: 'u1', created_at: iso(now - day), date: new Date(now - day).toLocaleDateString('sv-SE'),
         jp: 'カフェに行った', en1: 'I go to cafe', en2: 'I went to a cafe',
         corrected: 'I went to a café yesterday.',
@@ -17,12 +22,20 @@
         pronunciation_first_attempt: { score: 85, scoredAt: iso(now - day) } },
     ],
     vocab: [
+      // srs_stage は Word Garden の 🌱🌿🌷🌸 を一通り出すために散らしてある
       { id: 1, user_id: 'u1', created_at: iso(now - day), en: 'café', jp: 'カフェ', note: '',
         correct: 3, wrong: 1, srs_stage: 2, next_review_at: iso(now - 1000), last_reviewed_at: iso(now - day), image_url: null },
       { id: 2, user_id: 'u1', created_at: iso(now - day), en: 'commute', jp: '通勤する', note: '',
         correct: 0, wrong: 0, srs_stage: 0, next_review_at: iso(now - 1000), last_reviewed_at: null, image_url: null },
       { id: 3, user_id: 'u1', created_at: iso(now - day), en: 'grateful', jp: '感謝している', note: '',
         correct: 5, wrong: 0, srs_stage: 4, next_review_at: iso(now + 5 * day), last_reviewed_at: iso(now - day), image_url: null },
+      { id: 4, user_id: 'u1', created_at: iso(now - day), en: 'overwhelmed', jp: '圧倒された', note: '',
+        correct: 6, wrong: 0, srs_stage: 6, next_review_at: iso(now + 80 * day), last_reviewed_at: iso(now - day), image_url: null },
+      // 苦手単語（wrong>=2 かつ 正答率<60%）。苦手トグルのテスト用。
+      { id: 5, user_id: 'u1', created_at: iso(now - day), en: 'reluctant', jp: '気が進まない', note: '',
+        correct: 1, wrong: 4, srs_stage: 0, next_review_at: iso(now - 1000), last_reviewed_at: iso(now - day), image_url: null },
+      { id: 6, user_id: 'u1', created_at: iso(now - day), en: 'deadline', jp: '締め切り', note: '',
+        correct: 0, wrong: 3, srs_stage: 0, next_review_at: iso(now - 1000), last_reviewed_at: iso(now - day), image_url: null },
     ],
     profiles: [
       { user_id: 'u1', onboarding_completed: true, skill_focus: ['grammar'],
@@ -38,6 +51,12 @@
     const api = {
       select(_cols, opts) { this._count = opts && opts.count; return this; },
       eq(col, val) { rows = rows.filter(r => String(r[col]) === String(val)); return this; },
+      not(col, op, val) {
+        if (op === 'is' && val === null) rows = rows.filter(r => r[col] != null);
+        return this;
+      },
+      gte(col, val) { rows = rows.filter(r => String(r[col]) >= String(val)); return this; },
+      lte(col, val) { rows = rows.filter(r => String(r[col]) <= String(val)); return this; },
       order() { return this; },
       or() { return this; },
       limit(n) { rows = rows.slice(0, n); return this; },

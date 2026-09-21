@@ -133,6 +133,104 @@ check('シャドーイング中にSVGを作り直さない', svgRebuilds.same);
 check('それでもmoodは更新される', svgRebuilds.mood === 'excited' || svgRebuilds.mood === 'delighted',
   `mood=${svgRebuilds.mood}`);
 
+// ── Phase 3: Word Garden（SRS可視化＋苦手特訓） ──────────────────────────
+await page.evaluate(() => switchTab('vocab'));
+await page.waitForTimeout(400);
+
+check('単語行に成長アイコンが出る',
+  await page.locator('.vocab-row .v-stage').first().isVisible().catch(() => false));
+check('単語帳ヘッダーにサマリーチップが出る',
+  await page.locator('#vocab-garden .stat-chip').first().isVisible().catch(() => false));
+check('苦手単語のチップが出る',
+  await page.locator('#vocab-garden .chip-weak').isVisible().catch(() => false));
+
+// 成長アイコンを足しても行が縦積みに崩れないこと（テキストセルが同じ行に並ぶ）
+const rowIntact = await page.evaluate(() => {
+  const row = document.querySelector('.vocab-row');
+  if (!row) return false;
+  const en = row.querySelector('.v-en'), stage = row.querySelector('.v-stage');
+  if (!en || !stage) return false;
+  // 同じ行にあれば垂直方向の中心が近い
+  return Math.abs(en.getBoundingClientRect().top - stage.getBoundingClientRect().top) < 30;
+});
+check('成長アイコンを足しても行レイアウトが崩れない', rowIntact);
+
+await page.evaluate(() => switchTab('quiz'));
+await page.waitForTimeout(500);
+check('苦手トグルが表示される',
+  await page.locator('#weak-toggle-wrap').isVisible().catch(() => false));
+
+const weakFiltered = await page.evaluate(async () => {
+  toggleWeakOnly();
+  await new Promise(r => setTimeout(r, 400));
+  // 苦手だけに絞られたら、出題プールは苦手単語のidのみになる
+  const ids = [...queue.map(c => c.v.id), ...(currentCard ? [currentCard.v.id] : [])];
+  const weakIds = weakVocab(allVocab).map(v => v.id);
+  const onlyWeak = ids.length > 0 && ids.every(id => weakIds.includes(id));
+  toggleWeakOnly();
+  await new Promise(r => setTimeout(r, 400));
+  return { onlyWeak, count: ids.length, weakCount: weakIds.length };
+});
+check('苦手トグルで出題が苦手単語だけに絞られる', weakFiltered.onlyWeak,
+  `出題${weakFiltered.count}件 / 苦手${weakFiltered.weakCount}件`);
+
+// 苦手が0件ならトグル自体が消えること
+const hiddenWhenNone = await page.evaluate(async () => {
+  const backup = allVocab.map(v => ({ ...v }));
+  allVocab.forEach(v => { v.wrong = 0; v.correct = 5; });
+  renderWeakToggle();
+  const hidden = getComputedStyle(document.getElementById('weak-toggle-wrap')).display === 'none';
+  allVocab.length = 0; allVocab.push(...backup);
+  renderWeakToggle();
+  return hidden;
+});
+check('苦手が0件ならトグルを出さない', hiddenWhenNone);
+
+// ── Phase 3: 日記から復習 ────────────────────────────────────────────────
+await page.evaluate(() => switchQuizMode('diary'));
+await page.waitForTimeout(600);
+check('日記クイズが出題を生成する',
+  await page.locator('#diary-quiz-area').isVisible().catch(() => false));
+check('出題元の日付が表示される',
+  !!(await page.locator('#dq-source').textContent())?.trim());
+
+const dqJudged = await page.evaluate(async () => {
+  // 正解を直接入れて判定させる（穴埋め・並べ替えどちらでも）
+  if (!dqCard) return { skipped: true };
+  const kind = dqCard.kind;
+  if (kind === 'cloze') {
+    document.getElementById('dq-input').value = dqCard.answer;
+  } else {
+    // バンクから正しい順に積む
+    dqCard.words.forEach(w => {
+      const bank = document.getElementById('dq-bank');
+      const idx = bank._words.findIndex((bw, i) =>
+        bw === w && !bank.querySelector(`[data-bank="${i}"]`).disabled);
+      if (idx >= 0) dqPickWord(idx);
+    });
+  }
+  await checkDiaryAnswer();
+  await new Promise(r => setTimeout(r, 300));
+  const banner = document.getElementById('dq-banner');
+  return { kind, ok: banner.className.includes('result-ok'), recall: getComputedStyle(document.getElementById('dq-recall')).display !== 'none' };
+});
+check('日記クイズが正解を判定する', dqJudged.skipped || dqJudged.ok, `形式=${dqJudged.kind}`);
+check('正解すると思い出しカードが出る', dqJudged.skipped || dqJudged.recall);
+
+// ── Phase 3: コトラの週報 ────────────────────────────────────────────────
+await page.evaluate(() => switchTab('home'));
+await page.waitForTimeout(300);
+await page.evaluate(() => openWeeklyReport());
+await page.waitForTimeout(500);
+check('週報モーダルが開く', await page.locator('#weekly-modal').isVisible().catch(() => false));
+check('週報に数字カードが出る',
+  await page.locator('#weekly-modal .stat-card-big').first().isVisible().catch(() => false));
+check('週報モーダルにフォーカスが移る',
+  await page.evaluate(() => document.getElementById('weekly-modal').contains(document.activeElement)));
+await page.keyboard.press('Escape');
+await page.waitForTimeout(300);
+check('週報モーダルがEscapeで閉じる', !(await page.locator('#weekly-modal').isVisible()));
+
 const ignorable = /favicon|ERR_FAILED|net::ERR|Failed to load resource/i;
 const real = errors.filter(e => !ignorable.test(e));
 check('コンソールエラーが無い', real.length === 0, real.join(' | '));

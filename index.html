@@ -166,6 +166,12 @@
           </div>
           <div class="mascot-xp-track"><div class="mascot-xp-fill home-xp-fill" id="home-xp-fill"></div></div>
         </button>
+        <!-- 週が明けて先週のレポートが未読のときだけ出る（checkWeeklyReport が制御） -->
+        <button id="weekly-home-cta" class="weekly-home-cta" style="display:none" onclick="openWeeklyReport()">
+          <span class="weekly-cta-icon">📮</span>
+          <span class="weekly-cta-text" data-i18n="weekly-cta">先週のレポートができたよ</span>
+          <span class="mission-status mission-chevron"><svg class="icon"><use href="#i-chevron"/></svg></span>
+        </button>
         <div class="section-title" data-i18n="home-missions-title">今日のミッション</div>
         <div id="home-missions" class="home-missions"></div>
       </div>
@@ -385,7 +391,12 @@
         </div>
 
         <div id="entries-calendar" class="entries-calendar" style="display:none"></div>
-        <div id="entries-stats" class="entries-stats" style="display:none"></div>
+        <div id="entries-stats" class="entries-stats" style="display:none">
+          <div class="center" style="margin-bottom:12px">
+            <button class="btn btn-sm" onclick="openWeeklyReport()" data-i18n="weekly-open">📮 先週の週報を見る</button>
+          </div>
+          <div id="entries-stats-body"></div>
+        </div>
       </div>
     </section>
 
@@ -463,6 +474,8 @@
         <button class="btn btn-primary" onclick="addVocab()" data-i18n="btn-vocab-add">追加</button>
       </div>
       <input type="text" id="vocab-search" data-i18n-aria="aria-vocab-search" class="input" data-i18n-placeholder="ph-vocab-search" placeholder="単語を検索…" oninput="onVocabSearchInput(this.value)" style="margin-bottom:12px" />
+      <!-- 記憶の育ち具合のサマリー（🌸🌷🌿🌱 と苦手単語数）。renderVocabGarden() が埋める -->
+      <div id="vocab-garden" class="vocab-garden" style="display:none"></div>
       <div id="vocab-count" class="vocab-count"></div>
       <div id="vocab-list"></div>
       <div id="vocab-empty" class="empty-state" style="display:none">
@@ -475,6 +488,7 @@
     <section id="tab-quiz" class="tab">
       <div class="quiz-mode-toggle">
         <button class="quiz-mode-btn" data-mode="flashcard" onclick="switchQuizMode('flashcard')" data-i18n="quiz-mode-flashcard">単語テスト</button>
+        <button class="quiz-mode-btn" data-mode="diary" onclick="switchQuizMode('diary')" data-i18n="quiz-mode-diary">日記から復習</button>
         <button class="quiz-mode-btn" data-mode="situational" onclick="switchQuizMode('situational')" data-i18n="quiz-mode-situational">状況文で練習</button>
       </div>
 
@@ -482,6 +496,10 @@
         <div id="quiz-empty" class="empty-state" style="display:none">
           <div class="empty-icon">🧠</div>
           <span data-i18n="quiz-empty">単語帳に単語を追加してからテストしよう</span>
+        </div>
+        <!-- 苦手単語が1語も無いときは renderWeakToggle() が非表示にする -->
+        <div id="weak-toggle-wrap" class="weak-toggle-wrap" style="display:none">
+          <button class="weak-toggle-btn" id="weak-toggle-btn" onclick="toggleWeakOnly()" aria-pressed="false"></button>
         </div>
         <div id="quiz-area" style="display:none">
           <div class="quiz-stats-row">
@@ -509,6 +527,58 @@
           </div>
           <div class="center" style="margin-top:16px">
             <button class="btn" onclick="startQuiz()" data-i18n="btn-restart">🔄 最初から</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── 日記から復習（AI不使用・過去の添削済み英文からローカル生成） ── -->
+      <div id="quiz-diary-area" style="display:none">
+        <div id="diary-quiz-empty" class="empty-state" style="display:none">
+          <div class="empty-icon">📖</div>
+          <span data-i18n-html="diary-quiz-empty">AI添削まで終えた日記がまだありません<br>日記を書いて添削してもらおう</span>
+        </div>
+        <div id="diary-quiz-area" style="display:none">
+          <div class="quiz-stats-row">
+            <div class="stat-chip"><span data-i18n="stat-ok">正解</span> <strong id="dq-ok">0</strong></div>
+            <div class="stat-chip"><span data-i18n="stat-ng">不正解</span> <strong id="dq-ng">0</strong></div>
+            <div class="stat-chip"><span data-i18n="stat-left">残り</span> <strong id="dq-left">0</strong></div>
+          </div>
+          <div class="progress-track"><div class="progress-fill" id="dq-bar"></div></div>
+          <div class="quiz-card" id="diary-quiz-card">
+            <div id="diary-quiz-mascot" class="mascot-inline mascot-inline-sm"></div>
+            <div class="quiz-dir" id="dq-source"></div>
+            <div class="quiz-dir" id="dq-kind"></div>
+
+            <!-- 穴埋め -->
+            <div id="dq-cloze" style="display:none">
+              <p class="dq-sentence" id="dq-sentence"></p>
+              <input type="text" id="dq-input" data-i18n-aria="ph-quiz" class="quiz-input" data-i18n-placeholder="ph-quiz" placeholder="答えを入力…"
+                onkeydown="if(event.key==='Enter')checkDiaryAnswer()" />
+            </div>
+
+            <!-- 並べ替え -->
+            <div id="dq-order" style="display:none">
+              <p class="dq-hint-jp" id="dq-jp-hint"></p>
+              <div class="dq-answer-slot" id="dq-answer" aria-live="polite"></div>
+              <div class="quiz-choices dq-bank" id="dq-bank"></div>
+            </div>
+
+            <div id="dq-banner" aria-live="assertive" class="result-banner" style="display:none"></div>
+
+            <!-- 正解したら元の日記を思い出しカードとして見せる -->
+            <div id="dq-recall" class="dq-recall" style="display:none">
+              <div class="dq-recall-date" id="dq-recall-date"></div>
+              <div class="dq-recall-jp" id="dq-recall-jp"></div>
+              <div class="dq-recall-en" id="dq-recall-en"></div>
+            </div>
+
+            <div class="quiz-actions" id="dq-actions">
+              <button class="btn btn-primary" onclick="checkDiaryAnswer()" data-i18n="btn-check">確認</button>
+              <button class="btn" onclick="skipDiaryQ()" data-i18n="btn-skip">スキップ</button>
+            </div>
+          </div>
+          <div class="center" style="margin-top:16px">
+            <button class="btn" onclick="startDiaryQuiz()" data-i18n="btn-restart">🔄 最初から</button>
           </div>
         </div>
       </div>
@@ -620,6 +690,20 @@
       <button class="icon-btn" onclick="closeModal('mascot-modal')">✕</button>
     </div>
     <div id="mascot-modal-body"></div>
+  </div>
+</div>
+
+<!-- ── WEEKLY REPORT MODAL（コトラの週報・AI不使用のローカル集計） ── -->
+<div id="weekly-modal" class="modal-overlay" style="display:none" tabindex="-1" aria-labelledby="weekly-modal-title" onclick="if(event.target===this)closeWeeklyReport()">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div class="modal-title" id="weekly-modal-title" data-i18n="weekly-title">コトラの週報</div>
+      <button class="icon-btn" onclick="closeWeeklyReport()" data-i18n-aria="btn-close" aria-label="閉じる">✕</button>
+    </div>
+    <div id="weekly-modal-body"></div>
+    <div class="action-row">
+      <button class="btn btn-primary btn-full" onclick="closeWeeklyReport()" data-i18n="weekly-close">今週もがんばる 🔥</button>
+    </div>
   </div>
 </div>
 
