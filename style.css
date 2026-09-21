@@ -9,16 +9,22 @@
   --border-strong: #DFC8AE;
   --text: #3D2E23;
   --text-muted: #7C6A5A;
-  --text-faint: #AC9A88;
+  /* 旧 #AC9A88 は白地で2.7:1しかなく、11〜13pxの本文に使うには低すぎた。
+     色相と彩度は保ったまま明度だけ下げてWCAG AA（4.5:1）を満たす値に置き換えている。 */
+  --text-faint: #826E5A;
   /* ブランド: コーラル（--mascot-fur #E8934F 系統） */
   --accent: #FF7847;
   --accent-light: #FFEAE0;
   --accent-mid: #F05E2E;
   --accent-dark: #D14A1E;
+  /* 白文字を載せる面（ボタン・チップ）専用。--accent のままだと白文字が2.6:1で読めない。
+     装飾（見出し・バー・枠線・アイコン）には引き続き --accent を使い、ポップな印象は保つ。 */
+  --accent-on-white-text: #DB3A00;
   /* セカンダリ: ティール（正解・統計） */
   --secondary: #1CAF9E;
   --secondary-light: #DFF5F1;
   --secondary-dark: #128577;
+  --secondary-on-white-text: #158578;
   /* ハイライト: マリーゴールド（XP・ストリーク・バッジ） */
   --gold: #F6B93B;
   --warn: #F6B93B;
@@ -27,6 +33,7 @@
   --danger: #F04444;
   --danger-light: #FDE8E8;
   --danger-dark: #C23434;
+  --danger-on-white-text: #CE2B2B;
   --success: #1CAF9E;
   --success-light: #DFF5F1;
   --locked: #F6EFE7;
@@ -264,11 +271,15 @@ body {
   display: flex; gap: 6px; align-items: center;
   max-width: 340px; margin: 0 auto 16px;
 }
+/* キーボードで到達できるよう <button> にしてあるので、既定の見た目は消す */
 .diary-progress-dot {
+  appearance: none; border: none; padding: 0; font: inherit;
   flex: 1; height: 8px; border-radius: 6px;
   background: var(--border); cursor: default;
   transition: background 0.2s, box-shadow 0.2s;
 }
+/* 8pxしか高さが無く、フォーカスが見えないと現在地を見失うため輪郭を出す */
+.diary-progress-dot:focus-visible { outline: 2px solid var(--accent-mid); outline-offset: 3px; }
 .diary-progress-dot.done { background: var(--accent); opacity: 0.45; cursor: pointer; }
 .diary-progress-dot.current { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
 .diary-progress-label {
@@ -421,6 +432,8 @@ body {
 .shadow-progress { margin-bottom: 1rem; }
 .shadow-progress .progress-track { margin-bottom: 6px; }
 .shadow-progress-label { text-align: center; font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 10px; }
+/* pointer-events:none はマウスしか塞がない。キーボードからは Tab で到達でき
+   Enterで発火してしまうため、JS側で disabled も併用している（updateShadowingUI）。 */
 .speech-area.gated .mic-btn { opacity: 0.35; pointer-events: none; filter: grayscale(60%); }
 
 /* ── SPEECH (Step 6) ── */
@@ -830,13 +843,13 @@ body {
 .btn:hover { background: var(--surface2); }
 .btn:active { transform: scale(0.98); }
 .btn-primary {
-  background: var(--accent); color: #fff; border-color: var(--accent);
+  background: var(--accent-on-white-text); color: #fff; border-color: var(--accent-on-white-text);
   box-shadow: var(--btn-shadow); border-bottom: none;
 }
 .btn-primary:hover { background: var(--accent-mid); border-color: var(--accent-mid); }
 .btn-primary:active { transform: translateY(3px); box-shadow: none; }
 .btn-danger {
-  background: var(--danger); color: #fff; border-color: var(--danger);
+  background: var(--danger-on-white-text); color: #fff; border-color: var(--danger-on-white-text);
   box-shadow: 0 4px 0 var(--danger-dark); border-bottom: none;
 }
 .btn-danger:hover { background: var(--danger-dark); border-color: var(--danger-dark); }

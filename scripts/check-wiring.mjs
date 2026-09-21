@@ -53,7 +53,7 @@ for (const k of [...ja].sort()) if (!en.has(k)) errors.push(`i18n: en に '${k}'
 for (const k of [...en].sort()) if (!ja.has(k)) errors.push(`i18n: ja に '${k}' がありません`);
 
 const used = new Set([
-  ...[...html.matchAll(/data-i18n(?:-placeholder)?="([^"]+)"/g)].map(m => m[1]),
+  ...[...html.matchAll(/data-i18n(?:-placeholder|-html|-aria|-title)?="([^"]+)"/g)].map(m => m[1]),
   ...[...js.matchAll(/\bt\(\s*'([^']+)'\s*\)/g)].map(m => m[1]),
 ]);
 for (const k of [...used].sort()) if (!ja.has(k)) errors.push(`i18n: 使われているキー '${k}' が未定義`);

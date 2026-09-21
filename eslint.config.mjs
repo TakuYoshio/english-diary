@@ -18,7 +18,8 @@ const appGlobals = Object.fromEntries(
 );
 
 export default [
-  { ignores: ['node_modules/**', 'docs/**'] },
+  // vendor/ は同梱した第三者ライブラリなので検査しない
+  { ignores: ['node_modules/**', 'docs/**', 'vendor/**'] },
   {
     files: ['**/*.js'],
     languageOptions: {

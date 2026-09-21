@@ -72,6 +72,14 @@ const TRANSLATIONS = {
     'error-password-mismatch': 'パスワードが一致しません',
     'error-password-short': 'パスワードは6文字以上にしてください',
     'error-reset-expired': 'リンクの有効期限が切れています。もう一度リセットメールを送信してください',
+    'btn-edit': '編集', 'btn-save': '保存',
+    'aria-entries-page-size': '1ページの表示件数',
+    'aria-vocab-en': '英語の単語',
+    'aria-vocab-search': '単語帳を検索',
+    'aria-situational-answer': '英文で答える',
+    'aria-streak': '連続記録とレベルを見る',
+    'page-size-10': '10件', 'page-size-20': '20件', 'page-size-50': '50件',
+    'toast-update-ready': '新しいバージョンがあります。次回起動時に更新されます',
     'error-tts': '音声を再生できませんでした',
     'error-srs': '学習記録を保存できませんでした: ',
     'error-load-entries': '日記を読み込めませんでした',
@@ -220,6 +228,14 @@ const TRANSLATIONS = {
     'error-password-mismatch': 'Passwords do not match',
     'error-password-short': 'Password must be at least 6 characters',
     'error-reset-expired': 'This link has expired. Please request a new reset email',
+    'btn-edit': 'Edit', 'btn-save': 'Save',
+    'aria-entries-page-size': 'Entries per page',
+    'aria-vocab-en': 'Word in English',
+    'aria-vocab-search': 'Search your word list',
+    'aria-situational-answer': 'Answer in English',
+    'aria-streak': 'View your streak and level',
+    'page-size-10': '10', 'page-size-20': '20', 'page-size-50': '50',
+    'toast-update-ready': 'A new version is ready. It will apply next time you open the app',
     'error-tts': "Couldn't play the audio",
     'error-srs': "Couldn't save your progress: ",
     'error-load-entries': "Couldn't load your diaries",
@@ -350,6 +366,14 @@ function applyLang() {
   document.querySelectorAll('[data-i18n-html]').forEach(el => {
     el.innerHTML = t(el.getAttribute('data-i18n-html'));
   });
+  // 見出しやプレースホルダしか手がかりが無い入力欄・アイコンボタン向け。
+  // title属性も翻訳対象にする（従来は日本語がベタ書きのままだった）
+  document.querySelectorAll('[data-i18n-aria]').forEach(el => {
+    el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria')));
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    el.title = t(el.getAttribute('data-i18n-title'));
+  });
   const langBtn = document.getElementById('lang-btn');
   if (langBtn) langBtn.textContent = lang === 'ja' ? 'EN' : 'JA';
   document.documentElement.lang = lang === 'ja' ? 'ja' : 'en';
@@ -410,7 +434,8 @@ function collectPreferenceForm(prefix) {
 }
 
 function openOnboarding() {
-  document.getElementById('onboarding-modal').style.display = 'flex';
+  // 設定は任意なのでEscapeで閉じられてよい（閉じられないと詰む不具合があった）
+  openModal('onboarding-modal');
 }
 
 async function completeOnboarding() {
@@ -513,11 +538,32 @@ async function submitNewPassword() {
   if (session) { await enterApp(session); } else { showLogin(); }
 }
 
+// ── Service Worker（ホーム画面に追加・オフライン起動） ────────────────────
+// file:// で開いた場合やSW非対応ブラウザでは何もしない（登録失敗でアプリは壊さない）
+function registerServiceWorker() {
+  if (!navigator.serviceWorker || location.protocol === 'file:') return;
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      // 新しいバージョンが用意できたら、次回起動時に自動で切り替わるよう待機を解除する
+      reg.addEventListener('updatefound', () => {
+        const sw = reg.installing;
+        if (!sw) return;
+        sw.addEventListener('statechange', () => {
+          if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+            showToast(t('toast-update-ready'), 'info');
+          }
+        });
+      });
+    }).catch(() => { /* 登録できなくてもオンラインなら通常どおり動く */ });
+  });
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
   // 起動経路のどこかが失敗しても、必ず何らかの画面を出す。
   // ここでthrowするとログイン画面もアプリ本体もdisplay:noneのままになり真っ白になる。
   try {
     applyLang();
+    registerServiceWorker();
     // supabase-jsがハッシュのトークンを消費する前に、リカバリーリンク経由かを覚えておく
     const bootHash = location.hash;
     initSB();
@@ -552,7 +598,7 @@ async function loginUser() {
 function openSettings() {
   document.getElementById('settings-email').textContent = currentUserEmail;
   populateSettingsPreferences(currentProfile || defaultProfile());
-  document.getElementById('settings-modal').style.display = 'flex';
+  openModal('settings-modal');
 }
 async function logoutUser() {
   await sb.auth.signOut();
@@ -637,7 +683,60 @@ function renderHome() {
 }
 
 // ── Modal ─────────────────────────────────────────────────────────────────
-function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+// モーダルは4種類あるが、いずれもフォーカス管理・Escape・フォーカストラップが
+// 無かった。キーボードとスクリーンリーダーの利用者はモーダルの外に取り残されるため、
+// 開閉を共通化してここでまとめて面倒を見る。
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const _modalStack = [];
+
+function _focusableIn(el) {
+  return [...el.querySelectorAll(FOCUSABLE)].filter(n => n.offsetParent !== null || n === document.activeElement);
+}
+
+function _onModalKeydown(e) {
+  const top = _modalStack[_modalStack.length - 1];
+  if (!top) return;
+  if (e.key === 'Escape') {
+    if (top.dismissible === false) return;
+    e.preventDefault();
+    closeModal(top.id);
+    return;
+  }
+  if (e.key !== 'Tab') return;
+  const items = _focusableIn(document.getElementById(top.id));
+  if (!items.length) return;
+  const first = items[0], last = items[items.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+}
+
+// dismissible: false を渡すとEscapeで閉じない（確認ダイアログは明示的な選択を求める）
+function openModal(id, { dismissible = true } = {}) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = 'flex';
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  if (!_modalStack.length) document.addEventListener('keydown', _onModalKeydown, true);
+  _modalStack.push({ id, dismissible, returnTo: document.activeElement });
+  // 開いた直後は最初の操作可能な要素へフォーカスを移す
+  const items = _focusableIn(el);
+  (items[0] || el).focus({ preventScroll: true });
+}
+
+function closeModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = 'none';
+  const i = _modalStack.findIndex(m => m.id === id);
+  if (i !== -1) {
+    const [entry] = _modalStack.splice(i, 1);
+    // 開く前にフォーカスがあった要素へ戻す
+    if (entry.returnTo && document.contains(entry.returnTo)) {
+      entry.returnTo.focus({ preventScroll: true });
+    }
+  }
+  if (!_modalStack.length) document.removeEventListener('keydown', _onModalKeydown, true);
+}
 
 // ── Date ──────────────────────────────────────────────────────────────────
 const DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -704,12 +803,12 @@ function addWordRow(jp = '') {
   row.className = 'word-row';
   row.innerHTML = `
     <div class="word-row-main">
-      <input type="text" class="input word-jp" placeholder="${t('ph-word-jp')}" value="${escapeHtml(jp)}" onblur="autoLookupOnBlur(this,'jp2en')" />
+      <input type="text" class="input word-jp" placeholder="${escapeHtml(t('ph-word-jp'))}" aria-label="${escapeHtml(t('ph-word-jp'))}" value="${escapeHtml(jp)}" onblur="autoLookupOnBlur(this,'jp2en')" />
       <span class="arrow">→</span>
-      <input type="text" class="input word-en" placeholder="${t('ph-word-en')}" onblur="autoLookupOnBlur(this,'en2jp')" />
+      <input type="text" class="input word-en" placeholder="${escapeHtml(t('ph-word-en'))}" aria-label="${escapeHtml(t('ph-word-en'))}" onblur="autoLookupOnBlur(this,'en2jp')" />
       <button class="icon-btn red" onclick="removeWordRow(this)">✕</button>
     </div>
-    <textarea class="input word-note" placeholder="${t('ph-word-note')}"></textarea>
+    <textarea class="input word-note" placeholder="${escapeHtml(t('ph-word-note'))}" aria-label="${escapeHtml(t('ph-word-note'))}"></textarea>
   `;
   document.getElementById('unknown-words-list').appendChild(row);
 }
@@ -1118,8 +1217,14 @@ function updateShadowingUI() {
   document.getElementById('shadow-progress-label').textContent =
     `${Math.min(shadowingReps, shadowingTarget)} / ${shadowingTarget}`;
   const reachedGoal = shadowingReps >= shadowingTarget;
-  if (reachedGoal) {
-    document.getElementById('step6-speech-area').classList.remove('gated');
+  const area = document.getElementById('step6-speech-area');
+  area.classList.toggle('gated', !reachedGoal);
+  // CSSの pointer-events:none はマウスしか塞げず、キーボードではTabで到達して
+  // Enterで録音が始まってしまう。実際にdisabledも立てる。
+  const micBtn = document.getElementById('mic-btn');
+  if (micBtn) {
+    micBtn.disabled = !reachedGoal;
+    micBtn.setAttribute('aria-disabled', String(!reachedGoal));
   }
   if (typeof mascotUpdateShadowPose === 'function') mascotUpdateShadowPose(pct, reachedGoal);
 }
@@ -1728,8 +1833,8 @@ function filterAndRenderVocab() {
         <input type="text" class="input" id="ve-en-${v.id}" value="${escapeHtml(v.en)}" />
         <input type="text" class="input" id="ve-jp-${v.id}" value="${escapeHtml(v.jp)}" />
         <input type="text" class="input" id="ve-note-${v.id}" value="${escapeHtml(v.note||'')}" />
-        <button class="icon-btn" onclick="saveEditVocab(${v.id})" title="保存">💾</button>
-        <button class="icon-btn" onclick="cancelEditVocab()" title="キャンセル">✕</button>
+        <button class="icon-btn" onclick="saveEditVocab(${v.id})" title="${escapeHtml(t('btn-save'))}" aria-label="${escapeHtml(t('btn-save'))}">💾</button>
+        <button class="icon-btn" onclick="cancelEditVocab()" title="${escapeHtml(t('btn-cancel'))}" aria-label="${escapeHtml(t('btn-cancel'))}">✕</button>
       </div>`;
     }
     const total = (v.correct||0) + (v.wrong||0);
@@ -1741,8 +1846,8 @@ function filterAndRenderVocab() {
       <div class="v-jp">${escapeHtml(v.jp)}</div>
       <div class="v-note">${escapeHtml(v.note||'')}</div>
       <span class="v-rate ${cls}">${rate===null ? t('vocab-untested') : rate+'%'}</span>
-      <button class="icon-btn" onclick="startEditVocab(${v.id})" title="編集">✏️</button>
-      <button class="icon-btn red" onclick="deleteVocab(${v.id})" title="削除">✕</button>
+      <button class="icon-btn" onclick="startEditVocab(${v.id})" title="${escapeHtml(t('btn-edit'))}" aria-label="${escapeHtml(t('btn-edit'))} ${escapeHtml(v.en)}">✏️</button>
+      <button class="icon-btn red" onclick="deleteVocab(${v.id})" title="${escapeHtml(t('btn-delete'))}" aria-label="${escapeHtml(t('btn-delete'))} ${escapeHtml(v.en)}">✕</button>
     </div>`;
   }).join('');
 }
@@ -2187,6 +2292,10 @@ function showToast(msg, type = 'info') {
     container = document.createElement('div');
     container.id = 'toast-container';
     container.className = 'toast-container';
+    // スクリーンリーダーに結果とエラーを伝える。これが無いと成否が一切届かない。
+    container.setAttribute('role', 'status');
+    container.setAttribute('aria-live', 'polite');
+    container.setAttribute('aria-atomic', 'false');
     document.body.appendChild(container);
   }
   const el = document.createElement('div');
@@ -2214,17 +2323,23 @@ function showConfirm({ message, okLabel, danger = false }) {
     textEl.textContent = message;
     okBtn.textContent = okLabel || t('btn-delete');
     okBtn.className = 'btn btn-sm' + (danger ? ' btn-danger' : ' btn-primary');
-    modal.style.display = 'flex';
+    // 確認ダイアログはEscapeで閉じない（どちらを選んだか曖昧にしないため）。
+    // 代わりに「キャンセル」へ最初のフォーカスを置く。
+    openModal('confirm-modal', { dismissible: false });
+    cancelBtn.focus({ preventScroll: true });
 
     const cleanup = (result) => {
-      modal.style.display = 'none';
+      closeModal('confirm-modal');
       okBtn.removeEventListener('click', onOk);
       cancelBtn.removeEventListener('click', onCancel);
+      modal.removeEventListener('keydown', onKey);
       resolve(result);
     };
     const onOk = () => cleanup(true);
     const onCancel = () => cleanup(false);
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); cleanup(false); } };
     okBtn.addEventListener('click', onOk);
     cancelBtn.addEventListener('click', onCancel);
+    modal.addEventListener('keydown', onKey);
   });
 }

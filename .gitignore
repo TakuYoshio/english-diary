@@ -1,5 +1,7 @@
 *.png
 *.jpg
+# アイコンとマスコット画像はアプリの一部なのでコミットする
 !character/*.png
+!icons/*.png
 .DS_Store
 node_modules/

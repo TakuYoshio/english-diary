@@ -171,5 +171,5 @@ function openMascotModal() {
       `).join('')}
     </div>
   `;
-  document.getElementById('mascot-modal').style.display = 'flex';
+  openModal('mascot-modal');
 }
