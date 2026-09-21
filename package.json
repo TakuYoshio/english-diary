@@ -1,0 +1,21 @@
+{
+  "name": "english-diary",
+  "version": "1.0.0",
+  "private": true,
+  "description": "6ステップで英語を学ぶ日記アプリ（ビルド工程なしの静的サイト）",
+  "type": "module",
+  "scripts": {
+    "serve": "http-server -p 8931 -c-1",
+    "check": "node scripts/check-wiring.mjs",
+    "lint": "eslint .",
+    "test": "node test/run.mjs",
+    "verify": "npm run check && npm run lint && npm test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0",
+    "http-server": "^14.1.1",
+    "playwright": "^1.47.0"
+  }
+}

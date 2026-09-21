@@ -72,6 +72,17 @@ const TRANSLATIONS = {
     'error-password-mismatch': 'パスワードが一致しません',
     'error-password-short': 'パスワードは6文字以上にしてください',
     'error-reset-expired': 'リンクの有効期限が切れています。もう一度リセットメールを送信してください',
+    'error-tts': '音声を再生できませんでした',
+    'error-srs': '学習記録を保存できませんでした: ',
+    'error-load-entries': '日記を読み込めませんでした',
+    'error-load-vocab': '単語帳を読み込めませんでした: ',
+    'error-load-profile': '設定を読み込めませんでした: ',
+    'error-onboarding-save': '設定を保存できませんでした。設定画面からあとで保存できます: ',
+    'toast-onboarding-skipped': '設定はいつでも⚙から変更できます',
+    'btn-onboarding-skip': 'あとで設定する',
+    'boot-error-title': 'アプリを起動できませんでした',
+    'boot-error-hint': '通信状況を確認して、もう一度お試しください。',
+    'btn-retry': '再読み込み',
     'loading-correcting': 'AIが添削中…', 'loading-feedback': 'フィードバック生成中…',
     'error-ai': 'AI添削エラー: ', 'error-save': '保存エラー: ', 'error-vocab': 'エラー: ',
     'toast-saved': '日記を保存しました！', 'toast-words-added': '件の単語を単語帳に追加。',
@@ -209,6 +220,17 @@ const TRANSLATIONS = {
     'error-password-mismatch': 'Passwords do not match',
     'error-password-short': 'Password must be at least 6 characters',
     'error-reset-expired': 'This link has expired. Please request a new reset email',
+    'error-tts': "Couldn't play the audio",
+    'error-srs': "Couldn't save your progress: ",
+    'error-load-entries': "Couldn't load your diaries",
+    'error-load-vocab': "Couldn't load your word list: ",
+    'error-load-profile': "Couldn't load your settings: ",
+    'error-onboarding-save': "Couldn't save your settings. You can save them later from Settings: ",
+    'toast-onboarding-skipped': 'You can change these any time from ⚙',
+    'btn-onboarding-skip': 'Set up later',
+    'boot-error-title': "Couldn't start the app",
+    'boot-error-hint': 'Check your connection and try again.',
+    'btn-retry': 'Reload',
     'loading-correcting': 'AI is correcting…', 'loading-feedback': 'Generating feedback…',
     'error-ai': 'AI correction error: ', 'error-save': 'Save error: ', 'error-vocab': 'Error: ',
     'toast-saved': 'Diary saved!', 'toast-words-added': ' words added to vocabulary.',
@@ -367,7 +389,10 @@ function defaultProfile() {
 }
 
 async function loadProfile() {
-  const { data } = await sb.from('profiles').select('*').eq('user_id', currentUserId).maybeSingle();
+  const { data, error } = await sb.from('profiles').select('*').eq('user_id', currentUserId).maybeSingle();
+  // profilesテーブルが無い・権限が無い場合でも既定値でアプリは使えるようにし、
+  // 原因が分かるようにトーストだけ出す（黙って握り潰すと調査できない）
+  if (error) showToast(t('error-load-profile') + error.message, 'warn');
   currentProfile = data || defaultProfile();
 }
 
@@ -391,9 +416,17 @@ function openOnboarding() {
 async function completeOnboarding() {
   const payload = collectPreferenceForm('onboarding');
   const { error } = await sb.from('profiles').upsert(payload, { onConflict: 'user_id' });
-  if (error) { showToast(t('error-save') + error.message, 'error'); return; }
+  // 保存に失敗してもモーダルは閉じる。閉じられないとアプリ全体が操作不能になるため、
+  // 選択内容はメモリ上のプロフィールにだけ反映し、設定画面から再保存できる状態にする。
   currentProfile = payload;
   closeModal('onboarding-modal');
+  if (error) showToast(t('error-onboarding-save') + error.message, 'error');
+}
+
+// オンボーディングを保存せずに閉じる。既定のプロフィールのままアプリを使い始められる。
+function skipOnboarding() {
+  closeModal('onboarding-modal');
+  showToast(t('toast-onboarding-skipped'), 'info');
 }
 
 function populateSettingsPreferences(profile) {
@@ -424,13 +457,23 @@ function showLogin() {
 
 // ── パスワードリセット ────────────────────────────────────────────────────
 function setSetupView(id) {
-  ['login-view', 'reset-request-view', 'reset-update-view'].forEach(v => {
+  ['login-view', 'reset-request-view', 'reset-update-view', 'boot-error-view'].forEach(v => {
     const el = document.getElementById(v);
     if (el) el.style.display = v === id ? 'block' : 'none';
   });
 }
 
 function showLoginView() { setSetupView('login-view'); }
+
+// 起動時に例外が出た場合の避難先。これが無いとログイン画面もアプリ本体も
+// display:none のままになり、画面が真っ白のまま操作不能になる。
+function showBootError(err) {
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('setup-screen').style.display = 'flex';
+  const detail = document.getElementById('boot-error-detail');
+  if (detail) detail.textContent = err && err.message ? err.message : String(err || '');
+  setSetupView('boot-error-view');
+}
 
 function showResetRequestView() {
   const loginEmail = document.getElementById('s-email').value.trim();
@@ -471,22 +514,28 @@ async function submitNewPassword() {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
-  applyLang();
-  // supabase-jsがハッシュのトークンを消費する前に、リカバリーリンク経由かを覚えておく
-  const bootHash = location.hash;
-  initSB();
-  sb.auth.onAuthStateChange((event) => {
-    if (event === 'PASSWORD_RECOVERY') showPasswordUpdateView();
-  });
-  const { data: { session } } = await sb.auth.getSession();
-  if (bootHash.includes('type=recovery')) {
-    history.replaceState(null, '', location.pathname + location.search);
-    showPasswordUpdateView();
-  } else if (bootHash.includes('error=')) {
-    history.replaceState(null, '', location.pathname + location.search);
-    showLogin();
-    showToast(t('error-reset-expired'), 'error');
-  } else if (session) { await enterApp(session); } else { showLogin(); }
+  // 起動経路のどこかが失敗しても、必ず何らかの画面を出す。
+  // ここでthrowするとログイン画面もアプリ本体もdisplay:noneのままになり真っ白になる。
+  try {
+    applyLang();
+    // supabase-jsがハッシュのトークンを消費する前に、リカバリーリンク経由かを覚えておく
+    const bootHash = location.hash;
+    initSB();
+    sb.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') showPasswordUpdateView();
+    });
+    const { data: { session } } = await sb.auth.getSession();
+    if (bootHash.includes('type=recovery')) {
+      history.replaceState(null, '', location.pathname + location.search);
+      showPasswordUpdateView();
+    } else if (bootHash.includes('error=')) {
+      history.replaceState(null, '', location.pathname + location.search);
+      showLogin();
+      showToast(t('error-reset-expired'), 'error');
+    } else if (session) { await enterApp(session); } else { showLogin(); }
+  } catch (e) {
+    showBootError(e);
+  }
 });
 
 // ── Login / Logout ───────────────────────────────────────────────────────
@@ -520,7 +569,7 @@ function switchTab(name) {
   if (name === 'home')    renderHome();
   if (name === 'entries') loadEntries();
   if (name === 'vocab')   renderVocab();
-  if (name === 'quiz')    initQuizTab();
+  if (name === 'quiz')    openQuizTab();
 }
 
 // ── ホーム画面 ─────────────────────────────────────────────────────────────
@@ -566,11 +615,14 @@ function renderHome() {
   const diaryDone = entriesMeta.some(e => e.date === todayISO());
   const dueCount = countDueVocab();
   const quizDone = LS.get('missionQuiz:' + todayISO()) === '1';
+  // 期限切れ単語を全部消化しないと達成にならないと、単語を追加するほど達成不能になる。
+  // 「今日1語でも復習した」または「期限切れが0」で達成扱いにする。
+  const reviewDone = dueCount === 0 || LS.get('missionReview:' + todayISO()) === '1';
   const missions = [
     { icon: 'i-pencil', cls: 'mission-coral', title: t('mission-diary'), done: diaryDone, tab: 'diary' },
     { icon: 'i-book',   cls: 'mission-teal',
       title: dueCount > 0 ? t('mission-review').replace('{count}', dueCount) : t('mission-review-none'),
-      done: dueCount === 0, tab: 'quiz' },
+      done: reviewDone, tab: 'quiz' },
     { icon: 'i-quiz',   cls: 'mission-gold', title: t('mission-quiz'), done: quizDone, tab: 'quiz' },
   ];
   document.getElementById('home-missions').innerHTML = missions.map(m => `
@@ -593,13 +645,19 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 function fmtDate(iso) {
   const d = new Date(iso + 'T00:00:00');
   const day = d.getDate();
-  const sfx = [,'st','nd','rd'][day%10 > 3 ? 0 : day%10] || 'th';
+  const sfx = (day % 100 >= 11 && day % 100 <= 13) ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[day % 10] || 'th');
   return `${DAYS[d.getDay()]} ${MONTHS[d.getMonth()]} ${day}${sfx} ${d.getFullYear()}`;
 }
 function setDateLabel() {
-  document.getElementById('today-label').textContent = fmtDate(new Date().toISOString().split('T')[0]);
+  document.getElementById('today-label').textContent = fmtDate(todayISO());
 }
-function todayISO() { return new Date().toISOString().split('T')[0]; }
+// 端末のローカル暦日を 'YYYY-MM-DD' で返す。
+// toISOString()はUTCに変換してしまうため、JST（UTC+9）では朝9時前に書いた日記が
+// 「前日」として記録され、ストリーク・カレンダー・ミッション判定がすべてずれる。
+function localISO(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function todayISO() { return localISO(new Date()); }
 
 // ── 日記ステップ切り替え（1画面1機能ウィザード）────────────────────────────
 let currentDiaryStep = 1, maxDiaryStepReached = 1;
@@ -851,9 +909,15 @@ function startAiProgress() {
   };
 }
 
+let _aiCorrecting = false;
+
 async function goStep5() {
   const en2 = document.getElementById('diary-en2').value.trim();
   if (!en2) { showToast(t('alert-write-en2'), 'warn'); return; }
+  // 連打すると進捗バーのタイマーとGemini呼び出しが二重に走り、
+  // 遅いほうの応答が新しいほうを上書きしてしまう
+  if (_aiCorrecting) return;
+  _aiCorrecting = true;
 
   goToDiaryStep(5);
   if (typeof mascotSetMood === 'function') mascotSetMood('step5-mascot', 'excited');
@@ -876,6 +940,7 @@ async function goStep5() {
 
   window._correctedText = en2;
   window._lastFeedback  = null;
+  window._aiCorrectionFailed = false;
 
   const fastPromise = callGemini(buildFastCorrectionPrompt(jp, en1, en2), FAST_CORRECTION_SCHEMA)
     .then(res => {
@@ -885,8 +950,11 @@ async function goStep5() {
       window._correctedText = data.corrected;
     })
     .catch(e => {
-      correctedEl.textContent = en2 + '\n\n(' + t('error-ai') + e.message + ')';
+      correctedEl.textContent = en2;
       window._correctedText = en2;
+      // 添削に失敗した事実を残す。これを見ずに保存するとエラー文がDBのcorrectedに入る。
+      window._aiCorrectionFailed = true;
+      showToast(t('error-ai') + e.message, 'error');
     });
 
   const detailedPromise = callGemini(
@@ -907,6 +975,7 @@ async function goStep5() {
   });
 
   await Promise.allSettled([fastPromise, detailedPromise]);
+  _aiCorrecting = false;
   stopProgress();
   if (typeof mascotSetMood === 'function') mascotSetMood('step5-mascot', 'delighted');
   if (typeof kotoraSay === 'function') kotoraSay('step5-mascot', 'step5-done');
@@ -970,18 +1039,40 @@ function renderCategorizedFeedback(categories, boxId = 'ai-corrections-box', lis
 }
 
 // ── TTS (ブラウザ内蔵 Web Speech API) ────────────────────────────────────
-function speakText(text, onRepEnd) {
-  const btn = document.getElementById('tts-btn');
+// opts.btnId: 再生中ラベルを出すボタン。nullを渡すとどのボタンも触らない（クイズ音声など）
+// opts.onSettled(ok): 成功・失敗どちらでも必ず1回だけ呼ばれる。呼び出し側のボタン復帰用。
+// onRepEnd は「最後まで読み上げられた」ときだけ呼ぶ（シャドーイングの回数カウント用）。
+function speakText(text, onRepEnd, opts = {}) {
+  const btnId = opts.btnId === undefined ? 'tts-btn' : opts.btnId;
+  const btn = btnId ? document.getElementById(btnId) : null;
   speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang = 'en-US';
   utter.rate = 0.9;
   const voices = speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
   if (voices.length) utter.voice = voices[0];
-  utter.onend = () => {
+
+  let settled = false;
+  const finish = (ok) => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(watchdog);
     if (btn) { btn.textContent = t('btn-tts-replay'); btn.disabled = false; }
-    if (onRepEnd) onRepEnd();
+    if (opts.onSettled) opts.onSettled(ok);
+    if (ok && onRepEnd) onRepEnd();
   };
+
+  utter.onend = () => finish(true);
+  // onerrorを配線しないと、再生に失敗したときボタンが無効のまま戻らず操作不能になる
+  utter.onerror = (e) => {
+    finish(false);
+    if (e && e.error !== 'interrupted' && e.error !== 'canceled') {
+      showToast(t('error-tts'), 'warn');
+    }
+  };
+  // 一部ブラウザはonend/onerrorを一切発火せずに黙って終わることがあるため保険をかける
+  const watchdog = setTimeout(() => finish(false), Math.max(8000, text.length * 220));
+
   if (btn) { btn.textContent = t('btn-tts-playing'); btn.disabled = false; }
   speechSynthesis.speak(utter);
 }
@@ -995,9 +1086,10 @@ function speakCorrected() {
 function playShadowingRep(text) {
   const btn = document.getElementById('hear-target-btn');
   if (btn) btn.disabled = true;
-  speakText(text, () => {
-    registerShadowingRep();
-    if (btn) btn.disabled = false;
+  speakText(text, registerShadowingRep, {
+    btnId: null,
+    // 成功・失敗どちらでもボタンを戻す。失敗時に戻さないとシャドーイングが進めなくなる。
+    onSettled: () => { if (btn) btn.disabled = false; },
   });
 }
 
@@ -1037,7 +1129,7 @@ function skipShadowingGate() {
 }
 
 let _modalCorrectedText = '';
-function speakModalText() { if (_modalCorrectedText) speakText(_modalCorrectedText); }
+function speakModalText() { if (_modalCorrectedText) speakText(_modalCorrectedText, null, { btnId: null }); }
 
 // ── STEP 5 → 6 ───────────────────────────────────────────────────────────
 function goStep6() {
@@ -1047,7 +1139,8 @@ function goStep6() {
   resetShadowingGate();
   firstPronunciationAttempt = null;
   document.getElementById('speech-first-attempt').style.display = 'none';
-  setTimeout(() => playShadowingRep(corrected), 400);
+  // iOS Safariはユーザー操作を伴わない再生をブロックするため自動再生はしない。
+  // 「もう一度聞く」ボタンをタップして始めてもらう。
 }
 
 // ── Web Speech API (Step 6 / 過去日記詳細ページ共通) ───────────────────────
@@ -1299,11 +1392,28 @@ function renderPronunciationTips(tips, ctx) {
 }
 
 // ── Save Diary ────────────────────────────────────────────────────────────
+let _savingDiary = false;
+
 async function saveDiary() {
+  // 連打すると同じ日記が2件作られるため、保存中は弾く
+  if (_savingDiary) return;
+  const saveBtn = document.getElementById('save-diary-btn');
+  _savingDiary = true;
+  if (saveBtn) saveBtn.disabled = true;
+  try {
+    await saveDiaryInner();
+  } finally {
+    _savingDiary = false;
+    if (saveBtn) saveBtn.disabled = false;
+  }
+}
+
+async function saveDiaryInner() {
   const jp        = document.getElementById('diary-jp').value.trim();
   const en1       = document.getElementById('diary-en1').value.trim();
   const en2       = document.getElementById('diary-en2').value.trim();
-  const corrected = window._correctedText || '';
+  // AI呼び出しが失敗したときはエラー文が_correctedTextに入っているため、そのまま保存しない
+  const corrected = window._aiCorrectionFailed ? '' : (window._correctedText || '');
   if (!jp) { showToast(t('alert-write-before-save'), 'warn'); return; }
 
   const newWords = [];
@@ -1342,7 +1452,11 @@ async function saveDiary() {
       return true;
     });
     if (toAdd.length) {
-      await sb.from('vocab').insert(toAdd.map(w => ({ ...w, correct: 0, wrong: 0, user_id: currentUserId, image_url: vocabImageUrl(w.en) })));
+      const { error: vocabError } = await sb.from('vocab')
+        .insert(toAdd.map(w => ({ ...w, correct: 0, wrong: 0, user_id: currentUserId, image_url: vocabImageUrl(w.en) })));
+      // 失敗を黙って捨てると「◯語追加しました」と嘘のトーストが出る
+      if (vocabError) { showToast(t('error-vocab') + vocabError.message, 'error'); toAdd = []; }
+      else invalidateQuiz();
     }
   }
 
@@ -1407,7 +1521,17 @@ async function loadEntries() {
   }
   const from = (entriesPage - 1) * entriesPageSize;
   const to   = from + entriesPageSize - 1;
-  const { data, count } = await query.range(from, to);
+  const { data, count, error } = await query.range(from, to);
+
+  // エラーを捨てると読み込み失敗が「まだ日記がありません」と表示され、
+  // データが消えたように見えてしまう
+  if (error) {
+    section.style.display = 'block';
+    list.innerHTML = `<div class="empty-state-small">${escapeHtml(t('error-load-entries'))}</div>`;
+    pageInfo.textContent = '';
+    showToast(t('error-load-entries'), 'error');
+    return;
+  }
 
   if (!count && !term) { section.style.display = 'none'; return; }
   section.style.display = 'block';
@@ -1537,12 +1661,15 @@ async function addVocab() {
   document.getElementById('v-en').value = '';
   document.getElementById('v-jp').value = '';
   document.getElementById('v-note').value = '';
+  invalidateQuiz();
   await renderVocab();
 }
 async function deleteVocab(id) {
   const ok = await showConfirm({ message: t('confirm-delete-word'), okLabel: t('btn-delete'), danger: true });
   if (!ok) return;
-  await sb.from('vocab').delete().eq('id', id);
+  const { error } = await sb.from('vocab').delete().eq('id', id);
+  if (error) { showToast(t('error-vocab') + error.message, 'error'); return; }
+  invalidateQuiz();
   await renderVocab();
   showToast(t('toast-word-deleted'), 'success');
 }
@@ -1551,7 +1678,8 @@ let vocabSearch = '';
 let editingVocabId = null;
 
 async function renderVocab() {
-  const { data } = await sb.from('vocab').select('*').order('created_at', { ascending: false });
+  const { data, error } = await sb.from('vocab').select('*').order('created_at', { ascending: false });
+  if (error) { showToast(t('error-load-vocab') + error.message, 'error'); return; }
   allVocab = data || [];
   editingVocabId = null;
   filterAndRenderVocab();
@@ -1567,6 +1695,7 @@ async function saveEditVocab(id) {
   const { error } = await sb.from('vocab').update({ en, jp, note, image_url: vocabImageUrl(en) }).eq('id', id);
   if (error) { showToast(t('error-vocab') + error.message, 'error'); return; }
   editingVocabId = null;
+  invalidateQuiz();
   await renderVocab();
 }
 
@@ -1607,7 +1736,7 @@ function filterAndRenderVocab() {
     const rate  = total ? Math.round(v.correct/total*100) : null;
     const cls   = rate===null ? 'rate-new' : rate>=70 ? 'rate-ok' : 'rate-ng';
     return `<div class="vocab-row">
-      <img class="v-thumb" src="${v.image_url || vocabImageUrl(v.en)}" alt="${escapeHtml(v.en)}" loading="lazy" onerror="this.style.visibility='hidden'" />
+      <img class="v-thumb" src="${escapeHtml(v.image_url || vocabImageUrl(v.en))}" alt="${escapeHtml(v.en)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'" />
       <div class="v-en">${escapeHtml(v.en)}</div>
       <div class="v-jp">${escapeHtml(v.jp)}</div>
       <div class="v-note">${escapeHtml(v.note||'')}</div>
@@ -1738,7 +1867,7 @@ function renderQuizCard(card) {
 
   const listenBtn = document.getElementById('quiz-listen-btn');
   listenBtn.style.display = isListen ? 'inline-block' : 'none';
-  if (isListen) setTimeout(() => speakText(v.en), 300);
+  if (isListen) setTimeout(() => speakText(v.en, null, { btnId: null }), 300);
 
   const choicesEl = document.getElementById('quiz-choices');
   choicesEl.innerHTML = '';
@@ -1758,7 +1887,7 @@ function renderQuizCard(card) {
   input.style.display = isMc ? 'none' : 'block';
   document.querySelector('.quiz-actions').style.display = isMc ? 'none' : 'flex';
 }
-function playQuizAudio() { if (currentCard) speakText(currentCard.v.en); }
+function playQuizAudio() { if (currentCard) speakText(currentCard.v.en, null, { btnId: null }); }
 // trim・小文字化・全角半角統一(NFKC)・カタカナ→ひらがな
 function normalizeAnswer(s) {
   let x = String(s).trim().toLowerCase().normalize('NFKC');
@@ -1804,17 +1933,26 @@ async function recordQuizResult(isOk, correctText, card, typo=false) {
   const banner=document.getElementById('result-banner');
   banner.style.display='block';
   const srs = computeSrsUpdate(v, isOk);
+  const delta = isOk ? { correct: (v.correct || 0) + 1 } : { wrong: (v.wrong || 0) + 1 };
   if (isOk) {
     qStats.ok++; qStats.streak++;
     banner.className='result-banner result-ok';
     banner.textContent=t('quiz-correct')+correctText+'」'+(typo?t('quiz-typo-note'):'');
-    await sb.from('vocab').update({ correct:(v.correct||0)+1, ...srs }).eq('id',v.id);
     if (qStats.streak > 0 && qStats.streak % 5 === 0) showToast(`🔥 ${qStats.streak} ${t('quiz-streak-toast')}`);
   } else {
     qStats.ng++; qStats.streak=0;
     banner.className='result-banner result-ng';
     banner.textContent=t('quiz-wrong')+correctText+'」';
-    await sb.from('vocab').update({ wrong:(v.wrong||0)+1, ...srs }).eq('id',v.id);
+  }
+  const { error: srsError } = await sb.from('vocab').update({ ...delta, ...srs }).eq('id', v.id);
+  if (srsError) showToast(t('error-srs') + srsError.message, 'error');
+  else {
+    // allVocabはホームの「復習する単語」件数の元データ。ここを更新しないと、
+    // 復習し終えた単語がいつまでも期限切れとして数えられる。
+    Object.assign(v, delta, srs);
+    const inList = allVocab.find(x => x.id === v.id);
+    if (inList && inList !== v) Object.assign(inList, delta, srs);
+    LS.set('missionReview:' + todayISO(), '1');
   }
   pulseQuizCard(isOk);
   if (typeof mascotReactQuiz === 'function') mascotReactQuiz(isOk);
@@ -1846,15 +1984,46 @@ function updateQStats(hasCard) {
 }
 
 // ── Quiz mode toggle（単語テスト / 状況文で練習） ────────────────────────────
-function initQuizTab() {
-  switchQuizMode(LS.get('quizMode') || 'flashcard', true);
-}
-function switchQuizMode(mode, skipSave) {
+// 出題を開始済みのモード。テストタブを開くたびに作り直すと、進行中のクイズが巻き戻り、
+// シチュエーション練習では毎回Gemini（＝無料枠）を消費してしまう。
+const _quizStarted = { flashcard: false, situational: false };
+
+function currentQuizMode() { return LS.get('quizMode') || 'flashcard'; }
+
+// 表示の切り替えだけを行う。出題開始もAI呼び出しもしない。
+function applyQuizMode(mode) {
   document.querySelectorAll('.quiz-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
   document.getElementById('quiz-flashcard-area').style.display   = mode === 'flashcard'   ? 'block' : 'none';
   document.getElementById('quiz-situational-area').style.display = mode === 'situational' ? 'block' : 'none';
-  if (!skipSave) LS.set('quizMode', mode);
+}
+
+function startQuizMode(mode) {
+  if (_quizStarted[mode]) return;
+  _quizStarted[mode] = true;
   if (mode === 'flashcard') startQuiz(); else startSituationalPractice();
+}
+
+// 単語帳が変わったら次にテストタブを開いたときに作り直す
+function invalidateQuiz() {
+  _quizStarted.flashcard = false;
+  _quizStarted.situational = false;
+}
+
+// 起動時に呼ばれる。表示を整えるだけで、出題はテストタブを開くまで遅延させる。
+function initQuizTab() { applyQuizMode(currentQuizMode()); }
+
+// テストタブを開いたとき
+function openQuizTab() {
+  const mode = currentQuizMode();
+  applyQuizMode(mode);
+  startQuizMode(mode);
+}
+
+// モード切替ボタンから
+function switchQuizMode(mode, skipSave) {
+  applyQuizMode(mode);
+  if (!skipSave) LS.set('quizMode', mode);
+  startQuizMode(mode);
 }
 
 // ── シチュエーション文練習（発話・タイピング両対応、SRSで出す単語を決定） ──

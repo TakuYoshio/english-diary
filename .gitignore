@@ -1,5 +1,5 @@
-pass
 *.png
 *.jpg
 !character/*.png
 .DS_Store
+node_modules/

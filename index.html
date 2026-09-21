@@ -71,6 +71,13 @@
       <p id="reset-update-error" class="hint login-error"></p>
       <button class="btn btn-primary btn-full" onclick="submitNewPassword()" data-i18n="btn-update-password">パスワードを変更</button>
     </div>
+
+    <div id="boot-error-view" style="display:none">
+      <p class="setup-sub" data-i18n="boot-error-title">アプリを起動できませんでした</p>
+      <p class="hint" data-i18n="boot-error-hint">通信状況を確認して、もう一度お試しください。</p>
+      <p id="boot-error-detail" class="hint login-error"></p>
+      <button class="btn btn-primary btn-full" onclick="location.reload()" data-i18n="btn-retry">再読み込み</button>
+    </div>
   </div>
 </div>
 
@@ -315,7 +322,7 @@
           </div>
           <div class="step-actions">
             <button class="btn" onclick="backDiaryStep()" data-i18n="btn-back-step">← 戻る</button>
-            <button class="btn btn-primary" onclick="saveDiary()" data-i18n="btn-save-diary">💾 日記を保存</button>
+            <button class="btn btn-primary" id="save-diary-btn" onclick="saveDiary()" data-i18n="btn-save-diary">💾 日記を保存</button>
           </div>
         </div>
       </div>
@@ -616,6 +623,7 @@
     </div>
     <div class="action-row">
       <button class="btn btn-primary btn-full" onclick="completeOnboarding()" data-i18n="btn-onboarding-start">はじめる →</button>
+      <button type="button" class="link-btn" onclick="skipOnboarding()" data-i18n="btn-onboarding-skip">あとで設定する</button>
     </div>
   </div>
 </div>
