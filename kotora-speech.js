@@ -187,11 +187,19 @@ function _ktPositionBubble(slot, bubble) {
   }
 }
 
-// 表示中の吹き出しはリサイズ時に追従させる（表示直後のレイアウト変動対策も兼ねる）
+// 表示中の吹き出しはリサイズ時に追従させる（表示直後のレイアウト変動対策も兼ねる）。
+// _ktPositionBubble は getComputedStyle / getBoundingClientRect を読むため
+// レイアウトを強制する。モバイルではURLバーの出し入れでresizeが連続発火するので
+// requestAnimationFrame で1フレーム1回にまとめる。
+let _ktResizeFrame = null;
 window.addEventListener('resize', () => {
-  document.querySelectorAll('.kt-bubble.kt-bubble-in').forEach(bubble => {
-    const slot = document.getElementById(bubble.getAttribute('data-kt-bubble-for'));
-    if (slot) _ktPositionBubble(slot, bubble);
+  if (_ktResizeFrame) return;
+  _ktResizeFrame = requestAnimationFrame(() => {
+    _ktResizeFrame = null;
+    document.querySelectorAll('.kt-bubble.kt-bubble-in').forEach(bubble => {
+      const slot = document.getElementById(bubble.getAttribute('data-kt-bubble-for'));
+      if (slot) _ktPositionBubble(slot, bubble);
+    });
   });
 });
 

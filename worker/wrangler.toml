@@ -3,9 +3,19 @@ main = "src/index.js"
 compatibility_date = "2026-07-01"
 
 [vars]
+# 複数指定する場合はカンマ区切り（例: 本番URLとローカル開発用の http://127.0.0.1:8931）
 ALLOWED_ORIGIN = "https://takuyoshio.github.io"
 SUPABASE_URL = "https://swbbslowwklhptqsaixn.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3YmJzbG93d2tsaHB0cXNhaXhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMTcwNjcsImV4cCI6MjA5Nzc5MzA2N30.T_7VD3emSP6DbwCpYkhIjO6yRmueuNeXUkldpaGGp3c"
 
-# Secrets (set via CLI, not stored in this file):
+# ユーザーごとのAI利用回数を数えるKV。これが無いと1アカウントで
+# Geminiの無料枠を使い切れてしまう。作成方法:
+#   npx wrangler kv namespace create RATE_LIMIT
+# 出力された id を下の "" に貼る。バインドしないまま deploy しても
+# Workerは動くが、レート制限は無効になる。
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = ""
+
+# Secrets（このファイルには置かず、CLIで登録する）:
 #   npx wrangler secret put GEMINI_API_KEY

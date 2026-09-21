@@ -117,6 +117,22 @@ await page.waitForTimeout(100);
 check('トーストに aria-live がある',
   await page.getAttribute('#toast-container', 'aria-live') === 'polite');
 
+// ── パフォーマンス回帰 ──────────────────────────────────────────────────
+// シャドーイングは最大50回。1回ごとに8KBのSVGを組み直していたので、
+// SVG要素が作り直されていないこと（data属性の差し替えで済むこと）を見る。
+const svgRebuilds = await page.evaluate(() => {
+  goToDiaryStep(6);
+  resetShadowingGate();
+  const slot = document.getElementById('step6-mascot');
+  const before = slot.querySelector('svg');
+  for (let i = 0; i < 20; i++) registerShadowingRep();
+  const after = slot.querySelector('svg');
+  return { same: before === after, mood: slot.querySelector('.kotora-wrap')?.dataset.mood };
+});
+check('シャドーイング中にSVGを作り直さない', svgRebuilds.same);
+check('それでもmoodは更新される', svgRebuilds.mood === 'excited' || svgRebuilds.mood === 'delighted',
+  `mood=${svgRebuilds.mood}`);
+
 const ignorable = /favicon|ERR_FAILED|net::ERR|Failed to load resource/i;
 const real = errors.filter(e => !ignorable.test(e));
 check('コンソールエラーが無い', real.length === 0, real.join(' | '));

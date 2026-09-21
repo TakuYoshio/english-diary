@@ -5,13 +5,42 @@
 // 統計・XP計算はすべてこの配列から算出する。
 let entriesMeta = []; // [{id, date, pronunciation_first_attempt, feedback}]
 
+// PostgRESTは上限を指定しないと1000行で黙って打ち切る。件数が増えたときに
+// ストリークや統計が静かにずれるのを避けるため、明示的に上限を置く。
+const ENTRIES_META_LIMIT = 2000;
+// feedbackは添削内容を丸ごと持つ重いJSON。統計の内訳グラフにしか使わないので、
+// 全件ではなく直近分だけ取得する（毎回の起動で全期間の添削を転送していた）。
+const FEEDBACK_WINDOW = 120;
+
 async function loadEntriesMeta() {
-  const { data } = await sb.from('entries')
-    .select('id,date,pronunciation_first_attempt,feedback')
-    .order('date', { ascending: false });
+  const { data, error } = await sb.from('entries')
+    .select('id,date,pronunciation_first_attempt')
+    .order('date', { ascending: false })
+    .limit(ENTRIES_META_LIMIT);
+  if (error) {
+    if (typeof showToast === 'function') showToast(t('error-load-entries'), 'error');
+    return entriesMeta;
+  }
   entriesMeta = data || [];
   return entriesMeta;
 }
+
+// 統計タブを開いたときだけ、直近分のfeedbackを取りに行って entriesMeta に混ぜる
+let _feedbackLoaded = false;
+async function loadFeedbackWindow() {
+  if (_feedbackLoaded) return;
+  const { data, error } = await sb.from('entries')
+    .select('id,feedback')
+    .order('date', { ascending: false })
+    .limit(FEEDBACK_WINDOW);
+  if (error) return;
+  const byId = new Map((data || []).map(r => [r.id, r.feedback]));
+  entriesMeta.forEach(e => { if (byId.has(e.id)) e.feedback = byId.get(e.id); });
+  _feedbackLoaded = true;
+}
+
+// 日記を保存・編集したら次に統計を開いたときに取り直す
+function invalidateFeedbackWindow() { _feedbackLoaded = false; }
 
 // ── Streak ───────────────────────────────────────────────────────────────
 function computeStreaks(meta) {
@@ -125,7 +154,11 @@ function switchEntriesView(view) {
   document.getElementById('entries-calendar').style.display  = view === 'calendar' ? 'block' : 'none';
   document.getElementById('entries-stats').style.display     = view === 'stats' ? 'block' : 'none';
   if (view === 'calendar') renderEntriesCalendar();
-  if (view === 'stats') renderStatsDashboard();
+  if (view === 'stats') {
+    renderStatsDashboard();
+    // 添削内容の内訳グラフに必要なfeedbackはここで初めて取りに行く
+    loadFeedbackWindow().then(() => renderStatsDashboard());
+  }
 }
 
 // ── Calendar ─────────────────────────────────────────────────────────────

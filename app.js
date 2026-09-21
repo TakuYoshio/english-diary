@@ -80,6 +80,7 @@ const TRANSLATIONS = {
     'aria-streak': '連続記録とレベルを見る',
     'page-size-10': '10件', 'page-size-20': '20件', 'page-size-50': '50件',
     'toast-update-ready': '新しいバージョンがあります。次回起動時に更新されます',
+    'error-ai-quota': '今日のAI利用が上限に達しました。また明日どうぞ',
     'error-tts': '音声を再生できませんでした',
     'error-srs': '学習記録を保存できませんでした: ',
     'error-load-entries': '日記を読み込めませんでした',
@@ -236,6 +237,7 @@ const TRANSLATIONS = {
     'aria-streak': 'View your streak and level',
     'page-size-10': '10', 'page-size-20': '20', 'page-size-50': '50',
     'toast-update-ready': 'A new version is ready. It will apply next time you open the app',
+    'error-ai-quota': "You've reached today's AI limit. See you tomorrow!",
     'error-tts': "Couldn't play the audio",
     'error-srs': "Couldn't save your progress: ",
     'error-load-entries': "Couldn't load your diaries",
@@ -1056,9 +1058,13 @@ async function goStep5() {
       showToast(t('error-ai') + e.message, 'error');
     });
 
+  // 詳細フィードバックは4カテゴリ分の添削と日本語解説を含むため長くなる。
+  // Worker側の既定値では足りず、JSONが途中で切れてparseに失敗することがあった。
   const detailedPromise = callGemini(
     buildDetailedFeedbackPrompt(jp, en1, words, en2, currentProfile?.skill_focus || []),
-    DETAILED_FEEDBACK_SCHEMA
+    DETAILED_FEEDBACK_SCHEMA,
+    30000,
+    { maxOutputTokens: 3072 }
   ).then(res => {
     const data = JSON.parse(res);
     renderFeedback(data);
@@ -1547,7 +1553,7 @@ async function saveDiaryInner() {
 
   let toAdd = [];
   if (newWords.length) {
-    const { data: existing } = await sb.from('vocab').select('en');
+    const { data: existing } = await sb.from('vocab').select('en').limit(VOCAB_LIMIT);
     const existingSet = new Set((existing||[]).map(v => v.en.toLowerCase()));
     const seenInBatch = new Set();
     toAdd = newWords.filter(w => {
@@ -1586,6 +1592,7 @@ async function saveDiaryInner() {
 
   await loadEntries();
   await loadEntriesMeta();
+  invalidateFeedbackWindow();
   refreshProgressUI();
   renderHome();
   const newStreak = computeStreaks(entriesMeta).current;
@@ -1614,7 +1621,12 @@ function sanitizeSearchTerm(term) {
   return term.trim().replace(/[,()%]/g, '');
 }
 
+// 入力が速いと前のクエリが後から返って新しい結果を上書きすることがある。
+// 発行順に番号を振り、最新の応答だけを描画する。
+let _entriesQuerySeq = 0;
+
 async function loadEntries() {
+  const seq = ++_entriesQuerySeq;
   const section  = document.getElementById('entries-section');
   const list     = document.getElementById('entries-list');
   const pageInfo = document.getElementById('entries-page-info');
@@ -1627,6 +1639,7 @@ async function loadEntries() {
   const from = (entriesPage - 1) * entriesPageSize;
   const to   = from + entriesPageSize - 1;
   const { data, count, error } = await query.range(from, to);
+  if (seq !== _entriesQuerySeq) return; // より新しい検索が走っている
 
   // エラーを捨てると読み込み失敗が「まだ日記がありません」と表示され、
   // データが消えたように見えてしまう
@@ -1782,8 +1795,15 @@ let allVocab = [];
 let vocabSearch = '';
 let editingVocabId = null;
 
+// PostgRESTは上限未指定だと1000行で黙って打ち切る。SRSの出題プールや
+// 重複判定が静かに狂うのを避けるため、どのクエリにも明示的に上限を置く。
+const VOCAB_LIMIT = 2000;
+
 async function renderVocab() {
-  const { data, error } = await sb.from('vocab').select('*').order('created_at', { ascending: false });
+  const { data, error } = await sb.from('vocab')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(VOCAB_LIMIT);
   if (error) { showToast(t('error-load-vocab') + error.message, 'error'); return; }
   allVocab = data || [];
   editingVocabId = null;
@@ -1852,16 +1872,19 @@ function filterAndRenderVocab() {
   }).join('');
 }
 
+// 1打鍵ごとにリスト全体のHTMLを組み直すと（1行につき画像1枚）重いのでデバウンスする
+let vocabSearchTimer = null;
 function onVocabSearchInput(value) {
   vocabSearch = value;
-  filterAndRenderVocab();
+  clearTimeout(vocabSearchTimer);
+  vocabSearchTimer = setTimeout(filterAndRenderVocab, 180);
 }
 
 // ── SRS（間隔反復・エビングハウスの忘却曲線を参考にした固定ステージ方式） ──
 const SRS_INTERVALS_DAYS = [0, 1, 3, 7, 14, 30, 90];
 
 async function fetchDueVocab(limit = 20, preloaded = null) {
-  const vocab = preloaded || (await sb.from('vocab').select('*')).data || [];
+  const vocab = preloaded || (await sb.from('vocab').select('*').limit(VOCAB_LIMIT)).data || [];
   const now = Date.now();
   const due = vocab
     .filter(v => new Date(v.next_review_at || 0).getTime() <= now)
@@ -1891,7 +1914,7 @@ function computeSrsUpdate(v, isOk) {
 // ── Quiz ──────────────────────────────────────────────────────────────────
 let queue=[], currentCard=null, qStats={ok:0,ng:0,streak:0};
 async function startQuiz() {
-  const { data: vocab } = await sb.from('vocab').select('*');
+  const { data: vocab } = await sb.from('vocab').select('*').limit(VOCAB_LIMIT);
   allVocab = vocab || [];
   const empty=document.getElementById('quiz-empty'), area=document.getElementById('quiz-area');
   if (!allVocab.length) { empty.style.display='block'; area.style.display='none'; return; }
@@ -2173,7 +2196,7 @@ let currentSituational = null;
 
 async function startSituationalPractice() {
   const empty = document.getElementById('situational-empty'), area = document.getElementById('situational-area');
-  const { data: vocab } = await sb.from('vocab').select('*');
+  const { data: vocab } = await sb.from('vocab').select('*').limit(VOCAB_LIMIT);
   allVocab = vocab || [];
   if (!allVocab.length) { empty.style.display='block'; area.style.display='none'; return; }
   empty.style.display='none'; area.style.display='block';
@@ -2250,8 +2273,14 @@ async function applySituationalSrsUpdate(data) {
 }
 
 // ── Gemini (Cloudflare Worker 経由) ─────────────────────────────────────────
-async function callGemini(prompt, schema, timeoutMs = 20000) {
-  const body = JSON.stringify({ prompt, schema });
+// opts.maxOutputTokens: 長いJSONを返させる呼び出しで指定する（Worker側で4096までクランプ）
+// opts.system / opts.contents: マルチターン会話用（Workerが両形式を受ける）
+function callGemini(prompt, schema, timeoutMs = 20000, opts = {}) {
+  return _postWorker({ prompt, schema, ...opts }, timeoutMs);
+}
+
+async function _postWorker(payload, timeoutMs) {
+  const body = JSON.stringify(payload);
 
   for (let attempt = 0; ; attempt++) {
     const { data: { session } } = await sb.auth.getSession();
@@ -2277,6 +2306,8 @@ async function callGemini(prompt, schema, timeoutMs = 20000) {
       continue;
     }
     if (res.status === 401) throw new Error(t('alert-auth-error'));
+    // 403 は利用回数の上限。再試行しても無駄なので専用のメッセージを出す。
+    if (res.status === 403) throw new Error(t('error-ai-quota'));
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
     return data.candidates?.[0]?.content?.parts?.[0]?.text || '';

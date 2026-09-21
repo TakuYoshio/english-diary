@@ -24,28 +24,50 @@ function kotoraImg(mood = 'idle', tier = 'bronze', stage = 'kitten') {
   </div>`;
 }
 
+// ── スロットの状態更新 ────────────────────────────────────────────────────
+// 見た目の切り替えはすべて .kotora-wrap の data-* を見るCSS側で行っているため、
+// innerHTMLで8KBのSVGを組み直す必要はない。シャドーイングは最大50回、
+// 1回ごとにこれが走っていた。すでに描画済みなら属性だけ差し替える。
+function mascotApply(slotId, mood, tier, stage) {
+  const slot = document.getElementById(slotId);
+  if (!slot) return;
+  const wrap = slot.querySelector('.kotora-wrap');
+  if (!wrap) {
+    const level = mascotLevel();
+    slot.innerHTML = kotoraImg(mood, tier || mascotCollarTier(level), stage || mascotGrowthStage(level));
+    return;
+  }
+  // 同じmoodを再指定したときも演出をやり直せるよう、一度外してリフローを挟む
+  if (wrap.dataset.mood === mood) {
+    wrap.removeAttribute('data-mood');
+    void wrap.offsetWidth;
+  }
+  wrap.dataset.mood = mood;
+  if (tier)  wrap.dataset.tier  = tier;
+  if (stage) wrap.dataset.stage = stage;
+}
+
+function mascotLevel() {
+  return (typeof computeProgressStats === 'function') ? computeProgressStats().level : 1;
+}
+
 // ── フック: シャドーイング（忍び足→キャッチ）────────────────────────────────
 let _mascotShadowSettleTimer = null;
 
 function mascotUpdateShadowPose(pct, reachedGoal) {
   const slot = document.getElementById('step6-mascot');
   if (!slot) return;
-  const level = (typeof computeProgressStats === 'function') ? computeProgressStats().level : 1;
-  const stage = mascotGrowthStage(level);
-  const tier = mascotCollarTier(level);
 
   clearTimeout(_mascotShadowSettleTimer);
   let mood = 'idle';
   if (reachedGoal) mood = 'delighted';
   else if (pct > 0) mood = 'excited';
 
-  slot.innerHTML = kotoraImg(mood, tier, stage);
+  mascotApply('step6-mascot', mood);
 
   if (mood === 'delighted') {
     if (typeof kotoraSay === 'function') kotoraSay('step6-mascot', 'shadow-goal', { once: true });
-    _mascotShadowSettleTimer = setTimeout(() => {
-      slot.innerHTML = kotoraImg('happy', tier, stage);
-    }, 700);
+    _mascotShadowSettleTimer = setTimeout(() => mascotApply('step6-mascot', 'happy'), 700);
   }
 }
 
@@ -91,10 +113,7 @@ function mascotCelebrateSave({ streakGrew = false, leveledUp = false, badgeEarne
 // ── progress.js の再計算後に呼ばれる（Step6の待機ポーズなどを最新化） ────────
 function mascotOnProgressRefresh() {
   const slot = document.getElementById('step6-mascot');
-  if (slot && !slot.innerHTML) {
-    const level = computeProgressStats().level;
-    slot.innerHTML = kotoraImg('idle', mascotCollarTier(level), mascotGrowthStage(level));
-  }
+  if (slot && !slot.innerHTML) mascotApply('step6-mascot', 'idle');
   // 初回ロード時など、現在表示中の日記ステップのマスコットが未描画なら埋める
   if (typeof currentDiaryStep !== 'undefined' && typeof mascotShowDiaryStep === 'function') {
     const dslot = document.getElementById('step' + currentDiaryStep + '-mascot');
@@ -106,36 +125,23 @@ function mascotOnProgressRefresh() {
 let _mascotQuizSettleTimer = null;
 
 function mascotResetQuizMood() {
-  const slot = document.getElementById('quiz-mascot');
-  if (!slot) return;
   clearTimeout(_mascotQuizSettleTimer);
-  const level = (typeof computeProgressStats === 'function') ? computeProgressStats().level : 1;
-  slot.innerHTML = kotoraImg('idle', mascotCollarTier(level), mascotGrowthStage(level));
+  mascotApply('quiz-mascot', 'idle');
 }
 
 function mascotReactQuiz(isOk) {
-  const slot = document.getElementById('quiz-mascot');
-  if (!slot) return;
-  const level = (typeof computeProgressStats === 'function') ? computeProgressStats().level : 1;
-  const stage = mascotGrowthStage(level);
-  const tier = mascotCollarTier(level);
-
+  if (!document.getElementById('quiz-mascot')) return;
   clearTimeout(_mascotQuizSettleTimer);
-  slot.innerHTML = kotoraImg(isOk ? 'delighted' : 'sad', tier, stage);
+  mascotApply('quiz-mascot', isOk ? 'delighted' : 'sad');
   if (typeof kotoraSay === 'function') {
     kotoraSay('quiz-mascot', isOk ? 'quiz-ok' : 'quiz-ng', { typewriter: false, duration: 1600 });
   }
-  _mascotQuizSettleTimer = setTimeout(() => {
-    slot.innerHTML = kotoraImg('idle', tier, stage);
-  }, 1200);
+  _mascotQuizSettleTimer = setTimeout(() => mascotApply('quiz-mascot', 'idle'), 1200);
 }
 
 // ── 汎用: 指定スロットのmoodを直接設定 ────────────────────────────────────
 function mascotSetMood(slotId, mood) {
-  const slot = document.getElementById(slotId);
-  if (!slot) return;
-  const level = (typeof computeProgressStats === 'function') ? computeProgressStats().level : 1;
-  slot.innerHTML = kotoraImg(mood, mascotCollarTier(level), mascotGrowthStage(level));
+  mascotApply(slotId, mood);
 }
 
 // ── フック: 日記ウィザードの各ステップ表示時（待機中はidle） ─────────────────
