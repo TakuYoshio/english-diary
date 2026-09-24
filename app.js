@@ -1631,25 +1631,7 @@ async function saveDiaryInner() {
   });
   if (error) { showToast(t('error-save') + error.message, 'error'); return; }
 
-  let toAdd = [];
-  if (newWords.length) {
-    const { data: existing } = await sb.from('vocab').select('en').limit(VOCAB_LIMIT);
-    const existingSet = new Set((existing||[]).map(v => v.en.toLowerCase()));
-    const seenInBatch = new Set();
-    toAdd = newWords.filter(w => {
-      const key = w.en.toLowerCase();
-      if (existingSet.has(key) || seenInBatch.has(key)) return false;
-      seenInBatch.add(key);
-      return true;
-    });
-    if (toAdd.length) {
-      const { error: vocabError } = await sb.from('vocab')
-        .insert(toAdd.map(w => ({ ...w, correct: 0, wrong: 0, user_id: currentUserId, image_url: vocabImageUrl(w.en) })));
-      // 失敗を黙って捨てると「◯語追加しました」と嘘のトーストが出る
-      if (vocabError) { showToast(t('error-vocab') + vocabError.message, 'error'); toAdd = []; }
-      else invalidateQuiz();
-    }
-  }
+  const toAdd = await addVocabBatch(newWords);
 
   document.getElementById('diary-jp').value  = '';
   document.getElementById('diary-en1').value = '';
@@ -1868,6 +1850,36 @@ async function addVocab() {
   document.getElementById('v-note').value = '';
   invalidateQuiz();
   await renderVocab();
+}
+
+// 複数語をまとめて単語帳に入れる。既存の語と、同じバッチ内の重複を除いてから挿入する。
+// 日記の保存と独り言レポートの両方から呼ぶため、saveDiary からここへ切り出した。
+// 戻り値は実際に追加された語の配列（呼び出し側が件数を表示するため）。
+async function addVocabBatch(words) {
+  if (!words || !words.length) return [];
+
+  const { data: existing, error: readError } = await sb.from('vocab').select('en').limit(VOCAB_LIMIT);
+  if (readError) { showToast(t('error-vocab') + readError.message, 'error'); return []; }
+
+  const existingSet = new Set((existing || []).map(v => String(v.en || '').toLowerCase()));
+  const seenInBatch = new Set();
+  const toAdd = words.filter(w => {
+    const key = String(w.en || '').trim().toLowerCase();
+    if (!key || existingSet.has(key) || seenInBatch.has(key)) return false;
+    seenInBatch.add(key);
+    return true;
+  });
+  if (!toAdd.length) return [];
+
+  const { error } = await sb.from('vocab').insert(toAdd.map(w => ({
+    en: w.en, jp: w.jp, note: w.note || '',
+    correct: 0, wrong: 0, user_id: currentUserId, image_url: vocabImageUrl(w.en),
+  })));
+  // 失敗を黙って捨てると「◯語追加しました」と嘘のトーストが出る
+  if (error) { showToast(t('error-vocab') + error.message, 'error'); return []; }
+
+  invalidateQuiz();
+  return toAdd;
 }
 async function deleteVocab(id) {
   const ok = await showConfirm({ message: t('confirm-delete-word'), okLabel: t('btn-delete'), danger: true });
