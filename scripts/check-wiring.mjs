@@ -5,7 +5,7 @@
 import { readFileSync } from 'node:fs';
 
 const html = readFileSync('index.html', 'utf8');
-const jsFiles = ['app.js', 'progress.js', 'mascot.js', 'fx.js', 'kotora-svg.js', 'kotora-speech.js'];
+const jsFiles = ['app.js', 'progress.js', 'mascot.js', 'fx.js', 'kotora-svg.js', 'kotora-speech.js', 'solo.js'];
 const js = jsFiles.map(f => readFileSync(f, 'utf8')).join('\n');
 
 const errors = [];
@@ -13,10 +13,13 @@ const warn = [];
 
 // ── 1. DOM ids ────────────────────────────────────────────────────────────
 const htmlIds = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]));
-// 実行時にJS側でcreateElementして付与されるid（HTMLには書かれていない）
-const runtimeIds = new Set(
-  [...js.matchAll(/\.id\s*=\s*'([^']+)'/g)].map(m => m[1])
-);
+// 実行時にJS側で作られる要素のid（HTMLには書かれていない）。
+// createElement して .id を代入するものと、テンプレートリテラルで
+// id="..." を書き出すものの両方を拾う。
+const runtimeIds = new Set([
+  ...[...js.matchAll(/\.id\s*=\s*'([^']+)'/g)].map(m => m[1]),
+  ...[...js.matchAll(/\bid="([a-zA-Z][\w-]*)"/g)].map(m => m[1]),
+]);
 // テンプレートリテラルで生成されるidは静的に追えないので ${...} を含むものは除外
 const referenced = new Set(
   [...js.matchAll(/getElementById\(\s*'([^']+)'\s*\)/g)].map(m => m[1])
@@ -57,7 +60,7 @@ const used = new Set([
   ...[...js.matchAll(/\bt\(\s*'([^']+)'\s*\)/g)].map(m => m[1]),
 ]);
 for (const k of [...used].sort()) if (!ja.has(k)) errors.push(`i18n: 使われているキー '${k}' が未定義`);
-for (const k of [...ja].sort()) if (!used.has(k) && !/^(cat|badge|type|score|quiz-dir|mascot-stage|home-greeting|fb|entries-(empty|no-results)|vocab-empty|stage-|dq-kind-|weekly-stat-)/.test(k)) warn.push(`i18n: 未使用の可能性 '${k}'`);
+for (const k of [...ja].sort()) if (!used.has(k) && !/^(cat|badge|type|score|quiz-dir|mascot-stage|home-greeting|fb|entries-(empty|no-results)|vocab-empty|stage-|dq-kind-|weekly-stat-|solo-processing-|solo-score-|solo-pack-|solo-mic-)/.test(k)) warn.push(`i18n: 未使用の可能性 '${k}'`);
 
 if (warn.length) console.log(warn.map(w => 'warn: ' + w).join('\n'));
 if (errors.length) { console.error('\n' + errors.join('\n')); console.error(`\n${errors.length} 件のエラー`); process.exit(1); }

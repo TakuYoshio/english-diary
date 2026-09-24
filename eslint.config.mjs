@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 // このプロジェクトはビルド工程を持たず、各スクリプトは1つのグローバルスコープを
 // 共有して index.html から直接参照される。モジュール化はしない前提。
 // グローバル一覧を手で管理すると必ず腐るので、実ファイルの最上位宣言から自動抽出する。
-const APP_SCRIPTS = ['app.js', 'progress.js', 'mascot.js', 'fx.js', 'kotora-svg.js', 'kotora-speech.js'];
+const APP_SCRIPTS = ['app.js', 'progress.js', 'mascot.js', 'fx.js', 'kotora-svg.js', 'kotora-speech.js', 'solo.js'];
 
 const appGlobals = Object.fromEntries(
   APP_SCRIPTS.flatMap(file => {

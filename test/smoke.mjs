@@ -231,6 +231,133 @@ await page.keyboard.press('Escape');
 await page.waitForTimeout(300);
 check('週報モーダルがEscapeで閉じる', !(await page.locator('#weekly-modal').isVisible()));
 
+// ── Phase 4: 英語でひとりごと ────────────────────────────────────────────
+// SpeechRecognition と Gemini 呼び出しをスタブして、セッション開始→発話→
+// 終了→レポート描画までを実ブラウザで通す。
+await page.evaluate(() => {
+  class FakeSR {
+    constructor() { window.__sr = this; this.onresult = this.onerror = this.onend = null; }
+    start() { window.__srStarts = (window.__srStarts || 0) + 1; }
+    stop() {}
+    say(text) {
+      const alt = { transcript: text, confidence: 0.9 };
+      const r = [alt]; r.isFinal = true; r.length = 1;
+      this.onresult({ resultIndex: 0, results: Object.assign([r], { length: 1 }) });
+    }
+  }
+  window.SpeechRecognition = FakeSR;
+  window.webkitSpeechRecognition = FakeSR;
+  // レポート生成はAIを呼ぶのでスタブに差し替える
+  window.callGemini = async () => JSON.stringify({
+    summary_jp: 'よく話せていました。',
+    stats: { fluency_score: 72, variety_score: 65, accuracy_score: 80, used_vocab: ['café'] },
+    good_expressions: [{ text: 'I went to a cafe', why_jp: '過去形が自然です' }],
+    corrections: [
+      { before: 'I go store', after: 'I went to the store', explanation_jp: '過去形に', category: 'grammar', confidence: 'high' },
+      { before: 'a apple', after: 'an apple', explanation_jp: '母音の前はan', category: 'grammar', confidence: 'low' },
+    ],
+    upgrade_suggestions: [{ you_said: 'very good', native_way: 'really solid' }],
+    suggested_vocab: [{ en: 'errand', jp: '用事', note: '' }],
+    next_time_focus_jp: '過去形を意識してみよう',
+  });
+});
+
+await page.evaluate(() => switchTab('solo'));
+await page.waitForTimeout(400);
+check('独り言の設定画面が出る', await page.locator('#solo-setup-view').isVisible().catch(() => false));
+check('時間の選択チップが出る',
+  (await page.locator('#solo-duration-chips .solo-chip').count()) === 4);
+check('コトラと会話は準備中で無効',
+  await page.locator('#solo-mode-talk').isDisabled().catch(() => false));
+
+await page.evaluate(() => soloStartSession());
+await page.waitForTimeout(500);
+check('セッション画面に切り替わる', await page.locator('#solo-live-view').isVisible().catch(() => false));
+check('お題が表示される', !!(await page.locator('#solo-prompt-en').textContent())?.trim());
+check('マイク状態チップが「聞いています」',
+  (await page.locator('#solo-mic-chip').textContent())?.includes('聞い'));
+
+// 発話を注入してカウンタが動くこと
+await page.evaluate(() => {
+  window.__sr.say('I went to a cafe this morning and it was really nice');
+});
+await page.waitForTimeout(400);
+check('語数カウンタが増える',
+  Number(await page.locator('#solo-words').textContent()) >= 11);
+check('字幕に発話が出る',
+  (await page.locator('#solo-transcript').textContent())?.includes('cafe'));
+
+// 認識が落ちても自動再開すること
+const restarted = await page.evaluate(async () => {
+  const before = window.__srStarts;
+  window.__sr.onend();
+  await new Promise(r => setTimeout(r, 600));
+  return { before, after: window.__srStarts, state: soloSession.mic.state };
+});
+check('認識が切れても自動再開する', restarted.after > restarted.before,
+  `${restarted.before}→${restarted.after} state=${restarted.state}`);
+
+// 中断してもlocalStorageに残ること
+const draftSaved = await page.evaluate(() => {
+  soloSaveDraft();
+  const raw = localStorage.getItem('soloDraft');
+  return !!(raw && JSON.parse(raw).segments.length);
+});
+check('途中経過がlocalStorageに保存される', draftSaved);
+
+// タイピング入力
+await page.evaluate(() => {
+  soloToggleTyping(true);
+  document.getElementById('solo-typing-input').value = 'I also typed this sentence here';
+  soloCommitTyping();
+});
+await page.waitForTimeout(300);
+check('タイピング入力も蓄積される',
+  (await page.evaluate(() => soloSession.mic.transcript())).includes('typed this'));
+
+// 終了してレポートまで。
+// 60秒・40語に満たないとAIを呼ばない仕様なので、条件を満たしてから終了させる。
+await page.evaluate(async () => {
+  window.__sr.say('one two three four five six seven eight nine ten eleven twelve '
+    + 'thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty '
+    + 'twentyone twentytwo twentythree twentyfour twentyfive twentysix');
+  soloSession.startedAt = Date.now() - 90000;  // 90秒話したことにする
+  await soloFinishSession();
+});
+await page.waitForTimeout(1200);
+check('レポート画面が出る', await page.locator('#solo-report-view').isVisible().catch(() => false));
+check('スコアメーターが出る',
+  (await page.locator('#solo-report-body .solo-meter').count()) === 3);
+check('聞き間違いの但し書きが出る',
+  await page.locator('.solo-disclaimer').isVisible().catch(() => false));
+check('confidence:low は折りたたまれる',
+  (await page.locator('.solo-maybe').count()) === 1);
+check('レポート生成後にドラフトが消える',
+  await page.evaluate(() => !localStorage.getItem('soloDraft')));
+
+// 単語帳への一括追加
+await page.evaluate(() => soloAddSuggestedVocab());
+await page.waitForTimeout(400);
+check('推奨単語を単語帳に追加できる',
+  await page.evaluate(() => allVocab.some(v => v.en === 'errand')));
+
+// 短すぎるセッションはAIを呼ばない
+const shortSession = await page.evaluate(async () => {
+  switchTab('solo');
+  await new Promise(r => setTimeout(r, 200));
+  let called = false;
+  const saved = window.callGemini;
+  window.callGemini = async () => { called = true; return '{}'; };
+  soloStartSession();
+  await new Promise(r => setTimeout(r, 200));
+  await soloFinishSession();
+  await new Promise(r => setTimeout(r, 300));
+  window.callGemini = saved;
+  return { called, shown: document.querySelector('.solo-too-short') !== null };
+});
+check('短すぎるセッションはAIを呼ばない', !shortSession.called);
+check('短すぎるときは専用の案内を出す', shortSession.shown);
+
 const ignorable = /favicon|ERR_FAILED|net::ERR|Failed to load resource/i;
 const real = errors.filter(e => !ignorable.test(e));
 check('コンソールエラーが無い', real.length === 0, real.join(' | '));

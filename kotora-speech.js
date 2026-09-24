@@ -58,6 +58,18 @@ const KOTORA_LINES = {
     'save-streak': ['ストリーク更新🔥この調子で続けよう！'],
     'save-levelup': ['レベルアップ🎉どんどん成長してるにゃ！'],
     'save-badge': ['新しいバッジをゲット🏅おめでとう！'],
+    'solo-intro': [
+      '英語だけの時間、つくってみようにゃ🎙',
+      '今日はどれくらい話す？無理のない長さでいいよ😺',
+    ],
+    'solo-start': ['はじめよう！まちがえてもぜんぜんOK🐾', 'いってみよう！聞いてるにゃ👂'],
+    'solo-prompt-next': ['次のお題だにゃ！', 'つぎはこれ、どう？'],
+    'solo-milestone': ['{n}分経過！いい調子にゃ🔥', 'もう{n}分も話してる！すごい✨'],
+    'solo-silence': [
+      '止まっちゃった？お題を変えてもいいよ🐾',
+      'なんでもいいから声に出してみよう😺',
+      'ゆっくりでいいにゃ。思いついたことから！',
+    ],
     'weak-graduate': [
       '「{word}」ついに覚えたにゃ🎉',
       '苦手だった「{word}」を克服！えらい✨',
@@ -114,6 +126,18 @@ const KOTORA_LINES = {
     'save-streak': ['Streak extended 🔥 Keep it going!'],
     'save-levelup': ["Level up 🎉 You're growing fast!"],
     'save-badge': ['New badge earned 🏅 Congrats!'],
+    'solo-intro': [
+      "Let's make some English-only time 🎙",
+      'How long shall we go today? Any length is fine 😺',
+    ],
+    'solo-start': ["Here we go! Mistakes are totally fine 🐾", "I'm listening! 👂"],
+    'solo-prompt-next': ['Next prompt!', 'How about this one?'],
+    'solo-milestone': ['{n} minutes in! Going strong 🔥', "You've been talking for {n} minutes! ✨"],
+    'solo-silence': [
+      'Stuck? You can switch the prompt 🐾',
+      'Just say anything out loud 😺',
+      'Take your time. Start with whatever comes to mind!',
+    ],
     'weak-graduate': [
       'You finally got "{word}"! 🎉',
       '"{word}" used to trip you up — not anymore ✨',

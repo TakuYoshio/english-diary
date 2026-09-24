@@ -166,6 +166,15 @@
           </div>
           <div class="mascot-xp-track"><div class="mascot-xp-fill home-xp-fill" id="home-xp-fill"></div></div>
         </button>
+        <button class="solo-home-cta" onclick="switchTab('solo')">
+          <span class="solo-cta-icon">🎙</span>
+          <span class="solo-cta-body">
+            <span class="solo-cta-title" data-i18n="solo-cta-title">英語でひとりごと</span>
+            <span class="solo-cta-sub" data-i18n="solo-cta-sub">5分から。英語だけで話してみよう</span>
+          </span>
+          <span class="mission-status mission-chevron"><svg class="icon"><use href="#i-chevron"/></svg></span>
+        </button>
+
         <!-- 週が明けて先週のレポートが未読のときだけ出る（checkWeeklyReport が制御） -->
         <button id="weekly-home-cta" class="weekly-home-cta" style="display:none" onclick="openWeeklyReport()">
           <span class="weekly-cta-icon">📮</span>
@@ -623,6 +632,127 @@
               <button class="btn btn-primary" onclick="startSituationalPractice()" data-i18n="btn-situational-next">次の問題へ →</button>
             </div>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SOLO TALK TAB（英語独り言） ── -->
+    <!-- ボトムタブは5つで埋まっているので6つ目は足さない。
+         tab-entry-detail と同じく switchTab('solo') からのみ到達する。 -->
+    <section id="tab-solo" class="tab">
+
+      <!-- 1. 設定 -->
+      <div id="solo-setup-view">
+        <button class="btn btn-sm solo-back" onclick="switchTab('home')" data-i18n="solo-back">← ホームへ</button>
+
+        <div class="solo-hero">
+          <div id="solo-intro-mascot" class="mascot-hero"></div>
+          <h2 class="solo-title" data-i18n="solo-title">英語でひとりごと</h2>
+          <p class="solo-sub" data-i18n="solo-sub">英語だけで話し続ける時間をつくろう</p>
+        </div>
+
+        <div id="solo-unsupported" class="solo-notice" style="display:none">
+          <span data-i18n="solo-unsupported">このブラウザは音声認識に対応していません。タイピングで参加できます。</span>
+        </div>
+
+        <div id="solo-resume-banner" class="solo-notice solo-notice-warn" style="display:none">
+          <span id="solo-resume-text"></span>
+          <div class="action-row">
+            <button class="btn btn-sm btn-primary" onclick="soloResumeDraft()" data-i18n="solo-resume-yes">レポートを作る</button>
+            <button class="btn btn-sm" onclick="soloDiscardDraft()" data-i18n="solo-resume-no">破棄する</button>
+          </div>
+        </div>
+
+        <div class="solo-field">
+          <div class="section-title" data-i18n="solo-duration-label">どれくらい話す？</div>
+          <div class="solo-chips" id="solo-duration-chips" role="group" data-i18n-aria="solo-duration-label"></div>
+        </div>
+
+        <div class="solo-field">
+          <div class="section-title" data-i18n="solo-mode-label">モード</div>
+          <div class="solo-mode-cards">
+            <button type="button" class="solo-mode-card active" id="solo-mode-solo" aria-pressed="true">
+              <span class="solo-mode-name" data-i18n="solo-mode-solo">ひとりごと</span>
+              <span class="solo-mode-desc" data-i18n="solo-mode-solo-desc">お題が順番に出ます。AIは最後だけ。</span>
+            </button>
+            <button type="button" class="solo-mode-card solo-mode-disabled" id="solo-mode-talk" disabled aria-disabled="true">
+              <span class="solo-mode-name" data-i18n="solo-mode-talk">コトラと会話
+                <span class="solo-soon-chip" data-i18n="solo-soon">準備中</span>
+              </span>
+              <span class="solo-mode-desc" data-i18n="solo-mode-talk-desc">コトラが相槌と質問を返します。</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="solo-field">
+          <div class="section-title" data-i18n="solo-pack-label">お題</div>
+          <div class="solo-chips" id="solo-pack-chips" role="group" data-i18n-aria="solo-pack-label"></div>
+        </div>
+
+        <button class="btn btn-primary btn-full solo-start-btn" onclick="soloStartSession()" data-i18n="solo-start">▶ はじめる</button>
+        <button type="button" class="link-btn" onclick="soloStartSession(true)" data-i18n="solo-start-typing">⌨️ タイピングで参加する</button>
+      </div>
+
+      <!-- 2. セッション中 -->
+      <div id="solo-live-view" style="display:none">
+        <div class="solo-live-top">
+          <div class="solo-ring-wrap">
+            <svg class="solo-ring" viewBox="0 0 120 120" aria-hidden="true">
+              <circle class="solo-ring-track" cx="60" cy="60" r="54" />
+              <circle class="solo-ring-bar" id="solo-ring-bar" cx="60" cy="60" r="54" />
+            </svg>
+            <div class="solo-ring-time" id="solo-time" aria-live="off">00:00</div>
+          </div>
+          <div class="solo-mic-chip" id="solo-mic-chip" aria-live="polite"></div>
+        </div>
+
+        <!-- 認識が落ちたときだけ出る。タイマーは止めない。 -->
+        <button class="btn btn-primary btn-full solo-resume-btn" id="solo-tap-resume" style="display:none" onclick="soloTapResume()" data-i18n="solo-tap-resume">🎙 タップして続ける</button>
+
+        <div class="solo-prompt-card" id="solo-prompt-card">
+          <div id="solo-mascot" class="mascot-inline mascot-inline-sm"></div>
+          <div class="solo-prompt-en" id="solo-prompt-en"></div>
+          <div class="solo-prompt-jp" id="solo-prompt-jp"></div>
+          <div class="solo-starters" id="solo-starters"></div>
+          <button class="btn btn-sm" onclick="soloNextPrompt()" data-i18n="solo-another-prompt">🔀 別のお題</button>
+        </div>
+
+        <div class="solo-counters">
+          <span class="stat-chip"><span data-i18n="solo-count-words">語数</span> <strong id="solo-words">0</strong></span>
+          <span class="stat-chip">wpm <strong id="solo-wpm">0</strong></span>
+          <span class="stat-chip"><span data-i18n="solo-count-filler">filler</span> <strong id="solo-fillers">0</strong></span>
+        </div>
+
+        <div class="solo-transcript" id="solo-transcript" aria-live="off"></div>
+
+        <!-- マイクが使えないとき／使いたくないときの入力欄 -->
+        <div class="solo-typing" id="solo-typing" style="display:none">
+          <textarea id="solo-typing-input" class="input" rows="3"
+            data-i18n-aria="solo-typing-label" data-i18n-placeholder="solo-typing-ph" placeholder="英語で書いてみよう…"></textarea>
+          <button class="btn btn-sm" onclick="soloCommitTyping()" data-i18n="solo-typing-add">＋ 追加</button>
+        </div>
+
+        <div class="action-row solo-live-actions">
+          <button class="btn" id="solo-pause-btn" onclick="soloTogglePause()" data-i18n="solo-pause">⏸ 一時停止</button>
+          <button class="btn" onclick="soloToggleTyping()" data-i18n="solo-typing-toggle">⌨️ タイピング</button>
+          <button class="btn btn-primary" onclick="soloFinishSession()" data-i18n="solo-finish">終了してレポート</button>
+        </div>
+      </div>
+
+      <!-- 3. 処理中 -->
+      <div id="solo-processing-view" style="display:none">
+        <div class="solo-hero">
+          <div id="solo-processing-mascot" class="mascot-hero"></div>
+          <p class="solo-processing-text" id="solo-processing-text" aria-live="polite"></p>
+          <div class="progress-track"><div class="progress-fill" id="solo-processing-bar"></div></div>
+        </div>
+      </div>
+
+      <!-- 4. レポート -->
+      <div id="solo-report-view" style="display:none">
+        <div id="solo-report-body"></div>
+        <div class="action-row">
+          <button class="btn btn-primary btn-full" onclick="soloCloseReport()" data-i18n="solo-report-close">ホームへ</button>
         </div>
       </div>
     </section>

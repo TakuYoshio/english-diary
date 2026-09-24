@@ -28,6 +28,7 @@ npm test         # Workerのユニットテスト + 実ブラウザのスモー�
 | `kotora-svg.js` | コトラのインラインSVG（表情8種） |
 | `kotora-speech.js` | `KOTORA_LINES`（セリフ辞書）と吹き出し |
 | `fx.js` | 紙吹雪・XP演出・カウントアップ |
+| `solo.js` | 英語ひとりごと（`SoloMic`・セッション・レポート）。`app.js` の `startMic` とは別実装 |
 | `style.css` | デザイントークンと全コンポーネント |
 | `sw.js` / `manifest.json` | PWA |
 | `worker/src/index.js` | Gemini中継のCloudflare Worker（APIキーを隠す・認証・レート制限） |
@@ -35,8 +36,9 @@ npm test         # Workerのユニットテスト + 実ブラウザのスモー�
 | `Task/*.sql` | DBマイグレーション。**Supabaseダッシュボードで手動実行する** |
 
 読み込み順（`index.html` 末尾）: supabase → `fx.js` → `kotora-svg.js` →
-`app.js` → `progress.js` → `mascot.js` → `kotora-speech.js`。
-新しいスクリプトは依存先より後に置く。
+`app.js` → `progress.js` → `mascot.js` → `kotora-speech.js` → `solo.js`。
+新しいスクリプトは依存先より後に置き、`scripts/check-wiring.mjs` の `jsFiles` と
+`eslint.config.mjs` の `APP_SCRIPTS` にも必ず追加する（忘れると検査対象から漏れる）。
 
 ## 守ること
 
@@ -74,6 +76,7 @@ npm test         # Workerのユニットテスト + 実ブラウザのスモー�
 コードからは実行できない。変更したら依頼すること。
 
 - `Task/*.sql` を Supabase ダッシュボードの SQL Editor で実行
+  （英語ひとりごとには `Task/add-solo-sessions-table.sql` が必要）
 - Worker のデプロイ: `cd worker && npx wrangler deploy`
 - KVネームスペースの作成: `npx wrangler kv namespace create RATE_LIMIT`
   （IDを `worker/wrangler.toml` に貼る。未設定だとレート制限が無効）

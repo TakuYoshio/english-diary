@@ -37,6 +37,7 @@
       { id: 6, user_id: 'u1', created_at: iso(now - day), en: 'deadline', jp: '締め切り', note: '',
         correct: 0, wrong: 3, srs_stage: 0, next_review_at: iso(now - 1000), last_reviewed_at: iso(now - day), image_url: null },
     ],
+    solo_sessions: [],
     profiles: [
       { user_id: 'u1', onboarding_completed: true, skill_focus: ['grammar'],
         shadowing_level: 'easy', auto_vocab_lookup: false },
