@@ -205,6 +205,13 @@ const TRANSLATIONS = {
     'solo-used-vocab': '単語帳の語が会話で使えていました: {words}',
     'solo-next-title': '次回のテーマ', 'solo-show-transcript': '全文を見る',
     'solo-report-close': 'ホームへ',
+    'solo-list-empty': 'まだひとりごとの記録がありません',
+    'solo-list-sessions': '回数', 'solo-list-total': '合計',
+    'solo-list-no-report': 'レポートなし',
+    'solo-load-failed': 'セッションを読み込めませんでした',
+    'badge-solo-first': 'はじめてのひとりごと',
+    'badge-solo-30min': '30分ノンストップ',
+    'badge-solo-total-300': '累計5時間スピーキング',
     // コトラの週報
     'weekly-title': 'コトラの週報',
     'weekly-cta': '先週のレポートができたよ',
@@ -229,7 +236,7 @@ const TRANSLATIONS = {
     'confirm-delete-word': 'この単語を削除しますか？', 'btn-delete': '削除', 'toast-word-deleted': '単語を削除しました',
     // Streak / progress
     'streak-title': '現在{current}日連続。最長記録は{longest}日', 'streak-title-zero': '今日書いて連続記録をはじめよう',
-    'entries-view-list': '一覧', 'entries-view-calendar': 'カレンダー', 'entries-view-stats': '統計',
+    'entries-view-list': '一覧', 'entries-view-calendar': 'カレンダー', 'entries-view-stats': '統計', 'entries-view-speaking': 'スピーキング',
     'stats-diary-trend': '日記数（週次）', 'stats-vocab-trend': '単語帳の登録数推移',
     'stats-pron-trend': '発音スコア（初回）の推移', 'stats-accuracy': '単語テストの正答率',
     'stats-category': 'カテゴリ別の指摘回数', 'stats-entries-suffix': '件', 'stats-words-suffix': '語',
@@ -445,6 +452,13 @@ const TRANSLATIONS = {
     'solo-used-vocab': 'You used these words from your list: {words}',
     'solo-next-title': 'Focus for next time', 'solo-show-transcript': 'Show full transcript',
     'solo-report-close': 'Home',
+    'solo-list-empty': 'No solo sessions yet',
+    'solo-list-sessions': 'Sessions', 'solo-list-total': 'Total',
+    'solo-list-no-report': 'no report',
+    'solo-load-failed': "Couldn't load that session",
+    'badge-solo-first': 'First solo talk',
+    'badge-solo-30min': '30 minutes non-stop',
+    'badge-solo-total-300': '5 hours of speaking',
     // コトラの週報
     'weekly-title': "Kotora's Weekly Report",
     'weekly-cta': "Last week's report is ready",
@@ -469,7 +483,7 @@ const TRANSLATIONS = {
     'confirm-delete-word': 'Delete this word?', 'btn-delete': 'Delete', 'toast-word-deleted': 'Word deleted',
     // Streak / progress
     'streak-title': '{current}-day streak. Longest: {longest} days', 'streak-title-zero': 'Write today to start a streak',
-    'entries-view-list': 'List', 'entries-view-calendar': 'Calendar', 'entries-view-stats': 'Stats',
+    'entries-view-list': 'List', 'entries-view-calendar': 'Calendar', 'entries-view-stats': 'Stats', 'entries-view-speaking': 'Speaking',
     'stats-diary-trend': 'Entries per week', 'stats-vocab-trend': 'Vocabulary growth',
     'stats-pron-trend': 'Pronunciation score (first attempt)', 'stats-accuracy': 'Word quiz accuracy',
     'stats-category': 'Feedback by category', 'stats-entries-suffix': ' entries', 'stats-words-suffix': ' words',
@@ -568,7 +582,7 @@ async function enterApp(session) {
   document.getElementById('app').style.display = 'block';
   setDateLabel();
   await loadProfile();
-  await Promise.all([loadEntries(), renderVocab(), loadEntriesMeta()]);
+  await Promise.all([loadEntries(), renderVocab(), loadEntriesMeta(), loadSoloMeta()]);
   initQuizTab();
   refreshProgressUI();
   switchTab('home');

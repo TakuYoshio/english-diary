@@ -37,7 +37,27 @@
       { id: 6, user_id: 'u1', created_at: iso(now - day), en: 'deadline', jp: '締め切り', note: '',
         correct: 0, wrong: 3, srs_stage: 0, next_review_at: iso(now - 1000), last_reviewed_at: iso(now - day), image_url: null },
     ],
-    solo_sessions: [],
+    solo_sessions: [
+      { id: 1, user_id: 'u1', created_at: iso(now - 2 * day), date: new Date(now - 2 * day).toLocaleDateString('sv-SE'),
+        mode: 'solo', topic_pack: 'today', planned_minutes: 10, spoken_seconds: 600, word_count: 820,
+        input_method: 'speech', prompts_used: ['What did you do first thing this morning?'],
+        transcript: 'I went to a cafe near my office this morning and it was surprisingly quiet',
+        report_status: 'ready',
+        report: {
+          summary_jp: 'カフェの話を落ち着いたペースで話せていました。',
+          stats: { fluency_score: 72, variety_score: 64, accuracy_score: 81, used_vocab: ['café'] },
+          good_expressions: [{ text: 'it was surprisingly quiet', why_jp: '副詞が効いています' }],
+          corrections: [{ before: 'I go to cafe', after: 'I went to a cafe', explanation_jp: '過去形に', category: 'grammar', confidence: 'high' }],
+          upgrade_suggestions: [{ you_said: 'very good', native_way: 'really solid' }],
+          suggested_vocab: [{ en: 'atmosphere', jp: '雰囲気', note: '' }],
+          next_time_focus_jp: '過去形を意識してみよう',
+        } },
+      // レポート生成に失敗したケース（記録だけ残る）
+      { id: 2, user_id: 'u1', created_at: iso(now - 5 * day), date: new Date(now - 5 * day).toLocaleDateString('sv-SE'),
+        mode: 'solo', topic_pack: 'mixed', planned_minutes: 5, spoken_seconds: 300, word_count: 410,
+        input_method: 'mixed', prompts_used: [], transcript: 'short session text',
+        report: null, report_status: 'failed' },
+    ],
     profiles: [
       { user_id: 'u1', onboarding_completed: true, skill_focus: ['grammar'],
         shadowing_level: 'easy', auto_vocab_lookup: false },

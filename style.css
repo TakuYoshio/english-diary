@@ -1580,3 +1580,28 @@ svg.kotora-img * { transform-box: fill-box; }
   padding: 11px 13px; margin-top: 8px; white-space: pre-wrap;
 }
 .solo-too-short { text-align: center; padding: 2rem 1rem; color: var(--text-muted); }
+
+/* ── 履歴: スピーキング一覧 ── */
+.solo-list-card {
+  appearance: none; font: inherit; cursor: pointer; width: 100%; text-align: left;
+  display: flex; flex-direction: column; gap: 4px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 14px;
+  margin-bottom: 8px; box-shadow: var(--shadow);
+}
+.solo-list-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.solo-list-date { font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--text); }
+.solo-list-min {
+  font-size: 13px; font-weight: 700; color: var(--accent-dark);
+  background: var(--accent-light); border-radius: 20px; padding: 3px 11px; flex-shrink: 0;
+}
+.solo-list-sub { font-size: 12px; color: var(--text-muted); }
+.solo-list-failed { color: var(--warn-text); }
+
+/* カレンダー: 日記の日と話した日を別のドットで見分ける */
+.cal-dots { display: flex; gap: 2px; justify-content: center; }
+.cal-dot-solo { background: var(--secondary); }
+/* 話しただけの日。日記が無いのでタップしても開くものが無く、cursorは変えない */
+.cal-cell.cal-has-solo {
+  background: var(--secondary-light); color: var(--secondary-on-white-text); font-weight: 700;
+}

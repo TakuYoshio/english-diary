@@ -865,6 +865,19 @@ async function soloFinishSession() {
   renderSoloReport(session);
   soloSetView('solo-report-view');
   if (typeof burstConfetti === 'function') burstConfetti();
+
+  // XP・バッジ・カレンダーに反映させる。computeXp は毎回ゼロから計算し直すので、
+  // soloMeta を読み直せば過去のセッションも含めて正しい値になる。
+  if (typeof loadSoloMeta === 'function') {
+    const before = computeProgressStats();
+    await loadSoloMeta();
+    const after = computeProgressStats();
+    refreshProgressUI();
+    const gained = after.xp - before.xp;
+    if (gained > 0 && typeof floatXpText === 'function') floatXpText(`+${gained} XP`);
+    const newBadge = after.badges.find(b => b.done && !before.badges.find(p => p.id === b.id && p.done));
+    if (newBadge) showToast(t('toast-badge-earned').replace('{badge}', t('badge-' + newBadge.id)), 'success');
+  }
 }
 
 // 中断していたセッションから、あとでレポートだけ作る
@@ -1020,4 +1033,19 @@ function soloCloseReport() {
   soloSetView('solo-setup-view');
   renderSoloSetup();
   switchTab('home');
+}
+
+// ── 過去のセッションを履歴から開く ────────────────────────────────────────
+// 一覧（soloMeta）は軽量データしか持っていないので、開くときだけ
+// transcript と report を含む1行をフルで取りに行く。
+async function openSoloSession(id) {
+  const { data, error } = await sb.from('solo_sessions')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+  if (error || !data) { showToast(t('solo-load-failed'), 'error'); return; }
+
+  switchTab('solo');
+  renderSoloReport(data);
+  soloSetView('solo-report-view');
 }

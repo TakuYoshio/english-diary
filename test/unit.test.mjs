@@ -259,6 +259,53 @@ test('データが無い週でも落ちない', () => {
   assert.equal(r.tone, 'comeback');
 });
 
+// ── 独り言モードの進捗への反映 ────────────────────────────────────────────
+const { computeXp, computeBadges, soloTotalMinutes } = sandbox;
+
+const baseStats = (soloMeta = []) => ({
+  entriesMeta: [], vocabSummary: { count: 0, correctTotal: 0, wrongTotal: 0 },
+  longestStreak: 0, soloMeta,
+});
+const soloRow = (min, date = '2026-09-20') => ({ date, spoken_seconds: min * 60, word_count: min * 80 });
+
+test('soloTotalMinutes が合計分数を出す', () => {
+  assert.equal(soloTotalMinutes([soloRow(5), soloRow(30)]), 35);
+  assert.equal(soloTotalMinutes([]), 0);
+  assert.equal(soloTotalMinutes(null), 0);
+});
+
+test('発話1分あたり2XPが加算される', () => {
+  assert.equal(computeXp(baseStats([soloRow(5)])), 10);
+  assert.equal(computeXp(baseStats([soloRow(30)])), 60);
+  assert.equal(computeXp(baseStats([soloRow(60)])), 120);
+  assert.equal(computeXp(baseStats([soloRow(5), soloRow(10)])), 30);
+});
+
+test('セッションが無いときXPは従来どおり', () => {
+  assert.equal(computeXp(baseStats([])), 0);
+  // soloMeta が未定義でも落ちない（古いデータや読み込み失敗時）
+  const s = baseStats(); delete s.soloMeta;
+  assert.equal(computeXp(s), 0);
+});
+
+test('独り言のバッジが閾値で点く', () => {
+  const on = (stats, id) => computeBadges(stats).find(b => b.id === id).done;
+
+  assert.equal(on(baseStats([]), 'solo-first'), false);
+  assert.equal(on(baseStats([soloRow(1)]), 'solo-first'), true);
+
+  // 29分では点かない
+  assert.equal(on(baseStats([soloRow(29)]), 'solo-30min'), false);
+  assert.equal(on(baseStats([soloRow(30)]), 'solo-30min'), true);
+  // 短いセッションを積み上げても「1回で30分」にはならない
+  assert.equal(on(baseStats([soloRow(20), soloRow(20)]), 'solo-30min'), false);
+
+  // 累計5時間
+  const many = n => Array.from({ length: n }, () => soloRow(30));
+  assert.equal(on(baseStats(many(9)), 'solo-total-300'), false);   // 270分
+  assert.equal(on(baseStats(many(10)), 'solo-total-300'), true);   // 300分
+});
+
 // ── 実行 ──────────────────────────────────────────────────────────────────
 let failed = 0;
 for (const [name, fn] of tests) {

@@ -358,6 +358,50 @@ const shortSession = await page.evaluate(async () => {
 check('短すぎるセッションはAIを呼ばない', !shortSession.called);
 check('短すぎるときは専用の案内を出す', shortSession.shown);
 
+// ── Phase 4 仕上げ: 進捗システムへの反映 ────────────────────────────────
+await page.evaluate(() => switchTab('entries'));
+await page.waitForTimeout(300);
+await page.evaluate(() => switchEntriesView('speaking'));
+await page.waitForTimeout(500);
+// 先行するテストでセッションを追加しているので、件数は「2件以上」で見る
+check('履歴にスピーキング一覧が出る',
+  (await page.locator('#entries-speaking .solo-list-card').count()) >= 2);
+check('レポートが無いセッションはその旨を出す',
+  await page.locator('.solo-list-failed').first().isVisible().catch(() => false));
+
+// 一覧からタップして過去のレポートを開く
+await page.locator('#entries-speaking .solo-list-card').first().click();
+await page.waitForTimeout(600);
+check('一覧から過去のレポートを開ける',
+  await page.locator('#solo-report-view').isVisible().catch(() => false));
+check('過去レポートの中身が描画される',
+  (await page.locator('#solo-report-body .solo-meter').count()) === 3);
+
+// XPに発話分数が乗っていること
+const xpParts = await page.evaluate(() => {
+  const withSolo = computeProgressStats().xp;
+  const saved = soloMeta.slice();
+  soloMeta.length = 0;
+  const withoutSolo = computeProgressStats().xp;
+  soloMeta.push(...saved);
+  return { withSolo, withoutSolo, minutes: soloTotalMinutes(saved) };
+});
+check('XPに発話分数が反映される',
+  xpParts.withSolo - xpParts.withoutSolo === xpParts.minutes * 2,
+  `差分${xpParts.withSolo - xpParts.withoutSolo} / ${xpParts.minutes}分`);
+
+// カレンダーに2つ目のドット
+await page.evaluate(() => { switchTab('entries'); switchEntriesView('calendar'); });
+await page.waitForTimeout(500);
+check('カレンダーに話した日のドットが出る',
+  (await page.locator('.cal-dot-solo').count()) >= 1);
+// 話しただけの日は押せそうに見せない
+const soloOnlyCursor = await page.evaluate(() => {
+  const cell = document.querySelector('.cal-cell.cal-has-solo');
+  return cell ? getComputedStyle(cell).cursor : 'none';
+});
+check('日記が無い日はポインタにしない', soloOnlyCursor !== 'pointer', `cursor=${soloOnlyCursor}`);
+
 const ignorable = /favicon|ERR_FAILED|net::ERR|Failed to load resource/i;
 const real = errors.filter(e => !ignorable.test(e));
 check('コンソールエラーが無い', real.length === 0, real.join(' | '));

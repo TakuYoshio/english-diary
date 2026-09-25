@@ -42,6 +42,29 @@ async function loadFeedbackWindow() {
 // 日記を保存・編集したら次に統計を開いたときに取り直す
 function invalidateFeedbackWindow() { _feedbackLoaded = false; }
 
+// ── 英語ひとりごとのセッション（軽量データのみ） ──────────────────────────
+// transcript と report は選ばない。60分のセッションは文字起こしだけで数十KBあり、
+// 毎回の起動で転送すると重い（entries.feedback で同じ失敗をしたのを踏まえる）。
+// レポートを開くときだけ、その1行をフルで取りに行く（openSoloSession）。
+let soloMeta = []; // [{id, date, spoken_seconds, word_count, planned_minutes, report_status}]
+const SOLO_META_LIMIT = 500;
+
+async function loadSoloMeta() {
+  const { data, error } = await sb.from('solo_sessions')
+    .select('id,date,spoken_seconds,word_count,planned_minutes,report_status')
+    .order('date', { ascending: false })
+    .limit(SOLO_META_LIMIT);
+  // solo_sessionsテーブルが未作成でもアプリ全体は動かす（この機能だけ空になる）
+  if (error) return soloMeta;
+  soloMeta = data || [];
+  return soloMeta;
+}
+
+// 合計発話分数（XPとバッジの元データ）
+function soloTotalMinutes(list) {
+  return (list || []).reduce((n, s) => n + Math.round((s.spoken_seconds || 0) / 60), 0);
+}
+
 // ── 週の境界（月曜始まり・日曜終わり） ───────────────────────────────────
 // weeklyBuckets() は「今日起点のローリング7日窓」で暦週ではないため、
 // 週報はこちらを使う。'YYYY-MM-DD' はタイムゾーンを持たない暦日なので、
@@ -152,13 +175,16 @@ function computeStreaks(meta) {
 }
 
 // ── XP / Level / Badges（新規テーブルなし。既存entries/vocabから計算） ──────
-function computeXp({ entriesMeta, vocabSummary, longestStreak }) {
+function computeXp({ entriesMeta, vocabSummary, longestStreak, soloMeta }) {
   const pronGood = entriesMeta.filter(e => (e.pronunciation_first_attempt?.score ?? 0) >= 80).length;
   return entriesMeta.length * 15
     + vocabSummary.count * 3
     + vocabSummary.correctTotal * 2
     + pronGood * 5
-    + Math.floor(longestStreak / 7) * 20;
+    + Math.floor(longestStreak / 7) * 20
+    // 発話1分あたり2XP。5分=10 / 30分=60 / 60分=120。日記1件の15XPと比べて、
+    // 長く話すほど報われる重みにしてある。
+    + soloTotalMinutes(soloMeta) * 2;
 }
 
 function xpToLevel(xpTotal) {
@@ -175,6 +201,9 @@ const BADGE_DEFS = [
   { id: 'vocab-50',         icon: '🧶', test: s => s.vocabSummary.count >= 50 },
   { id: 'vocab-100',        icon: '🧶', test: s => s.vocabSummary.count >= 100 },
   { id: 'pronunciation-90', icon: '🎤', test: s => s.entriesMeta.some(e => (e.pronunciation_first_attempt?.score ?? 0) >= 90) },
+  { id: 'solo-first',       icon: '🎙', test: s => (s.soloMeta || []).length >= 1 },
+  { id: 'solo-30min',       icon: '⏱', test: s => (s.soloMeta || []).some(x => (x.spoken_seconds || 0) >= 30 * 60) },
+  { id: 'solo-total-300',   icon: '🏔', test: s => soloTotalMinutes(s.soloMeta) >= 300 },
 ];
 
 function computeBadges(stats) {
@@ -184,7 +213,7 @@ function computeBadges(stats) {
 function computeProgressStats() {
   const vocabSummary = computeVocabSummary();
   const { longest } = computeStreaks(entriesMeta);
-  const stats = { entriesMeta, vocabSummary, longestStreak: longest };
+  const stats = { entriesMeta, vocabSummary, longestStreak: longest, soloMeta };
   const xp = computeXp(stats);
   const { level, xpIntoLevel, xpForNextLevel } = xpToLevel(xp);
   const badges = computeBadges(stats);
@@ -243,7 +272,13 @@ function switchEntriesView(view) {
   document.getElementById('entries-list-view').style.display = view === 'list' ? 'block' : 'none';
   document.getElementById('entries-calendar').style.display  = view === 'calendar' ? 'block' : 'none';
   document.getElementById('entries-stats').style.display     = view === 'stats' ? 'block' : 'none';
+  document.getElementById('entries-speaking').style.display  = view === 'speaking' ? 'block' : 'none';
   if (view === 'calendar') renderEntriesCalendar();
+  if (view === 'speaking') {
+    renderSoloList();
+    // 他のタブで増えたセッションも拾えるよう、開くたびに取り直す
+    loadSoloMeta().then(renderSoloList);
+  }
   if (view === 'stats') {
     renderStatsDashboard();
     // 添削内容の内訳グラフに必要なfeedbackはここで初めて取りに行く
@@ -272,6 +307,8 @@ function renderEntriesCalendar() {
   const daysInMonth  = new Date(year, month + 1, 0).getDate();
   const dateToId = {};
   entriesMeta.forEach(e => { dateToId[e.date] = e.id; });
+  // 日記を書いた日と英語で話した日を別のドットで見分けられるようにする
+  const soloDates = new Set(soloMeta.map(s => s.date));
 
   const monthLabel = getLang() === 'ja' ? `${year}年 ${month + 1}月` :
     new Date(year, month, 1).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
@@ -282,10 +319,16 @@ function renderEntriesCalendar() {
   for (let d = 1; d <= daysInMonth; d++) {
     const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     const hasEntry = Object.prototype.hasOwnProperty.call(dateToId, iso);
+    const hasSolo  = soloDates.has(iso);
     const isToday = iso === todayISO();
-    cells += `<div class="cal-cell${hasEntry ? ' cal-has-entry' : ''}${isToday ? ' cal-today' : ''}"
+    const dots = (hasEntry ? '<span class="cal-dot"></span>' : '')
+               + (hasSolo ? '<span class="cal-dot cal-dot-solo"></span>' : '');
+    // 日記がある日だけタップで開ける。話しただけの日は別クラスにして、
+    // 押せそうに見えるのに何も起きない状態を避ける。
+    const cls = hasEntry ? ' cal-has-entry' : (hasSolo ? ' cal-has-solo' : '');
+    cells += `<div class="cal-cell${cls}${isToday ? ' cal-today' : ''}"
       ${hasEntry ? `onclick="openEntryDetail(${dateToId[iso]})"` : ''}>
-      <span class="cal-daynum">${d}</span>${hasEntry ? '<span class="cal-dot"></span>' : ''}
+      <span class="cal-daynum">${d}</span>${dots ? `<span class="cal-dots">${dots}</span>` : ''}
     </div>`;
   }
 
@@ -542,4 +585,38 @@ function checkWeeklyReport() {
   if (unread && wroteLastWeek && typeof kotoraSay === 'function') {
     kotoraSay('home-kotora', 'weekly-ready', { once: true });
   }
+}
+
+// ── 履歴タブ: スピーキング一覧 ────────────────────────────────────────────
+function renderSoloList() {
+  const el = document.getElementById('entries-speaking');
+  if (!el) return;
+
+  if (!soloMeta.length) {
+    el.innerHTML = `<div class="empty-state-small">${escapeHtml(t('solo-list-empty'))}</div>`;
+    return;
+  }
+
+  const totalMin = soloTotalMinutes(soloMeta);
+  const header = `
+    <div class="quiz-stats-row">
+      <span class="stat-chip">${escapeHtml(t('solo-list-sessions'))} <strong>${soloMeta.length}</strong></span>
+      <span class="stat-chip">${escapeHtml(t('solo-list-total'))} <strong>${totalMin}</strong>${escapeHtml(t('solo-unit-min'))}</span>
+    </div>`;
+
+  el.innerHTML = header + soloMeta.map(s => {
+    const minutes = Math.max(1, Math.round((s.spoken_seconds || 0) / 60));
+    const failed = s.report_status === 'failed';
+    return `
+      <button type="button" class="solo-list-card" onclick="openSoloSession(${s.id})">
+        <div class="solo-list-top">
+          <span class="solo-list-date">${escapeHtml(fmtShortDate(s.date))}</span>
+          <span class="solo-list-min">${minutes}${escapeHtml(t('solo-unit-min'))}</span>
+        </div>
+        <div class="solo-list-sub">
+          ${escapeHtml(t('solo-count-words'))} ${s.word_count || 0}
+          ${failed ? ` ・ <span class="solo-list-failed">${escapeHtml(t('solo-list-no-report'))}</span>` : ''}
+        </div>
+      </button>`;
+  }).join('');
 }
