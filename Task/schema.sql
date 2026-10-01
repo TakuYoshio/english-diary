@@ -9,7 +9,7 @@
 -- ============================================================
 
 -- ── 日記 ────────────────────────────────────────────────────────────────
-create table public.entries (
+create table if not exists public.entries (
   id          bigserial primary key,
   user_id     uuid not null default auth.uid() references auth.users(id) on delete cascade,
   created_at  timestamptz not null default now(),
@@ -23,7 +23,7 @@ create table public.entries (
 );
 
 -- ── 単語帳（間隔反復つき） ───────────────────────────────────────────────
-create table public.vocab (
+create table if not exists public.vocab (
   id          bigserial primary key,
   user_id     uuid not null default auth.uid() references auth.users(id) on delete cascade,
   created_at  timestamptz not null default now(),
@@ -40,7 +40,7 @@ create table public.vocab (
 );
 
 -- ── 学習設定 ────────────────────────────────────────────────────────────
-create table public.profiles (
+create table if not exists public.profiles (
   user_id              uuid primary key references auth.users(id) on delete cascade,
   onboarding_completed boolean not null default false,
   skill_focus          text[] not null default '{}'::text[], -- grammar/vocabulary/naturalness/pronunciation
@@ -51,25 +51,37 @@ create table public.profiles (
 );
 
 -- ── 検索用インデックス ──────────────────────────────────────────────────
-create index entries_user_date_idx on public.entries (user_id, date desc);
-create index vocab_user_review_idx on public.vocab (user_id, next_review_at);
+create index if not exists entries_user_date_idx on public.entries (user_id, date desc);
+create index if not exists vocab_user_review_idx on public.vocab (user_id, next_review_at);
 
 -- ── Row Level Security（自分の行しか見えない・操作できない） ─────────────
 alter table public.entries  enable row level security;
 alter table public.vocab    enable row level security;
 alter table public.profiles enable row level security;
 
+drop policy if exists "entries_select_own" on public.entries;
 create policy "entries_select_own" on public.entries for select using (auth.uid() = user_id);
+drop policy if exists "entries_insert_own" on public.entries;
 create policy "entries_insert_own" on public.entries for insert with check (auth.uid() = user_id);
+drop policy if exists "entries_update_own" on public.entries;
 create policy "entries_update_own" on public.entries for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "entries_delete_own" on public.entries;
 create policy "entries_delete_own" on public.entries for delete using (auth.uid() = user_id);
 
+drop policy if exists "vocab_select_own" on public.vocab;
 create policy "vocab_select_own" on public.vocab for select using (auth.uid() = user_id);
+drop policy if exists "vocab_insert_own" on public.vocab;
 create policy "vocab_insert_own" on public.vocab for insert with check (auth.uid() = user_id);
+drop policy if exists "vocab_update_own" on public.vocab;
 create policy "vocab_update_own" on public.vocab for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "vocab_delete_own" on public.vocab;
 create policy "vocab_delete_own" on public.vocab for delete using (auth.uid() = user_id);
 
+drop policy if exists "profiles_select_own" on public.profiles;
 create policy "profiles_select_own" on public.profiles for select using (auth.uid() = user_id);
+drop policy if exists "profiles_insert_own" on public.profiles;
 create policy "profiles_insert_own" on public.profiles for insert with check (auth.uid() = user_id);
+drop policy if exists "profiles_update_own" on public.profiles;
 create policy "profiles_update_own" on public.profiles for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "profiles_delete_own" on public.profiles;
 create policy "profiles_delete_own" on public.profiles for delete using (auth.uid() = user_id);

@@ -5,7 +5,7 @@
 -- 注意: id の型は entries / vocab に合わせて bigserial にしています。
 -- 既存テーブルが別の型で作られている場合はそちらに合わせてください。
 
-create table public.solo_sessions (
+create table if not exists public.solo_sessions (
   id              bigserial primary key,
   user_id         uuid not null default auth.uid() references auth.users(id) on delete cascade,
   created_at      timestamptz not null default now(),
@@ -29,11 +29,15 @@ create index solo_sessions_user_date_idx on public.solo_sessions (user_id, date 
 
 alter table public.solo_sessions enable row level security;
 
+drop policy if exists "solo_sessions_select_own" on public.solo_sessions;
 create policy "solo_sessions_select_own" on public.solo_sessions
   for select using (auth.uid() = user_id);
+drop policy if exists "solo_sessions_insert_own" on public.solo_sessions;
 create policy "solo_sessions_insert_own" on public.solo_sessions
   for insert with check (auth.uid() = user_id);
+drop policy if exists "solo_sessions_update_own" on public.solo_sessions;
 create policy "solo_sessions_update_own" on public.solo_sessions
   for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "solo_sessions_delete_own" on public.solo_sessions;
 create policy "solo_sessions_delete_own" on public.solo_sessions
   for delete using (auth.uid() = user_id);

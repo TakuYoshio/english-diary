@@ -2,6 +2,6 @@
 -- エビングハウスの忘却曲線を参考にした固定ステージ×日数（Leitner方式）でスケジューリングします。
 -- Supabaseダッシュボード → SQL Editorで実行してください。
 
-alter table public.vocab add column srs_stage integer not null default 0;
-alter table public.vocab add column next_review_at timestamptz not null default now();
-alter table public.vocab add column last_reviewed_at timestamptz;
+alter table public.vocab add column if not exists srs_stage integer not null default 0;
+alter table public.vocab add column if not exists next_review_at timestamptz not null default now();
+alter table public.vocab add column if not exists last_reviewed_at timestamptz;

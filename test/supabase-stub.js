@@ -66,12 +66,60 @@
 
   const session = { access_token: 'stub-token', user: { id: 'u1', email: 'test@example.com' } };
 
+  // 各テーブルに存在する列。本番のDBは知らない列を送られると挿入を丸ごと拒否するが、
+  // 以前のスタブは列を一切見ていなかったので、本番で失敗する書き込みがテストでは通っていた。
+  // （image_url 列が未作成の環境で単語が保存できなくなった不具合を検出できなかった原因）
+  const COLUMNS = {
+    entries: ['id', 'user_id', 'created_at', 'date', 'jp', 'en1', 'en2', 'corrected',
+      'feedback', 'pronunciation_first_attempt'],
+    vocab: ['id', 'user_id', 'created_at', 'en', 'jp', 'note', 'correct', 'wrong',
+      'image_url', 'srs_stage', 'next_review_at', 'last_reviewed_at'],
+    profiles: ['user_id', 'onboarding_completed', 'skill_focus', 'shadowing_level',
+      'auto_vocab_lookup', 'created_at', 'updated_at'],
+    solo_sessions: ['id', 'user_id', 'created_at', 'date', 'mode', 'topic_pack',
+      'planned_minutes', 'spoken_seconds', 'word_count', 'input_method', 'prompts_used',
+      'transcript', 'report', 'report_status'],
+  };
+
+  // テストから列を落として「マイグレーション未適用の環境」を再現できるようにする。
+  // 例: window.__stubDropColumn('vocab', 'image_url')
+  window.__stubDropColumn = (table, col) => {
+    COLUMNS[table] = COLUMNS[table].filter(c => c !== col);
+  };
+  window.__stubRestoreColumns = () => {
+    COLUMNS.vocab = ['id', 'user_id', 'created_at', 'en', 'jp', 'note', 'correct', 'wrong',
+      'image_url', 'srs_stage', 'next_review_at', 'last_reviewed_at'];
+  };
+
+  // PostgREST がスキーマキャッシュに無い列を渡されたときと同じ形のエラーを返す
+  function unknownColumn(table, payload) {
+    const known = COLUMNS[table];
+    if (!known) return null;
+    for (const item of (Array.isArray(payload) ? payload : [payload])) {
+      for (const col of Object.keys(item || {})) {
+        if (!known.includes(col)) {
+          return {
+            code: 'PGRST204',
+            message: `Could not find the '${col}' column of '${table}' in the schema cache`,
+            details: null, hint: null,
+          };
+        }
+      }
+    }
+    return null;
+  }
+
   function builder(table) {
     let rows = DB[table].slice();
     const res = () => Promise.resolve({ data: rows, count: rows.length, error: null });
     const api = {
       select(_cols, opts) { this._count = opts && opts.count; return this; },
-      eq(col, val) { rows = rows.filter(r => String(r[col]) === String(val)); return this; },
+      eq(col, val) {
+        // update(...).eq(...) の形では eq が終端になるので、ここでエラーを返す
+        if (this._patchError) return Promise.resolve({ data: null, error: this._patchError });
+        rows = rows.filter(r => String(r[col]) === String(val));
+        return this;
+      },
       not(col, op, val) {
         if (op === 'is' && val === null) rows = rows.filter(r => r[col] != null);
         return this;
@@ -85,11 +133,17 @@
       maybeSingle() { return Promise.resolve({ data: rows[0] || null, error: null }); },
       single() { return Promise.resolve({ data: rows[0] || null, error: null }); },
       insert(payload) {
+        const bad = unknownColumn(table, payload);
+        if (bad) return Promise.resolve({ data: null, error: bad });
         const items = Array.isArray(payload) ? payload : [payload];
         items.forEach(it => DB[table].push({ id: DB[table].length + 100, ...it }));
         return Promise.resolve({ data: items, error: null });
       },
-      update(patch) { this._patch = patch; return this; },
+      update(patch) {
+        this._patch = patch;
+        this._patchError = unknownColumn(table, patch);
+        return this;
+      },
       upsert() { return Promise.resolve({ data: null, error: null }); },
       delete() { this._delete = true; return this; },
       then(onOk, onErr) { return res().then(onOk, onErr); },

@@ -51,6 +51,13 @@ GitHub Pages・Supabase・Cloudflare Workers・Gemini の無料枠だけで動�
 5. 一緒に使う人は Authentication → Users → **Invite user** から招待する
    （アプリ内にサインアップ画面はありません）
 
+> **動かない機能があるときは `Task/check-schema.sql` を実行してください。**
+> 足りないテーブル・列と、それを直すSQLが一覧で返ります（何も返らなければ最新）。
+> マイグレーションは手で実行する方式なので、適用漏れに気づきにくいためです。
+>
+> `Task/*.sql` はすべて再実行しても安全（`if not exists`）なので、
+> 迷ったら全部流して構いません。既存のデータには影響しません。
+>
 > すでに運用中の環境に列を足す場合は `Task/add-*.sql` を個別に実行してください。
 > `Task/supabase-migration.sql` は初回移行用で、冒頭に全行削除が含まれています
 > （既定ではコメントアウト済み）。

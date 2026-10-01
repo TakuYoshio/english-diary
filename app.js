@@ -205,6 +205,7 @@ const TRANSLATIONS = {
     'solo-used-vocab': '単語帳の語が会話で使えていました: {words}',
     'solo-next-title': '次回のテーマ', 'solo-show-transcript': '全文を見る',
     'solo-report-close': 'ホームへ',
+    'warn-vocab-no-image-column': 'イラストの列が未作成のため、イラストなしで保存しました（単語は記録されています）',
     'solo-list-empty': 'まだひとりごとの記録がありません',
     'solo-list-sessions': '回数', 'solo-list-total': '合計',
     'solo-list-no-report': 'レポートなし',
@@ -452,6 +453,7 @@ const TRANSLATIONS = {
     'solo-used-vocab': 'You used these words from your list: {words}',
     'solo-next-title': 'Focus for next time', 'solo-show-transcript': 'Show full transcript',
     'solo-report-close': 'Home',
+    'warn-vocab-no-image-column': 'The illustration column is missing, so the word was saved without one',
     'solo-list-empty': 'No solo sessions yet',
     'solo-list-sessions': 'Sessions', 'solo-list-total': 'Total',
     'solo-list-no-report': 'no report',
@@ -1953,13 +1955,69 @@ function vocabImageUrl(en) {
   return `https://image.pollinations.ai/prompt/${prompt}?width=256&height=256&seed=${seed}&nologo=true`;
 }
 
+
+// ── 単語の書き込み ────────────────────────────────────────────────────────
+// 単語カードのイラストは飾りであって、単語そのものの記録を止めてよい理由にはならない。
+// ところが image_url 列が未作成の環境（Task/add-vocab-image-column.sql 未適用）では
+// PostgREST が挿入を丸ごと拒否し、単語の追加だけでなく日記の保存まで巻き添えで失敗する。
+// 列が無いと分かったらイラストを諦めて記録だけ通す。
+let _vocabImageColumnMissing = false;
+
+// PostgREST はスキーマキャッシュに無い列を PGRST204 で返す
+function isMissingImageColumn(error) {
+  if (!error) return false;
+  const msg = String(error.message || '');
+  return (error.code === 'PGRST204' || /schema cache/i.test(msg)) && msg.includes('image_url');
+}
+
+// 挿入・更新に渡す1行分のオブジェクトを組み立てる。
+// イラストが無い（設定でオフ／列が無い）ときは image_url のキー自体を送らない。
+// 空文字を入れるよりNULLのままのほうが素直。
+function vocabRow(word, { includeDefaults = false } = {}) {
+  const row = { en: word.en, jp: word.jp, note: word.note || '' };
+  if (includeDefaults) {
+    row.correct = 0;
+    row.wrong = 0;
+    row.user_id = currentUserId;
+  }
+  if (!_vocabImageColumnMissing) {
+    const url = vocabImageUrl(word.en);
+    if (url) row.image_url = url;
+  }
+  return row;
+}
+
+// image_url 列が無い環境では、その列を外して1回だけやり直す。
+// 成功したらセッション中は覚えておき、以降は最初から送らない。
+async function writeVocab(run, rows) {
+  const { error } = await run(rows);
+  if (!error) return { ok: true };
+  if (!isMissingImageColumn(error)) return { ok: false, error };
+
+  _vocabImageColumnMissing = true;
+  const stripped = rows.map(r => {
+    const copy = { ...r };
+    delete copy.image_url;
+    return copy;
+  });
+  const retry = await run(stripped);
+  if (retry.error) return { ok: false, error: retry.error };
+  // 一度しか出さない。毎回出すと記録のたびに警告が出て鬱陶しい。
+  if (!writeVocab._warned) {
+    writeVocab._warned = true;
+    showToast(t('warn-vocab-no-image-column'), 'warn');
+  }
+  return { ok: true };
+}
+
 async function addVocab() {
   const en   = document.getElementById('v-en').value.trim();
   const jp   = document.getElementById('v-jp').value.trim();
   const note = document.getElementById('v-note').value.trim();
   if (!en || !jp) { showToast(t('alert-vocab-fill'), 'warn'); return; }
-  const { error } = await sb.from('vocab').insert({ en, jp, note, correct: 0, wrong: 0, user_id: currentUserId, image_url: vocabImageUrl(en) });
-  if (error) { showToast(t('error-vocab') + error.message, 'error'); return; }
+  const res = await writeVocab(rows => sb.from('vocab').insert(rows),
+    [vocabRow({ en, jp, note }, { includeDefaults: true })]);
+  if (!res.ok) { showToast(t('error-vocab') + res.error.message, 'error'); return; }
   document.getElementById('v-en').value = '';
   document.getElementById('v-jp').value = '';
   document.getElementById('v-note').value = '';
@@ -1986,12 +2044,10 @@ async function addVocabBatch(words) {
   });
   if (!toAdd.length) return [];
 
-  const { error } = await sb.from('vocab').insert(toAdd.map(w => ({
-    en: w.en, jp: w.jp, note: w.note || '',
-    correct: 0, wrong: 0, user_id: currentUserId, image_url: vocabImageUrl(w.en),
-  })));
+  const res = await writeVocab(rows => sb.from('vocab').insert(rows),
+    toAdd.map(w => vocabRow(w, { includeDefaults: true })));
   // 失敗を黙って捨てると「◯語追加しました」と嘘のトーストが出る
-  if (error) { showToast(t('error-vocab') + error.message, 'error'); return []; }
+  if (!res.ok) { showToast(t('error-vocab') + res.error.message, 'error'); return []; }
 
   invalidateQuiz();
   return toAdd;
@@ -2031,8 +2087,9 @@ async function saveEditVocab(id) {
   const jp   = document.getElementById(`ve-jp-${id}`).value.trim();
   const note = document.getElementById(`ve-note-${id}`).value.trim();
   if (!en || !jp) { showToast(t('alert-vocab-fill'), 'warn'); return; }
-  const { error } = await sb.from('vocab').update({ en, jp, note, image_url: vocabImageUrl(en) }).eq('id', id);
-  if (error) { showToast(t('error-vocab') + error.message, 'error'); return; }
+  const res = await writeVocab(rows => sb.from('vocab').update(rows[0]).eq('id', id),
+    [vocabRow({ en, jp, note })]);
+  if (!res.ok) { showToast(t('error-vocab') + res.error.message, 'error'); return; }
   editingVocabId = null;
   invalidateQuiz();
   await renderVocab();

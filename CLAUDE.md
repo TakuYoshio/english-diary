@@ -58,6 +58,12 @@ npm test         # Workerのユニットテスト + 実ブラウザのスモー�
 - **HTMLに差し込む値は `escapeHtml()` を通す。** 属性値も同様。
 - **Supabaseの `{ data, error }` の `error` を捨てない。** 握り潰すと
   読み込み失敗が「データが空」として表示される。
+- **飾りのための列で、本体の記録を落とさない。** 単語の `image_url`（イラスト）は
+  列が無ければ外して保存を通す（`writeVocab`）。実際に、この列の未適用で
+  単語の追加と日記の保存が両方できなくなったことがある。
+- **テストのスタブは本番と同じ厳しさで。** `test/supabase-stub.js` は
+  テーブルごとの列を持っていて、知らない列を送ると PostgREST と同じ
+  `PGRST204` を返す。緩いスタブは本番で落ちる書き込みを通してしまう。
 
 ## 検査ツール
 
@@ -76,7 +82,12 @@ npm test         # Workerのユニットテスト + 実ブラウザのスモー�
 コードからは実行できない。変更したら依頼すること。
 
 - `Task/*.sql` を Supabase ダッシュボードの SQL Editor で実行
-  （英語ひとりごとには `Task/add-solo-sessions-table.sql` が必要）
+  （英語ひとりごとには `Task/add-solo-sessions-table.sql` が必要）。
+  **依頼するときはファイルパスではなく中身を貼ること。** SQL Editor から
+  リポジトリのファイルは見えない
+- 適用漏れが疑われるときは `Task/check-schema.sql` を流してもらう。
+  足りないテーブル・列と直すSQLが一覧で返る。
+  `Task/*.sql` はすべて `if not exists` で再実行安全にしてある
 - Worker のデプロイ: `cd worker && npx wrangler deploy`
 - KVネームスペースの作成: `npx wrangler kv namespace create RATE_LIMIT`
   （IDを `worker/wrangler.toml` に貼る。未設定だとレート制限が無効）

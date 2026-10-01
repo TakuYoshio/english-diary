@@ -2,4 +2,4 @@
 -- 2回目以降のリトライでは上書きせず、常に最初の1回だけを記録します。
 -- Supabaseダッシュボード → SQL Editorで実行してください。
 
-alter table public.entries add column pronunciation_first_attempt jsonb;
+alter table public.entries add column if not exists pronunciation_first_attempt jsonb;

@@ -402,6 +402,50 @@ const soloOnlyCursor = await page.evaluate(() => {
 });
 check('日記が無い日はポインタにしない', soloOnlyCursor !== 'pointer', `cursor=${soloOnlyCursor}`);
 
+// ── 回帰: image_url 列が無い環境でも単語を記録できること ────────────────
+// Task/add-vocab-image-column.sql が未適用のDBでは、イラスト用の列が無いせいで
+// PostgREST が挿入を丸ごと拒否し、単語の追加だけでなく日記の保存まで失敗していた。
+// 飾りの列ひとつで記録そのものが止まってはいけない。
+const noImageCol = await page.evaluate(async () => {
+  window.__stubDropColumn('vocab', 'image_url');
+  _vocabImageColumnMissing = false;   // セッションフラグを初期状態に戻す
+  writeVocab._warned = false;
+
+  // 1. 単語帳タブからの追加
+  switchTab('vocab');
+  await new Promise(r => setTimeout(r, 200));
+  document.getElementById('v-en').value = 'resilient';
+  document.getElementById('v-jp').value = 'しぶとい';
+  document.getElementById('v-note').value = '';
+  await addVocab();
+  await new Promise(r => setTimeout(r, 300));
+  const added = allVocab.some(v => v.en === 'resilient');
+
+  // 2. 一括追加（日記の保存と独り言レポートが通る経路）
+  const batch = await addVocabBatch([{ en: 'persistence', jp: '粘り強さ', note: '' }]);
+
+  // 3. 列が無いと分かったあとは、最初から image_url を送らない
+  const rowAfter = vocabRow({ en: 'x', jp: 'y' }, { includeDefaults: true });
+
+  window.__stubRestoreColumns();
+  return {
+    added, batched: batch.length === 1,
+    flagged: _vocabImageColumnMissing,
+    sendsImage: Object.prototype.hasOwnProperty.call(rowAfter, 'image_url'),
+  };
+});
+check('image_url列が無くても単語帳から追加できる', noImageCol.added);
+check('image_url列が無くても一括追加が通る（日記の保存経路）', noImageCol.batched);
+check('列が無いと分かったら以降は送らない', noImageCol.flagged && !noImageCol.sendsImage);
+
+// 列がある通常の環境では従来どおり image_url を保存する
+const normalCol = await page.evaluate(async () => {
+  _vocabImageColumnMissing = false;
+  const row = vocabRow({ en: 'ordinary', jp: 'ふつう' }, { includeDefaults: true });
+  return { hasImage: typeof row.image_url === 'string' && row.image_url.length > 0 };
+});
+check('列がある環境では従来どおりimage_urlを保存する', normalCol.hasImage);
+
 const ignorable = /favicon|ERR_FAILED|net::ERR|Failed to load resource/i;
 const real = errors.filter(e => !ignorable.test(e));
 check('コンソールエラーが無い', real.length === 0, real.join(' | '));
