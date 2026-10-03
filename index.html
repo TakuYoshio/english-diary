@@ -481,7 +481,7 @@
       <div class="vocab-add-row">
         <input type="text" id="v-en" data-i18n-aria="aria-vocab-en" class="input" placeholder="English" />
         <input type="text" id="v-jp" data-i18n-aria="ph-v-jp" class="input" data-i18n-placeholder="ph-v-jp" placeholder="日本語" />
-        <input type="text" id="v-note" data-i18n-aria="ph-v-note" class="input" data-i18n-placeholder="ph-v-note" placeholder="メモ（任意）" />
+        <textarea id="v-note" rows="2" data-i18n-aria="ph-v-note" class="input" data-i18n-placeholder="ph-v-note" placeholder="メモ（任意）"></textarea>
         <button class="btn btn-primary" onclick="addVocab()" data-i18n="btn-vocab-add">追加</button>
       </div>
       <input type="text" id="vocab-search" data-i18n-aria="aria-vocab-search" class="input" data-i18n-placeholder="ph-vocab-search" placeholder="単語を検索…" oninput="onVocabSearchInput(this.value)" style="margin-bottom:12px" />
@@ -792,8 +792,8 @@
     </div>
     <div class="form-group">
       <label class="pref-check"><input type="checkbox" id="settings-auto-lookup" /> <span data-i18n="pref-auto-lookup-label">単語のAI自動検索をオンにする</span></label>
-      <label class="pref-check"><input type="checkbox" id="settings-vocab-images" /> <span data-i18n="pref-vocab-images-label">単語帳にイラストを表示する</span></label>
-      <p class="hint" data-i18n="pref-vocab-images-hint">オンにすると、登録した英単語が画像生成サービス（Pollinations.ai）に送信されます。</p>
+      <label class="pref-check"><input type="checkbox" id="settings-vocab-images" /> <span data-i18n="pref-vocab-images-label">単語帳に写真を表示する</span></label>
+      <p class="hint" data-i18n="pref-vocab-images-hint">オンにすると、登録した英単語が写真検索（Pexels）に送られます。中継は自前のサーバーが行うので、Pexelsに端末の情報は渡りません。</p>
     </div>
     <div class="action-row">
       <button class="btn btn-primary" onclick="savePreferences()" data-i18n="btn-settings-save">保存</button>
@@ -810,6 +810,20 @@
     <div class="action-row">
       <button id="confirm-modal-ok" class="btn btn-danger btn-sm">削除</button>
       <button id="confirm-modal-cancel" class="btn btn-sm" data-i18n="btn-cancel">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── VOCAB PHOTO MODAL ── -->
+<div id="vocab-photo-modal" class="modal-overlay" style="display:none" tabindex="-1" aria-labelledby="vocab-photo-word" onclick="if(event.target===this)closeModal('vocab-photo-modal')">
+  <div class="modal-card vocab-photo-card">
+    <h3 id="vocab-photo-word" class="vocab-photo-word"></h3>
+    <div id="vocab-photo-frame" class="vocab-photo-frame"></div>
+    <p id="vocab-photo-credit" class="vocab-photo-credit"></p>
+    <div class="action-row">
+      <button id="vocab-photo-next" class="btn btn-sm btn-primary" onclick="cycleVocabPhoto()" data-i18n="btn-photo-next">別の写真にする</button>
+      <button class="btn btn-sm" onclick="clearVocabPhoto()" data-i18n="btn-photo-clear">写真を外す</button>
+      <button class="btn btn-sm" onclick="closeModal('vocab-photo-modal')" data-i18n="btn-close">閉じる</button>
     </div>
   </div>
 </div>
@@ -865,8 +879,8 @@
     </div>
     <div class="form-group">
       <label class="pref-check"><input type="checkbox" id="onboarding-auto-lookup" /> <span data-i18n="pref-auto-lookup-label">単語のAI自動検索をオンにする</span></label>
-      <label class="pref-check"><input type="checkbox" id="onboarding-vocab-images" checked /> <span data-i18n="pref-vocab-images-label">単語帳にイラストを表示する</span></label>
-      <p class="hint" data-i18n="pref-vocab-images-hint">オンにすると、登録した英単語が画像生成サービス（Pollinations.ai）に送信されます。</p>
+      <label class="pref-check"><input type="checkbox" id="onboarding-vocab-images" checked /> <span data-i18n="pref-vocab-images-label">単語帳に写真を表示する</span></label>
+      <p class="hint" data-i18n="pref-vocab-images-hint">オンにすると、登録した英単語が写真検索（Pexels）に送られます。中継は自前のサーバーが行うので、Pexelsに端末の情報は渡りません。</p>
     </div>
     <div class="action-row">
       <button class="btn btn-primary btn-full" onclick="completeOnboarding()" data-i18n="btn-onboarding-start">はじめる →</button>

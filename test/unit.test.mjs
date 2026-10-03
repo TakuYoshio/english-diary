@@ -52,6 +52,8 @@ const {
   splitSentences, buildDiaryQuizPool,
   // 週報
   weekStartOf, previousWeekStart, weekDates, computeWeeklyReport,
+  // 単語カードの写真
+  photoQuery, photoCandidate, photoPatch, needsVocabPhoto, vocabRow, isMissingImageColumn,
 } = sandbox;
 const DQ_STOPWORDS = get('DQ_STOPWORDS');
 
@@ -304,6 +306,68 @@ test('独り言のバッジが閾値で点く', () => {
   const many = n => Array.from({ length: n }, () => soloRow(30));
   assert.equal(on(baseStats(many(9)), 'solo-total-300'), false);   // 270分
   assert.equal(on(baseStats(many(10)), 'solo-total-300'), true);   // 300分
+});
+
+// ── 単語カードの写真 ──────────────────────────────────────────────────────
+
+test('検索語は英単語だけを通す（Workerを検索プロキシにしない）', () => {
+  assert.equal(photoQuery('Grateful'), 'grateful');
+  assert.equal(photoQuery('  commute  '), 'commute');
+  assert.equal(photoQuery("don't give up"), "don't give up");
+  assert.equal(photoQuery('感謝'), '');
+  assert.equal(photoQuery('https://evil.example/x'), '');
+  assert.equal(photoQuery('a'.repeat(41)), '');
+  assert.equal(photoQuery(''), '');
+  assert.equal(photoQuery(null), '');
+});
+
+test('候補は表示とクレジットに使う4つだけ残す', () => {
+  eq(photoCandidate({
+    name: 'Jane Doe', page: 'https://www.pexels.com/photo/1/',
+    small: 'https://img.example/t.jpg', large: 'https://img.example/m.jpg',
+    extra: 'ignored', id: 7,
+  }), { name: 'Jane Doe', page: 'https://www.pexels.com/photo/1/', small: 'https://img.example/t.jpg', large: 'https://img.example/m.jpg' });
+});
+
+test('httpsでないURLの候補は捨てる', () => {
+  assert.equal(photoCandidate({ name: 'x', small: 'http://img/t.jpg', large: 'https://img/m.jpg' }), null);
+  assert.equal(photoCandidate({ name: 'x', small: 'javascript:alert(1)', large: 'https://img/m.jpg' }), null);
+  assert.equal(photoCandidate({ name: 'x', small: 'https://img/t.jpg' }), null, 'largeが無い候補');
+  assert.equal(photoCandidate(null), null);
+});
+
+test('候補のpageがhttpsでなければ空にする（リンク先に任意のURLを入れさせない）', () => {
+  const c = photoCandidate({ name: 'x', page: 'javascript:alert(1)', small: 'https://i/t.jpg', large: 'https://i/m.jpg' });
+  assert.equal(c.page, '');
+});
+
+test('image_url の3状態: nullだけが自動取得の対象', () => {
+  assert.equal(needsVocabPhoto({ image_url: null }), true, 'まだ探していない');
+  assert.equal(needsVocabPhoto({}), true, '列がまだ無い行もnull扱い');
+  assert.equal(needsVocabPhoto({ image_url: '' }), false, '利用者が外した語を探し直してはいけない');
+  assert.equal(needsVocabPhoto({ image_url: 'https://img/t.jpg' }), false);
+});
+
+test('写真のパッチは2つの列だけを書く', () => {
+  const patch = photoPatch({ name: 'Jane', page: 'https://p/1/', small: 'https://i/t.jpg', large: 'https://i/m.jpg' });
+  eq(Object.keys(patch).sort(), ['image_credit', 'image_url']);
+  assert.equal(patch.image_url, 'https://i/t.jpg');
+  eq(patch.image_credit, { name: 'Jane', page: 'https://p/1/', large: 'https://i/m.jpg', source: 'pexels' });
+});
+
+test('単語の挿入は画像の列を一切送らない（保存が画像に依存しない）', () => {
+  const row = vocabRow({ en: 'grateful', jp: '感謝している', note: '' }, { includeDefaults: true });
+  assert.equal('image_url' in row, false);
+  assert.equal('image_credit' in row, false);
+});
+
+test('列が無いエラーは image_url / image_credit の両方で拾う', () => {
+  const e = col => ({ code: 'PGRST204', message: `Could not find the '${col}' column of 'vocab' in the schema cache` });
+  assert.equal(isMissingImageColumn(e('image_url')), true);
+  assert.equal(isMissingImageColumn(e('image_credit')), true);
+  assert.equal(isMissingImageColumn(e('srs_stage')), false, '無関係な列の欠落を握り潰さない');
+  assert.equal(isMissingImageColumn({ code: '23505', message: 'duplicate key' }), false);
+  assert.equal(isMissingImageColumn(null), false);
 });
 
 // ── 実行 ──────────────────────────────────────────────────────────────────

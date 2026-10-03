@@ -62,8 +62,12 @@ alter table public.vocab add column if not exists created_at timestamptz not nul
 alter table public.vocab add column if not exists note text;
 alter table public.vocab add column if not exists correct int not null default 0;
 alter table public.vocab add column if not exists wrong int not null default 0;
--- 単語カードのイラスト（Pollinations.aiのURL）
+-- 単語カードの写真（Pexelsで検索した写真のURL）。
+-- null = まだ探していない / 空文字 = 利用者が「写真を外す」を選んだ / URL = 選ばれた写真
 alter table public.vocab add column if not exists image_url text;
+-- その写真の撮影者クレジット { name, page, large, source }。
+-- Pexelsの規約で撮影者名とPexelsへのリンクの表示が必要なため、URLとは別に持つ。
+alter table public.vocab add column if not exists image_credit jsonb;
 -- 間隔反復（エビングハウスの忘却曲線を参考にしたLeitner方式）
 alter table public.vocab add column if not exists srs_stage integer not null default 0;
 alter table public.vocab add column if not exists next_review_at timestamptz not null default now();

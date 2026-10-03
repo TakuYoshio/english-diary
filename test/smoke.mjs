@@ -20,13 +20,24 @@ const errors = [];
 page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
 page.on('pageerror', e => errors.push('pageerror: ' + e.message));
 
-// 外部ネットワーク（フォント・画像生成）は遮断し、supabase-js だけスタブに差し替える。
+// 外部ネットワーク（フォント・写真）は遮断し、supabase-js だけスタブに差し替える。
 // 本体は vendor/ に同梱しているので、同一オリジンでも差し替え対象にする。
+// Worker（写真検索の中継）はテストから応答を差し替えられるようにしておく。
+let workerCalls = [];
+let photoReply = null;      // null のあいだは失敗させる（写真が取れない環境の再現）
+let photoImageRequests = 0; // 写真CDNへ実際に出たリクエスト数
+
 await page.route('**/*', route => {
   const url = route.request().url();
   if (/supabase-js/.test(url)) {
     return route.fulfill({ contentType: 'application/javascript', body: stub });
   }
+  if (/workers\.dev/.test(url)) {
+    workerCalls.push(JSON.parse(route.request().postData() || '{}'));
+    if (!photoReply) return route.abort();
+    return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ photos: photoReply }) });
+  }
+  if (/images\.pexels\.com/.test(url)) { photoImageRequests++; return route.abort(); }
   if (url.startsWith(BASE)) return route.continue();
   return route.abort();
 });
@@ -402,49 +413,227 @@ const soloOnlyCursor = await page.evaluate(() => {
 });
 check('日記が無い日はポインタにしない', soloOnlyCursor !== 'pointer', `cursor=${soloOnlyCursor}`);
 
-// ── 回帰: image_url 列が無い環境でも単語を記録できること ────────────────
-// Task/add-vocab-image-column.sql が未適用のDBでは、イラスト用の列が無いせいで
-// PostgREST が挿入を丸ごと拒否し、単語の追加だけでなく日記の保存まで失敗していた。
-// 飾りの列ひとつで記録そのものが止まってはいけない。
-const noImageCol = await page.evaluate(async () => {
-  window.__stubDropColumn('vocab', 'image_url');
-  _vocabImageColumnMissing = false;   // セッションフラグを初期状態に戻す
-  writeVocab._warned = false;
+// ── 単語カードの写真 ──────────────────────────────────────────────────────
+// 写真は飾りなので、取れなくても単語の記録は通らなければならない。
+// 以前はイラスト用の列ひとつで、単語の追加と日記の保存の両方が落ちていた。
 
-  // 1. 単語帳タブからの追加
+// 挿入そのものに画像の列が出てこないこと（＝保存が画像に依存しないこと）
+const insertNoImage = await page.evaluate(() => {
+  const row = vocabRow({ en: 'ordinary', jp: 'ふつう' }, { includeDefaults: true });
+  return Object.keys(row);
+});
+check('単語の挿入に画像の列が含まれない',
+  !insertNoImage.includes('image_url') && !insertNoImage.includes('image_credit'),
+  insertNoImage.join(','));
+
+// 写真の取得が失敗する環境（photoReply = null のまま）で単語を追加できること
+photoReply = null;
+const photoFailAdd = await page.evaluate(async () => {
   switchTab('vocab');
   await new Promise(r => setTimeout(r, 200));
   document.getElementById('v-en').value = 'resilient';
   document.getElementById('v-jp').value = 'しぶとい';
   document.getElementById('v-note').value = '';
   await addVocab();
-  await new Promise(r => setTimeout(r, 300));
-  const added = allVocab.some(v => v.en === 'resilient');
+  await _vocabPhotoWork;
+  return allVocab.some(v => v.en === 'resilient');
+});
+check('写真の取得が失敗しても単語帳から追加できる', photoFailAdd);
 
-  // 2. 一括追加（日記の保存と独り言レポートが通る経路）
+const photoFailBatch = await page.evaluate(async () => {
   const batch = await addVocabBatch([{ en: 'persistence', jp: '粘り強さ', note: '' }]);
+  await _vocabPhotoWork;
+  return batch.length === 1;
+});
+check('写真の取得が失敗しても一括追加が通る（日記の保存経路）', photoFailBatch);
 
-  // 3. 列が無いと分かったあとは、最初から image_url を送らない
-  const rowAfter = vocabRow({ en: 'x', jp: 'y' }, { includeDefaults: true });
-
-  window.__stubRestoreColumns();
+// 写真が無い行は頭文字のタイルを出し、写真CDNへは一切出ない
+photoImageRequests = 0;
+const fallback = await page.evaluate(async () => {
+  allVocab.forEach(v => { v.image_url = null; v.image_credit = null; });
+  filterAndRenderVocab();
+  await new Promise(r => setTimeout(r, 100));
+  const row = document.querySelector('.vocab-row');
   return {
-    added, batched: batch.length === 1,
-    flagged: _vocabImageColumnMissing,
-    sendsImage: Object.prototype.hasOwnProperty.call(rowAfter, 'image_url'),
+    hasFallback: !!row.querySelector('.v-thumb-fallback'),
+    hasImg: !!row.querySelector('img.v-thumb'),
+    initial: row.querySelector('.v-thumb-fallback')?.textContent || '',
+    en: row.querySelector('.v-en')?.textContent || '',
+    label: row.querySelector('.v-thumb-btn')?.getAttribute('aria-label') || '',
   };
 });
-check('image_url列が無くても単語帳から追加できる', noImageCol.added);
-check('image_url列が無くても一括追加が通る（日記の保存経路）', noImageCol.batched);
-check('列が無いと分かったら以降は送らない', noImageCol.flagged && !noImageCol.sendsImage);
+check('写真が無い行は頭文字タイルを出す', fallback.hasFallback && !fallback.hasImg);
+check('写真が無い行から写真CDNへリクエストを出さない', photoImageRequests === 0,
+  `${photoImageRequests} 件`);
+check('サムネイルのボタンに単語を含む読み上げ名が付いている',
+  fallback.label.includes(fallback.en) && fallback.label.length > fallback.en.length,
+  `${fallback.label} / ${fallback.en}`);
+check('頭文字タイルに単語の1文字目が出る',
+  fallback.initial === fallback.en.slice(0, 1).toUpperCase(),
+  `${fallback.initial} / ${fallback.en}`);
 
-// 列がある通常の環境では従来どおり image_url を保存する
-const normalCol = await page.evaluate(async () => {
-  _vocabImageColumnMissing = false;
-  const row = vocabRow({ en: 'ordinary', jp: 'ふつう' }, { includeDefaults: true });
-  return { hasImage: typeof row.image_url === 'string' && row.image_url.length > 0 };
+// 穴埋めは1回の描画につきWorker呼び出し1回に収まる
+workerCalls = [];
+const backfillCalls = await page.evaluate(async () => {
+  _photoTried.clear();
+  allVocab.forEach(v => { v.image_url = null; });
+  backfillVocabPhotos();
+  await _vocabPhotoWork;
+  return true;
 });
-check('列がある環境では従来どおりimage_urlを保存する', normalCol.hasImage);
+check('穴埋めは1回の描画でWorker呼び出し1回', backfillCalls && workerCalls.length === 1,
+  `${workerCalls.length} 回`);
+check('穴埋めのリクエストは action:photo と語の配列を送る',
+  workerCalls[0]?.action === 'photo' && Array.isArray(workerCalls[0]?.words)
+  && workerCalls[0].words.length <= 20,
+  JSON.stringify(workerCalls[0] || {}).slice(0, 120));
+
+// 写真が取れたら image_url と image_credit が保存される。
+// 撮影者名とリンクには、外部由来の危険な値を混ぜて渡す。
+photoReply = {
+  grateful: [
+    { name: 'Jane "quote" Doe', page: 'https://www.pexels.com/photo/1/',
+      small: 'https://images.pexels.com/photos/1/t.jpg', large: 'https://images.pexels.com/photos/1/m.jpg' },
+    { name: 'John Roe', page: 'javascript:alert(1)',
+      small: 'https://images.pexels.com/photos/2/t.jpg', large: 'https://images.pexels.com/photos/2/m.jpg' },
+  ],
+};
+const saved = await page.evaluate(async () => {
+  _photoTried.clear();
+  window.__stubClearPatches();
+  const target = allVocab.find(v => v.en === 'grateful');
+  target.image_url = null;
+  target.image_credit = null;
+  await queueVocabPhotos([{ id: target.id, en: 'grateful' }]);
+  const row = allVocab.find(v => v.en === 'grateful');
+  return { url: row.image_url, credit: row.image_credit, patches: window.__stubPatches().length };
+});
+check('写真が取れたら image_url が保存される', saved.url === 'https://images.pexels.com/photos/1/t.jpg', String(saved.url));
+check('撮影者クレジットも保存される',
+  saved.credit && saved.credit.name === 'Jane "quote" Doe' && saved.credit.source === 'pexels',
+  JSON.stringify(saved.credit));
+
+// 写真モーダル: 撮影者名とPexelsへのリンクが出る（規約上の義務）
+const modal = await page.evaluate(async () => {
+  const target = allVocab.find(v => v.en === 'grateful');
+  await openVocabPhoto(target.id);
+  const creditEl = document.getElementById('vocab-photo-credit');
+  const link = creditEl.querySelector('a');
+  return {
+    visible: getComputedStyle(document.getElementById('vocab-photo-modal')).display !== 'none',
+    word: document.getElementById('vocab-photo-word').textContent,
+    creditText: creditEl.textContent,
+    linkHref: link ? link.getAttribute('href') : '',
+    linkRel: link ? link.getAttribute('rel') : '',
+    hasPexelsLink: [...creditEl.querySelectorAll('a')].some(a => a.href.includes('pexels.com')),
+    nextEnabled: !document.getElementById('vocab-photo-next').disabled,
+    imgSrc: document.querySelector('.vocab-photo-img')?.getAttribute('src') || '',
+    xss: window.__xss === 1,
+  };
+});
+check('写真モーダルが開く', modal.visible && modal.word === 'grateful');
+check('撮影者名が表示される', modal.creditText.includes('Jane "quote" Doe'), modal.creditText);
+check('撮影者名を属性に入れてもXSSにならない', !modal.xss);
+check('Pexelsへのリンクがある', modal.hasPexelsLink);
+check('外部リンクに rel=noopener noreferrer が付く', /noopener/.test(modal.linkRel) && /noreferrer/.test(modal.linkRel), modal.linkRel);
+check('モーダルは大きい方の写真を使う', modal.imgSrc === 'https://images.pexels.com/photos/1/m.jpg', modal.imgSrc);
+check('別の写真にするボタンが押せる', modal.nextEnabled);
+
+// 「別の写真にする」で次の候補に進む。javascript: のリンクは空に落とされている。
+const cycled = await page.evaluate(async () => {
+  await cycleVocabPhoto();
+  const row = allVocab.find(v => v.en === 'grateful');
+  const link = document.getElementById('vocab-photo-credit').querySelector('a');
+  return { url: row.image_url, href: link ? link.getAttribute('href') : '' };
+});
+check('別の写真にすると次の候補が保存される', cycled.url === 'https://images.pexels.com/photos/2/t.jpg', String(cycled.url));
+check('候補のjavascript:リンクはPexelsのトップに落とされる', cycled.href === 'https://www.pexels.com/', cycled.href);
+
+// 「写真を外す」は空文字。nullに戻すと穴埋めが拾い直してしまう。
+const cleared = await page.evaluate(async () => {
+  const target = allVocab.find(v => v.en === 'grateful');
+  await openVocabPhoto(target.id);
+  await clearVocabPhoto();
+  const row = allVocab.find(v => v.en === 'grateful');
+  return { url: row.image_url, needs: needsVocabPhoto(row) };
+});
+check('写真を外すと空文字になる', cleared.url === '', JSON.stringify(cleared.url));
+check('外した写真は穴埋めが拾い直さない', cleared.needs === false);
+
+// ── 回帰: 画像の列が無い環境でも単語を記録できること ──────────────────────
+for (const col of ['image_url', 'image_credit']) {
+  const noCol = await page.evaluate(async (dropped) => {
+    window.__stubDropColumn('vocab', dropped);
+    _vocabImageColumnMissing = false;
+    warnMissingImageColumn._warned = false;
+
+    document.getElementById('v-en').value = `word-${dropped}`;
+    document.getElementById('v-jp').value = 'てすと';
+    document.getElementById('v-note').value = '';
+    await addVocab();
+    await _vocabPhotoWork;
+    const added = allVocab.some(v => v.en === `word-${dropped}`);
+
+    const batch = await addVocabBatch([{ en: `batch-${dropped}`, jp: 'てすと', note: '' }]);
+    await _vocabPhotoWork;
+
+    window.__stubRestoreColumns();
+    return { added, batched: batch.length === 1 };
+  }, col);
+  check(`${col} 列が無くても単語帳から追加できる`, noCol.added);
+  check(`${col} 列が無くても一括追加が通る（日記の保存経路）`, noCol.batched);
+}
+
+// 画像の列が無いと分かったら、穴埋め自体を止める（無駄な往復を出さない）
+workerCalls = [];
+const stopsBackfill = await page.evaluate(async () => {
+  _vocabImageColumnMissing = true;
+  _photoTried.clear();
+  allVocab.forEach(v => { v.image_url = null; });
+  backfillVocabPhotos();
+  await _vocabPhotoWork;
+  _vocabImageColumnMissing = false;
+  return true;
+});
+check('画像の列が無い環境では穴埋めをしない', stopsBackfill && workerCalls.length === 0,
+  `${workerCalls.length} 回`);
+
+// ── メモの改行 ────────────────────────────────────────────────────────────
+// 日記Step3のメモは元から textarea だったので、改行入りのメモは保存されていたが、
+// 単語帳では1行に潰れて表示されていた。入力側と表示側の両方を直している。
+const noteMultiline = await page.evaluate(async () => {
+  const el = document.getElementById('v-note');
+  const tag = el.tagName;
+  document.getElementById('v-en').value = 'multiline';
+  document.getElementById('v-jp').value = 'かいぎょう';
+  el.value = '一行目\n二行目';
+  await addVocab();
+  await _vocabPhotoWork;
+  const row = allVocab.find(v => v.en === 'multiline');
+  const noteEl = [...document.querySelectorAll('.vocab-row')]
+    .find(r => r.querySelector('.v-en')?.textContent === 'multiline')?.querySelector('.v-note');
+  return {
+    tag,
+    saved: row ? row.note : '',
+    whiteSpace: noteEl ? getComputedStyle(noteEl).whiteSpace : '',
+  };
+});
+check('単語帳のメモ欄は textarea', noteMultiline.tag === 'TEXTAREA', noteMultiline.tag);
+check('改行入りのメモが保存される', noteMultiline.saved === '一行目\n二行目', JSON.stringify(noteMultiline.saved));
+check('メモの表示で改行が保たれる', noteMultiline.whiteSpace === 'pre-wrap', noteMultiline.whiteSpace);
+
+// インライン編集のメモも複数行
+const editNote = await page.evaluate(async () => {
+  const row = allVocab.find(v => v.en === 'multiline');
+  startEditVocab(row.id);
+  await new Promise(r => setTimeout(r, 100));
+  const el = document.getElementById(`ve-note-${row.id}`);
+  const out = { tag: el ? el.tagName : '', value: el ? el.value : '' };
+  cancelEditVocab();
+  return out;
+});
+check('インライン編集のメモ欄も textarea', editNote.tag === 'TEXTAREA', editNote.tag);
+check('編集欄に改行がそのまま入る', editNote.value === '一行目\n二行目', JSON.stringify(editNote.value));
 
 const ignorable = /favicon|ERR_FAILED|net::ERR|Failed to load resource/i;
 const real = errors.filter(e => !ignorable.test(e));

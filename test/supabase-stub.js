@@ -24,18 +24,18 @@
     vocab: [
       // srs_stage は Word Garden の 🌱🌿🌷🌸 を一通り出すために散らしてある
       { id: 1, user_id: 'u1', created_at: iso(now - day), en: 'café', jp: 'カフェ', note: '',
-        correct: 3, wrong: 1, srs_stage: 2, next_review_at: iso(now - 1000), last_reviewed_at: iso(now - day), image_url: null },
+        correct: 3, wrong: 1, srs_stage: 2, next_review_at: iso(now - 1000), last_reviewed_at: iso(now - day), image_url: null, image_credit: null },
       { id: 2, user_id: 'u1', created_at: iso(now - day), en: 'commute', jp: '通勤する', note: '',
-        correct: 0, wrong: 0, srs_stage: 0, next_review_at: iso(now - 1000), last_reviewed_at: null, image_url: null },
+        correct: 0, wrong: 0, srs_stage: 0, next_review_at: iso(now - 1000), last_reviewed_at: null, image_url: null, image_credit: null },
       { id: 3, user_id: 'u1', created_at: iso(now - day), en: 'grateful', jp: '感謝している', note: '',
-        correct: 5, wrong: 0, srs_stage: 4, next_review_at: iso(now + 5 * day), last_reviewed_at: iso(now - day), image_url: null },
+        correct: 5, wrong: 0, srs_stage: 4, next_review_at: iso(now + 5 * day), last_reviewed_at: iso(now - day), image_url: null, image_credit: null },
       { id: 4, user_id: 'u1', created_at: iso(now - day), en: 'overwhelmed', jp: '圧倒された', note: '',
-        correct: 6, wrong: 0, srs_stage: 6, next_review_at: iso(now + 80 * day), last_reviewed_at: iso(now - day), image_url: null },
+        correct: 6, wrong: 0, srs_stage: 6, next_review_at: iso(now + 80 * day), last_reviewed_at: iso(now - day), image_url: null, image_credit: null },
       // 苦手単語（wrong>=2 かつ 正答率<60%）。苦手トグルのテスト用。
       { id: 5, user_id: 'u1', created_at: iso(now - day), en: 'reluctant', jp: '気が進まない', note: '',
-        correct: 1, wrong: 4, srs_stage: 0, next_review_at: iso(now - 1000), last_reviewed_at: iso(now - day), image_url: null },
+        correct: 1, wrong: 4, srs_stage: 0, next_review_at: iso(now - 1000), last_reviewed_at: iso(now - day), image_url: null, image_credit: null },
       { id: 6, user_id: 'u1', created_at: iso(now - day), en: 'deadline', jp: '締め切り', note: '',
-        correct: 0, wrong: 3, srs_stage: 0, next_review_at: iso(now - 1000), last_reviewed_at: iso(now - day), image_url: null },
+        correct: 0, wrong: 3, srs_stage: 0, next_review_at: iso(now - 1000), last_reviewed_at: iso(now - day), image_url: null, image_credit: null },
     ],
     solo_sessions: [
       { id: 1, user_id: 'u1', created_at: iso(now - 2 * day), date: new Date(now - 2 * day).toLocaleDateString('sv-SE'),
@@ -73,13 +73,19 @@
     entries: ['id', 'user_id', 'created_at', 'date', 'jp', 'en1', 'en2', 'corrected',
       'feedback', 'pronunciation_first_attempt'],
     vocab: ['id', 'user_id', 'created_at', 'en', 'jp', 'note', 'correct', 'wrong',
-      'image_url', 'srs_stage', 'next_review_at', 'last_reviewed_at'],
+      'image_url', 'image_credit', 'srs_stage', 'next_review_at', 'last_reviewed_at'],
     profiles: ['user_id', 'onboarding_completed', 'skill_focus', 'shadowing_level',
       'auto_vocab_lookup', 'created_at', 'updated_at'],
     solo_sessions: ['id', 'user_id', 'created_at', 'date', 'mode', 'topic_pack',
       'planned_minutes', 'spoken_seconds', 'word_count', 'input_method', 'prompts_used',
       'transcript', 'report', 'report_status'],
   };
+
+  // update(...).eq(...) で実際に書き込まれたパッチの記録。
+  // 「写真が保存されたか」をテストから確かめるために残す。
+  const patchLog = [];
+  window.__stubPatches = () => patchLog.map(x => ({ ...x }));
+  window.__stubClearPatches = () => { patchLog.length = 0; };
 
   // テストから列を落として「マイグレーション未適用の環境」を再現できるようにする。
   // 例: window.__stubDropColumn('vocab', 'image_url')
@@ -88,7 +94,7 @@
   };
   window.__stubRestoreColumns = () => {
     COLUMNS.vocab = ['id', 'user_id', 'created_at', 'en', 'jp', 'note', 'correct', 'wrong',
-      'image_url', 'srs_stage', 'next_review_at', 'last_reviewed_at'];
+      'image_url', 'image_credit', 'srs_stage', 'next_review_at', 'last_reviewed_at'];
   };
 
   // PostgREST がスキーマキャッシュに無い列を渡されたときと同じ形のエラーを返す
@@ -118,6 +124,13 @@
         // update(...).eq(...) の形では eq が終端になるので、ここでエラーを返す
         if (this._patchError) return Promise.resolve({ data: null, error: this._patchError });
         rows = rows.filter(r => String(r[col]) === String(val));
+        // 本番は update(...).eq(...) で行が実際に書き換わる。適用しないスタブだと
+        // 「保存できたか」を見るテストが書けないので、ここで当てる。
+        if (this._patch) {
+          rows.forEach(r => Object.assign(r, this._patch));
+          patchLog.push({ table, patch: this._patch, matched: rows.length });
+          return Promise.resolve({ data: rows, error: null });
+        }
         return this;
       },
       not(col, op, val) {

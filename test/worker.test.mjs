@@ -5,7 +5,21 @@ import worker from '../worker/src/index.js';
 
 const ORIGIN = 'https://takuyoshio.github.io';
 let geminiCalls = [];
+let pexelsCalls = [];
+let pexelsStatus = 200;
 let authOk = true;
+
+// Pexelsの応答（余計なキーも混ぜて、Worker側が落とすことを確かめる）
+const pexelsBody = () => ({
+  photos: [
+    { id: 1, photographer: 'Jane Doe', photographer_id: 9, url: 'https://www.pexels.com/photo/1/',
+      src: { tiny: 'https://images.pexels.com/photos/1/t.jpg', medium: 'https://images.pexels.com/photos/1/m.jpg', original: 'https://images.pexels.com/photos/1/o.jpg' } },
+    { id: 2, photographer: 'John Roe', url: 'https://www.pexels.com/photo/2/',
+      src: { tiny: 'https://images.pexels.com/photos/2/t.jpg', medium: 'https://images.pexels.com/photos/2/m.jpg' } },
+    // srcが足りない候補は落とされるべき
+    { id: 3, photographer: 'Broken', url: 'https://www.pexels.com/photo/3/', src: {} },
+  ],
+});
 
 const realFetch = globalThis.fetch;
 globalThis.fetch = async (url, init) => {
@@ -14,6 +28,10 @@ globalThis.fetch = async (url, init) => {
     return authOk
       ? new Response(JSON.stringify({ id: 'user-1', email: 'a@b.c' }), { status: 200 })
       : new Response('no', { status: 401 });
+  }
+  if (u.includes('api.pexels.com')) {
+    pexelsCalls.push(u);
+    return new Response(JSON.stringify(pexelsBody()), { status: pexelsStatus });
   }
   if (u.includes('generativelanguage')) {
     geminiCalls.push(JSON.parse(init.body));
@@ -36,6 +54,7 @@ const baseEnv = () => ({
   SUPABASE_URL: 'https://sb.example.com',
   SUPABASE_ANON_KEY: 'anon',
   GEMINI_API_KEY: 'key',
+  PEXELS_API_KEY: 'pexels-key',
   RATE_LIMIT: makeKV(),
 });
 
@@ -145,6 +164,108 @@ test('KV未バインドでも動く（制限なしで素通し）', async () => 
   delete env.RATE_LIMIT;
   const res = await post({ prompt: 'x' }, { env });
   assert.equal(res.status, 200);
+});
+
+// ── 写真検索（Pexels中継） ────────────────────────────────────────────────
+
+test('写真検索は表示とクレジットに必要な4つだけ返す', async () => {
+  pexelsCalls = [];
+  const res = await post({ action: 'photo', words: ['grateful'] });
+  assert.equal(res.status, 200);
+  const { photos } = await res.json();
+  assert.equal(photos.grateful.length, 2, 'srcが足りない候補は落とす');
+  assert.deepEqual(Object.keys(photos.grateful[0]).sort(), ['large', 'name', 'page', 'small']);
+  assert.equal(photos.grateful[0].name, 'Jane Doe');
+  assert.equal(photos.grateful[0].small, 'https://images.pexels.com/photos/1/t.jpg');
+});
+
+test('写真検索はAIの1日80回を消費しない', async () => {
+  const env = baseEnv();
+  const today = new Date().toISOString().slice(0, 10);
+  await post({ action: 'photo', words: ['grateful'] }, { env });
+  assert.equal(env.RATE_LIMIT.store.get(`rl:user-1:${today}`), undefined,
+    'AI用のカウンタ(rl:)が増えている');
+  assert.equal(env.RATE_LIMIT.store.get(`rlp:user-1:${today}`), '1');
+});
+
+test('AIの1日上限に達していても写真は引ける', async () => {
+  const env = baseEnv();
+  const today = new Date().toISOString().slice(0, 10);
+  env.RATE_LIMIT.store.set(`rl:user-1:${today}`, '80');
+  const res = await post({ action: 'photo', words: ['grateful'] }, { env });
+  assert.equal(res.status, 200);
+});
+
+test('写真にも専用の1日上限がある', async () => {
+  const env = baseEnv();
+  const today = new Date().toISOString().slice(0, 10);
+  env.RATE_LIMIT.store.set(`rlp:user-1:${today}`, '200');
+  const res = await post({ action: 'photo', words: ['grateful'] }, { env });
+  assert.equal(res.status, 403);
+  assert.equal((await res.json()).error.code, 'DAILY_LIMIT');
+});
+
+test('2回目はKVから返りPexelsを叩かない', async () => {
+  const env = baseEnv();
+  pexelsCalls = [];
+  await post({ action: 'photo', words: ['grateful'] }, { env });
+  assert.equal(pexelsCalls.length, 1);
+  await post({ action: 'photo', words: ['grateful'] }, { env });
+  assert.equal(pexelsCalls.length, 1, '同じ語で2回目もPexelsを叩いている');
+});
+
+test('0件だった語はKVの空配列から返し、Pexelsを叩き直さない', async () => {
+  const env = baseEnv();
+  await env.RATE_LIMIT.put('ph:nosuchword', '[]');
+  pexelsCalls = [];
+  const res = await post({ action: 'photo', words: ['nosuchword'] }, { env });
+  const { photos } = await res.json();
+  assert.deepEqual(photos.nosuchword, []);
+  assert.equal(pexelsCalls.length, 0);
+});
+
+test('英単語以外の語は捨てる（検索プロキシにしない）', async () => {
+  pexelsCalls = [];
+  const res = await post({ action: 'photo', words: ['感謝', 'https://evil.example/x', '', 'a'.repeat(41), 'grateful'] });
+  const { photos } = await res.json();
+  assert.deepEqual(Object.keys(photos), ['grateful']);
+  assert.equal(pexelsCalls.length, 1);
+});
+
+test('同じ語を重ねても1回しか引かない', async () => {
+  const env = baseEnv();
+  pexelsCalls = [];
+  await post({ action: 'photo', words: ['grateful', 'Grateful', ' grateful '] }, { env });
+  assert.equal(pexelsCalls.length, 1);
+});
+
+test('語数が多すぎると400', async () => {
+  const res = await post({ action: 'photo', words: Array.from({ length: 21 }, (_, i) => `w${i}x`) });
+  assert.equal(res.status, 400);
+});
+
+test('PEXELS_API_KEY未設定でも200で空を返す', async () => {
+  const env = baseEnv();
+  delete env.PEXELS_API_KEY;
+  const res = await post({ action: 'photo', words: ['grateful'] }, { env });
+  assert.equal(res.status, 200);
+  assert.deepEqual((await res.json()).photos, {});
+});
+
+test('Pexelsが失敗してもその語を落とすだけで200', async () => {
+  const env = baseEnv();
+  pexelsStatus = 500;
+  const res = await post({ action: 'photo', words: ['grateful'] }, { env });
+  pexelsStatus = 200;
+  assert.equal(res.status, 200);
+  assert.deepEqual((await res.json()).photos, {});
+});
+
+test('写真検索も未認証なら401', async () => {
+  authOk = false;
+  const res = await post({ action: 'photo', words: ['grateful'] });
+  authOk = true;
+  assert.equal(res.status, 401);
 });
 
 let failed = 0;

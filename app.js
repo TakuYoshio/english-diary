@@ -75,13 +75,21 @@ const TRANSLATIONS = {
     'btn-edit': '編集', 'btn-save': '保存',
     'aria-entries-page-size': '1ページの表示件数',
     'aria-vocab-en': '英語の単語',
+    'aria-vocab-photo': '写真を選び直す:',
+    'btn-photo-next': '別の写真にする',
+    'btn-photo-clear': '写真を外す',
+    'photo-credit': '撮影:',
+    'photo-loading': '写真を探しています…',
+    'photo-none': 'この単語に合う写真が見つかりませんでした',
+    'photo-off': '設定で写真の表示をオフにしています',
+    'toast-photo-cleared': '写真を外しました',
     'aria-vocab-search': '単語帳を検索',
     'aria-situational-answer': '英文で答える',
     'aria-streak': '連続記録とレベルを見る',
     'page-size-10': '10件', 'page-size-20': '20件', 'page-size-50': '50件',
     'toast-update-ready': '新しいバージョンがあります。次回起動時に更新されます',
-    'pref-vocab-images-label': '単語帳にイラストを表示する',
-    'pref-vocab-images-hint': 'オンにすると、登録した英単語が画像生成サービス（Pollinations.ai）に送信されます。',
+    'pref-vocab-images-label': '単語帳に写真を表示する',
+    'pref-vocab-images-hint': 'オンにすると、登録した英単語が写真検索（Pexels）に送られます。中継は自前のサーバーが行うので、Pexelsに端末の情報は渡りません。',
     'error-ai-quota': '今日のAI利用が上限に達しました。また明日どうぞ',
     'error-tts': '音声を再生できませんでした',
     'error-srs': '学習記録を保存できませんでした: ',
@@ -205,7 +213,7 @@ const TRANSLATIONS = {
     'solo-used-vocab': '単語帳の語が会話で使えていました: {words}',
     'solo-next-title': '次回のテーマ', 'solo-show-transcript': '全文を見る',
     'solo-report-close': 'ホームへ',
-    'warn-vocab-no-image-column': 'イラストの列が未作成のため、イラストなしで保存しました（単語は記録されています）',
+    'warn-vocab-no-image-column': '写真用の列が未作成のため、写真なしで保存しました（単語は記録されています）',
     'solo-list-empty': 'まだひとりごとの記録がありません',
     'solo-list-sessions': '回数', 'solo-list-total': '合計',
     'solo-list-no-report': 'レポートなし',
@@ -323,13 +331,21 @@ const TRANSLATIONS = {
     'btn-edit': 'Edit', 'btn-save': 'Save',
     'aria-entries-page-size': 'Entries per page',
     'aria-vocab-en': 'Word in English',
+    'aria-vocab-photo': 'Change the photo for',
+    'btn-photo-next': 'Try another photo',
+    'btn-photo-clear': 'Remove photo',
+    'photo-credit': 'Photo by',
+    'photo-loading': 'Looking for a photo…',
+    'photo-none': 'No matching photo was found for this word',
+    'photo-off': 'Photos are turned off in settings',
+    'toast-photo-cleared': 'Photo removed',
     'aria-vocab-search': 'Search your word list',
     'aria-situational-answer': 'Answer in English',
     'aria-streak': 'View your streak and level',
     'page-size-10': '10', 'page-size-20': '20', 'page-size-50': '50',
     'toast-update-ready': 'A new version is ready. It will apply next time you open the app',
-    'pref-vocab-images-label': 'Show illustrations in the word list',
-    'pref-vocab-images-hint': 'When on, the English words you save are sent to an image generation service (Pollinations.ai).',
+    'pref-vocab-images-label': 'Show photos in the word list',
+    'pref-vocab-images-hint': 'When on, the English words you save are sent to a photo search (Pexels). Our own server relays the request, so Pexels never sees your device.',
     'error-ai-quota': "You've reached today's AI limit. See you tomorrow!",
     'error-tts': "Couldn't play the audio",
     'error-srs': "Couldn't save your progress: ",
@@ -453,7 +469,7 @@ const TRANSLATIONS = {
     'solo-used-vocab': 'You used these words from your list: {words}',
     'solo-next-title': 'Focus for next time', 'solo-show-transcript': 'Show full transcript',
     'solo-report-close': 'Home',
-    'warn-vocab-no-image-column': 'The illustration column is missing, so the word was saved without one',
+    'warn-vocab-no-image-column': 'The photo column is missing, so the word was saved without one',
     'solo-list-empty': 'No solo sessions yet',
     'solo-list-sessions': 'Sessions', 'solo-list-total': 'Total',
     'solo-list-no-report': 'no report',
@@ -617,7 +633,7 @@ function collectPreferenceForm(prefix) {
   };
 }
 
-// イラスト表示は端末ごとの設定なのでprofilesには入れず、ここで保存する
+// 写真の表示は端末ごとの設定なのでprofilesには入れず、ここで保存する
 function saveVocabImagePref(prefix) {
   const el = document.getElementById(`${prefix}-vocab-images`);
   if (el) setVocabImagesEnabled(el.checked);
@@ -1937,42 +1953,142 @@ async function saveEntryEdit() {
 }
 
 // ── Vocab ─────────────────────────────────────────────────────────────────
-function _hashSeed(str) {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
-  return h;
-}
-// 単語カードのイラスト生成は第三者サービス（Pollinations.ai）に英単語を送る。
+// 単語カードの写真は Pexels の検索結果を使う。APIキーをブラウザに置けないので
+// Worker が中継し、語ごとに KV へキャッシュする（worker/src/index.js）。
+//
+// 以前は生成AI（Pollinations）に1枚ずつ描かせていた。やめた理由は2つ。
+//   1. grateful や reluctant のような抽象語が絵にならなかった。抽象語ほど
+//      ストックフォトが人の表情や場面でタグ付けして持っているので検索が強い
+//   2. 行ごとに「1枚描いてくれ」を投げていた。単語帳は最大2000行あるので、
+//      スクロールするたびに無料の生成サービスへ生成要求が飛んでいた
+//
 // 表示するかどうかは端末ごとの設定としてlocalStorageに持つ（既定はオン）。
 // profilesテーブルに列を足すと手動マイグレーションが必要になるため。
 function vocabImagesEnabled() { return LS.get('vocabImages') !== '0'; }
 function setVocabImagesEnabled(on) { LS.set('vocabImages', on ? '1' : '0'); }
 
-function vocabImageUrl(en) {
-  if (!vocabImagesEnabled()) return '';
-  const prompt = encodeURIComponent(`simple flat illustration of ${en}, minimal, white background, flashcard style`);
-  const seed = _hashSeed(en.toLowerCase().trim());
-  return `https://image.pollinations.ai/prompt/${prompt}?width=256&height=256&seed=${seed}&nologo=true`;
+// image_url は3つの状態を持つ。列を増やさずに「意図的に写真なし」を表すため。
+//   null … まだ探していない（自動で探す対象）
+//   ''   … 利用者が「写真を外す」を選んだ（探し直さない）
+//   URL  … 選ばれた写真。image_credit に撮影者クレジットが入る
+function needsVocabPhoto(v) { return !!v && v.image_url == null; }
+
+const PHOTO_WORDS_PER_REQUEST = 20;   // Worker側の MAX_PHOTO_WORDS と揃える
+
+// この語はもう探した、という記録。見つからなかった語を描画ごとに
+// 探し直して無限に往復するのを防ぐ（リロードすればまた探す）。
+const _photoTried = new Set();
+
+// Workerへ渡す検索語。英単語そのままで引く（AIは使わない）。
+// Worker側でも同じ条件で弾くが、無駄な往復を減らすため手前でも揃えておく。
+function photoQuery(en) {
+  const w = String(en || '').trim().toLowerCase();
+  if (!w || w.length > 40) return '';
+  return /^[a-z][a-z0-9 '-]*$/.test(w) ? w : '';
+}
+
+// Workerの応答をそのまま信じない。表示とクレジットに使う4つだけ取り出す。
+function photoCandidate(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const https = v => (typeof v === 'string' && v.startsWith('https://') ? v : '');
+  const small = https(raw.small), large = https(raw.large);
+  if (!small || !large) return null;
+  return { name: String(raw.name || '').slice(0, 80), page: https(raw.page), small, large };
+}
+
+function photoPatch(c) {
+  return {
+    image_url: c.small,
+    image_credit: { name: c.name, page: c.page, large: c.large, source: 'pexels' },
+  };
+}
+
+// 写真は飾りなので、失敗しても例外を投げずに空で返す。
+// 呼び出し側（単語の保存）を巻き添えにしない。
+async function fetchVocabPhotos(words) {
+  const out = new Map();
+  if (!vocabImagesEnabled()) return out;
+  const list = [...new Set((words || []).map(photoQuery).filter(Boolean))]
+    .slice(0, PHOTO_WORDS_PER_REQUEST);
+  if (!list.length) return out;
+  try {
+    const data = await _postWorker({ action: 'photo', words: list }, 12000);
+    for (const [word, raw] of Object.entries((data && data.photos) || {})) {
+      const candidates = (Array.isArray(raw) ? raw : []).map(photoCandidate).filter(Boolean);
+      if (candidates.length) out.set(word, candidates);
+    }
+  } catch (e) {
+    console.warn('写真の取得に失敗しました（単語の記録には影響しません）', e);
+  }
+  return out;
+}
+
+// 保存済みの行に写真を当てる。単語はもう保存されているので、
+// ここで失敗しても記録は失われない。戻り値は更新できた件数。
+async function attachVocabPhotos(rows) {
+  const targets = (rows || []).filter(r => r && photoQuery(r.en));
+  if (!targets.length) return 0;
+  // 取得の成否にかかわらず「探した」と記録する。失敗を無限に繰り返さないため。
+  targets.forEach(r => _photoTried.add(photoQuery(r.en)));
+
+  const photos = await fetchVocabPhotos(targets.map(r => r.en));
+  if (!photos.size) return 0;
+
+  let updated = 0;
+  for (const row of targets) {
+    const candidates = photos.get(photoQuery(row.en));
+    if (!candidates) continue;
+    // 挿入直後は id が手元に無いので、その場合は en で引く（RLSで自分の行だけ）
+    const q = sb.from('vocab').update(photoPatch(candidates[0]));
+    const { error } = row.id ? await q.eq('id', row.id) : await q.eq('en', row.en);
+    if (error) {
+      if (isMissingImageColumn(error)) { warnMissingImageColumn(); return updated; }
+      console.warn('写真の保存に失敗しました', error);
+      return updated;
+    }
+    updated++;
+  }
+  return updated;
+}
+
+// 写真の取得は最長12秒かかるので、単語の保存を待たせない。
+// 取れたら静かに差し替える。テストから待てるように最後の処理を保持しておく。
+let _vocabPhotoWork = Promise.resolve(0);
+function queueVocabPhotos(rows) {
+  _vocabPhotoWork = attachVocabPhotos(rows)
+    .then(n => (n ? renderVocab().then(() => n) : n))
+    .catch(e => { console.warn('写真の付与に失敗しました', e); return 0; });
+  return _vocabPhotoWork;
 }
 
 
 // ── 単語の書き込み ────────────────────────────────────────────────────────
-// 単語カードのイラストは飾りであって、単語そのものの記録を止めてよい理由にはならない。
-// ところが image_url 列が未作成の環境（Task/add-vocab-image-column.sql 未適用）では
-// PostgREST が挿入を丸ごと拒否し、単語の追加だけでなく日記の保存まで巻き添えで失敗する。
-// 列が無いと分かったらイラストを諦めて記録だけ通す。
+// 単語カードの写真は飾りであって、単語そのものの記録を止めてよい理由にはならない。
+// ところが画像用の列が未作成の環境では PostgREST が挿入を丸ごと拒否し、
+// 単語の追加だけでなく日記の保存まで巻き添えで失敗する。
+// 列が無いと分かったら写真を諦めて記録だけ通す。
 let _vocabImageColumnMissing = false;
+const VOCAB_IMAGE_COLUMNS = ['image_url', 'image_credit'];
 
 // PostgREST はスキーマキャッシュに無い列を PGRST204 で返す
 function isMissingImageColumn(error) {
   if (!error) return false;
   const msg = String(error.message || '');
-  return (error.code === 'PGRST204' || /schema cache/i.test(msg)) && msg.includes('image_url');
+  if (error.code !== 'PGRST204' && !/schema cache/i.test(msg)) return false;
+  return VOCAB_IMAGE_COLUMNS.some(col => msg.includes(col));
+}
+
+// 一度しか出さない。毎回出すと記録のたびに警告が出て鬱陶しい。
+function warnMissingImageColumn() {
+  if (warnMissingImageColumn._warned) return;
+  warnMissingImageColumn._warned = true;
+  _vocabImageColumnMissing = true;
+  showToast(t('warn-vocab-no-image-column'), 'warn');
 }
 
 // 挿入・更新に渡す1行分のオブジェクトを組み立てる。
-// イラストが無い（設定でオフ／列が無い）ときは image_url のキー自体を送らない。
-// 空文字を入れるよりNULLのままのほうが素直。
+// 写真は保存後に別便で当てるので、ここでは画像の列を一切送らない。
+// こうしておくと、単語の追加と日記の保存が画像の列に依存しなくなる。
 function vocabRow(word, { includeDefaults = false } = {}) {
   const row = { en: word.en, jp: word.jp, note: word.note || '' };
   if (includeDefaults) {
@@ -1980,34 +2096,35 @@ function vocabRow(word, { includeDefaults = false } = {}) {
     row.wrong = 0;
     row.user_id = currentUserId;
   }
-  if (!_vocabImageColumnMissing) {
-    const url = vocabImageUrl(word.en);
-    if (url) row.image_url = url;
-  }
   return row;
 }
 
-// image_url 列が無い環境では、その列を外して1回だけやり直す。
+// 画像の列が無い環境では、その列を外して1回だけやり直す。
 // 成功したらセッション中は覚えておき、以降は最初から送らない。
 async function writeVocab(run, rows) {
   const { error } = await run(rows);
   if (!error) return { ok: true };
   if (!isMissingImageColumn(error)) return { ok: false, error };
 
-  _vocabImageColumnMissing = true;
   const stripped = rows.map(r => {
     const copy = { ...r };
-    delete copy.image_url;
+    VOCAB_IMAGE_COLUMNS.forEach(col => { delete copy[col]; });
     return copy;
   });
   const retry = await run(stripped);
   if (retry.error) return { ok: false, error: retry.error };
-  // 一度しか出さない。毎回出すと記録のたびに警告が出て鬱陶しい。
-  if (!writeVocab._warned) {
-    writeVocab._warned = true;
-    showToast(t('warn-vocab-no-image-column'), 'warn');
-  }
+  warnMissingImageColumn();
   return { ok: true };
+}
+
+// 写真だけを更新する。writeVocab は画像の列を外して再試行する関数なので、
+// 画像しか入っていない更新には使えない（外すと空の更新になってしまう）。
+async function savePhotoPatch(id, patch) {
+  const { error } = await sb.from('vocab').update(patch).eq('id', id);
+  if (!error) return true;
+  if (isMissingImageColumn(error)) { warnMissingImageColumn(); return false; }
+  showToast(t('error-vocab') + error.message, 'error');
+  return false;
 }
 
 async function addVocab() {
@@ -2023,6 +2140,7 @@ async function addVocab() {
   document.getElementById('v-note').value = '';
   invalidateQuiz();
   await renderVocab();
+  queueVocabPhotos([{ en }]);
 }
 
 // 複数語をまとめて単語帳に入れる。既存の語と、同じバッチ内の重複を除いてから挿入する。
@@ -2050,6 +2168,8 @@ async function addVocabBatch(words) {
   if (!res.ok) { showToast(t('error-vocab') + res.error.message, 'error'); return []; }
 
   invalidateQuiz();
+  // 写真は待たない。日記の保存を最長12秒も止めてしまうため。
+  queueVocabPhotos(toAdd);
   return toAdd;
 }
 async function deleteVocab(id) {
@@ -2078,6 +2198,18 @@ async function renderVocab() {
   allVocab = data || [];
   editingVocabId = null;
   filterAndRenderVocab();
+  backfillVocabPhotos();
+}
+
+// 写真がまだ無い行を、1回の描画につき1リクエストぶんだけ埋める。
+// 探した語は _photoTried に入るので、見つからなくても描画ごとに探し直さない。
+// 20語を超える場合は、埋まるたびの再描画で次の20語に進んで自然に収束する。
+function backfillVocabPhotos() {
+  if (!vocabImagesEnabled() || _vocabImageColumnMissing) return;
+  const pending = allVocab
+    .filter(v => needsVocabPhoto(v) && !_photoTried.has(photoQuery(v.en)))
+    .slice(0, PHOTO_WORDS_PER_REQUEST);
+  if (pending.length) queueVocabPhotos(pending);
 }
 
 function startEditVocab(id) { editingVocabId = id; filterAndRenderVocab(); }
@@ -2087,8 +2219,15 @@ async function saveEditVocab(id) {
   const jp   = document.getElementById(`ve-jp-${id}`).value.trim();
   const note = document.getElementById(`ve-note-${id}`).value.trim();
   if (!en || !jp) { showToast(t('alert-vocab-fill'), 'warn'); return; }
-  const res = await writeVocab(rows => sb.from('vocab').update(rows[0]).eq('id', id),
-    [vocabRow({ en, jp, note })]);
+  const patch = vocabRow({ en, jp, note });
+  // 単語そのものが変わったら、前の単語で選んだ写真は合わないので探し直す
+  const prev = allVocab.find(v => v.id === id);
+  const enChanged = prev && String(prev.en || '').toLowerCase() !== en.toLowerCase();
+  if (enChanged && !_vocabImageColumnMissing) {
+    patch.image_url = null;
+    patch.image_credit = null;
+  }
+  const res = await writeVocab(rows => sb.from('vocab').update(rows[0]).eq('id', id), [patch]);
   if (!res.ok) { showToast(t('error-vocab') + res.error.message, 'error'); return; }
   editingVocabId = null;
   invalidateQuiz();
@@ -2125,7 +2264,7 @@ function filterAndRenderVocab() {
       return `<div class="vocab-row vocab-row-editing">
         <input type="text" class="input" id="ve-en-${v.id}" value="${escapeHtml(v.en)}" />
         <input type="text" class="input" id="ve-jp-${v.id}" value="${escapeHtml(v.jp)}" />
-        <input type="text" class="input" id="ve-note-${v.id}" value="${escapeHtml(v.note||'')}" />
+        <textarea class="input" id="ve-note-${v.id}" rows="2">${escapeHtml(v.note||'')}</textarea>
         <button class="icon-btn" onclick="saveEditVocab(${v.id})" title="${escapeHtml(t('btn-save'))}" aria-label="${escapeHtml(t('btn-save'))}">💾</button>
         <button class="icon-btn" onclick="cancelEditVocab()" title="${escapeHtml(t('btn-cancel'))}" aria-label="${escapeHtml(t('btn-cancel'))}">✕</button>
       </div>`;
@@ -2134,12 +2273,12 @@ function filterAndRenderVocab() {
     const rate  = total ? Math.round(v.correct/total*100) : null;
     const cls   = rate===null ? 'rate-new' : rate>=70 ? 'rate-ok' : 'rate-ng';
     // 設定がオフなら保存済みのURLも読みに行かない（第三者へのリクエストを出さない）
-    const imgSrc = vocabImagesEnabled() ? (v.image_url || vocabImageUrl(v.en)) : '';
+    const imgSrc = vocabImagesEnabled() ? (v.image_url || '') : '';
     // 記憶の育ち具合。.vocab-rowはflex-wrapで、伸びるのは3つのテキストセルだけなので
     // flex-shrink:0 の要素を足しても既存レイアウトは潰れない。
     const stageTitle = `${t('stage-' + srsStageKey(v.srs_stage))} ・ ${t('review-next-label')} ${nextReviewLabel(v)}`;
     return `<div class="vocab-row${isWeakWord(v) ? ' vocab-row-weak' : ''}">
-      ${imgSrc ? `<img class="v-thumb" src="${escapeHtml(imgSrc)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'" />` : ''}
+      ${vocabThumb(v, imgSrc)}
       <div class="v-en">${escapeHtml(v.en)}</div>
       <div class="v-jp">${escapeHtml(v.jp)}</div>
       <div class="v-note">${escapeHtml(v.note||'')}</div>
@@ -2149,6 +2288,94 @@ function filterAndRenderVocab() {
       <button class="icon-btn red" onclick="deleteVocab(${v.id})" title="${escapeHtml(t('btn-delete'))}" aria-label="${escapeHtml(t('btn-delete'))} ${escapeHtml(v.en)}">✕</button>
     </div>`;
   }).join('');
+}
+
+// サムネイル。.vocab-row はモバイルで既に7要素あって余裕が無いので、
+// ボタンを足すのではなく、元からあるサムネイル自体をタップ先にする。
+// 写真が無い行は頭文字のタイルを出す（第三者へのリクエストは発生しない）。
+function vocabThumb(v, imgSrc) {
+  if (!vocabImagesEnabled()) return '';
+  const label = `${t('aria-vocab-photo')} ${v.en}`;
+  const initial = String(v.en || '?').trim().slice(0, 1).toUpperCase();
+  const img = imgSrc
+    ? `<img class="v-thumb" src="${escapeHtml(imgSrc)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'" />`
+    : '';
+  return `<button class="v-thumb-btn" onclick="openVocabPhoto(${v.id})" `
+    + `title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">`
+    + `<span class="v-thumb-fallback" aria-hidden="true">${escapeHtml(initial)}</span>${img}</button>`;
+}
+
+// ── 写真の選び直し ────────────────────────────────────────────────────────
+// Pexelsの規約で撮影者名とPexelsへのリンクの表示が必要なので、
+// 一覧の52pxサムネイルではなくこのモーダルでクレジットを出す。
+let _photoPick = null;   // { id, en, candidates, index }
+
+async function openVocabPhoto(id) {
+  const v = allVocab.find(x => x.id === id);
+  if (!v) return;
+  _photoPick = { id, en: v.en, candidates: [], index: -1 };
+  renderVocabPhotoModal({ loading: true, row: v });
+  openModal('vocab-photo-modal');
+
+  if (!vocabImagesEnabled()) { renderVocabPhotoModal({ message: t('photo-off'), row: v }); return; }
+
+  const photos = await fetchVocabPhotos([v.en]);
+  // 待っている間に閉じられた／別の語を開いたら、古い結果を描かない
+  if (!_photoPick || _photoPick.id !== id) return;
+  const candidates = photos.get(photoQuery(v.en)) || [];
+  _photoPick.candidates = candidates;
+  // いま表示している写真が候補の何番目かを覚える。
+  // そうしないと「別の写真にする」が同じ写真を出してしまう。
+  _photoPick.index = candidates.findIndex(c => c.small === (v.image_url || ''));
+  renderVocabPhotoModal({ row: v, message: candidates.length ? '' : t('photo-none') });
+}
+
+async function cycleVocabPhoto() {
+  const p = _photoPick;
+  if (!p || !p.candidates.length) return;
+  p.index = (p.index + 1) % p.candidates.length;
+  const patch = photoPatch(p.candidates[p.index]);
+  if (!await savePhotoPatch(p.id, patch)) return;
+  renderVocabPhotoModal({ row: { en: p.en, ...patch } });
+  await renderVocab();
+}
+
+async function clearVocabPhoto() {
+  const p = _photoPick;
+  if (!p) return;
+  // 空文字は「利用者が外した」の意味。nullに戻すと自動取得が拾い直してしまう。
+  if (!await savePhotoPatch(p.id, { image_url: '', image_credit: null })) return;
+  _photoPick = null;
+  closeModal('vocab-photo-modal');
+  showToast(t('toast-photo-cleared'));
+  await renderVocab();
+}
+
+function renderVocabPhotoModal({ row = null, loading = false, message = '' } = {}) {
+  const p = _photoPick;
+  const en = (row && row.en) || (p && p.en) || '';
+  document.getElementById('vocab-photo-word').textContent = en;
+
+  const credit = (row && row.image_credit) || null;
+  const large = (credit && credit.large) || (row && row.image_url) || '';
+  document.getElementById('vocab-photo-frame').innerHTML = large
+    ? `<img class="vocab-photo-img" src="${escapeHtml(large)}" alt="" referrerpolicy="no-referrer" />`
+    : `<div class="vocab-photo-empty" aria-hidden="true">${escapeHtml(String(en || '?').slice(0, 1).toUpperCase())}</div>`;
+
+  const creditEl = document.getElementById('vocab-photo-credit');
+  if (loading) {
+    creditEl.textContent = t('photo-loading');
+  } else if (credit && credit.name) {
+    // 撮影者名はPexels由来の外部文字列。属性にも本文にもエスケープして入れる。
+    const page = credit.page || 'https://www.pexels.com/';
+    creditEl.innerHTML = `${escapeHtml(t('photo-credit'))} `
+      + `<a href="${escapeHtml(page)}" target="_blank" rel="noopener noreferrer">${escapeHtml(credit.name)}</a>`
+      + ` / <a href="https://www.pexels.com/" target="_blank" rel="noopener noreferrer">Pexels</a>`;
+  } else {
+    creditEl.textContent = message;
+  }
+
+  document.getElementById('vocab-photo-next').disabled = !(p && p.candidates.length);
 }
 
 // 単語帳ヘッダーの「🌸12 🌷8 🌿15 🌱20 ／ 苦手5語」チップ。
@@ -2970,7 +3197,10 @@ async function applySituationalSrsUpdate(data) {
 // opts.maxOutputTokens: 長いJSONを返させる呼び出しで指定する（Worker側で4096までクランプ）
 // opts.system / opts.contents: マルチターン会話用（Workerが両形式を受ける）
 function callGemini(prompt, schema, timeoutMs = 20000, opts = {}) {
-  return _postWorker({ prompt, schema, ...opts }, timeoutMs);
+  // _postWorker は応答のJSONをそのまま返す（写真検索はGeminiの形で返らないため）。
+  // Geminiのテキストを取り出すのはこちらの役目。
+  return _postWorker({ prompt, schema, ...opts }, timeoutMs)
+    .then(data => data?.candidates?.[0]?.content?.parts?.[0]?.text || '');
 }
 
 async function _postWorker(payload, timeoutMs) {
@@ -3004,7 +3234,7 @@ async function _postWorker(payload, timeoutMs) {
     if (res.status === 403) throw new Error(t('error-ai-quota'));
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    return data;
   }
 }
 

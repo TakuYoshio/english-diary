@@ -23,6 +23,8 @@ const cases = [
   ['主ボタン 白 / accent-on-white-text',   '#FFFFFF', tok('accent-on-white-text'), 4.5],
   ['危険ボタン 白 / danger-on-white-text', '#FFFFFF', tok('danger-on-white-text'), 4.5],
   ['警告文 --warn-text / warn-light',  tok('warn-text'), tok('warn-light'), 4.5],
+  // 写真が無い単語カードの頭文字タイル
+  ['頭文字 --text / accent-light',     tok('text'), tok('accent-light'), 4.5],
 ];
 
 let failed = 0;

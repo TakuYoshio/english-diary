@@ -1,6 +1,7 @@
 'use strict';
 
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent';
+const PEXELS_URL = 'https://api.pexels.com/v1/search';
 
 // ── 上限値 ────────────────────────────────────────────────────────────────
 // 1リクエストあたり
@@ -13,6 +14,18 @@ const DEFAULT_OUTPUT_TOKENS = 2048;
 // 1ユーザーあたり（Gemini無料枠を1人で使い切れないようにする）
 const DAILY_LIMIT = 80;
 const BURST_LIMIT = 10;             // 直近1分あたり
+
+// 写真検索（Pexelsの無料枠は200リクエスト/時・20,000/月）
+const MAX_PHOTO_WORDS = 20;         // 1リクエストで引ける語数
+const PHOTO_CANDIDATES = 5;         // 1語あたりの候補数
+const PHOTO_CACHE_TTL = 30 * 86400; // KVに置く期間（秒）
+const PHOTO_DAILY_LIMIT = 200;
+const PHOTO_BURST_LIMIT = 20;
+
+// レート制限のカウンタはAI用と写真用で分ける。写真検索はAIではないので、
+// Geminiを守るための1日80回を食わせてはいけない。
+const AI_LIMITS    = { day: 'rl',  min: 'rlm',  daily: DAILY_LIMIT,       burst: BURST_LIMIT };
+const PHOTO_LIMITS = { day: 'rlp', min: 'rlpm', daily: PHOTO_DAILY_LIMIT, burst: PHOTO_BURST_LIMIT };
 
 function corsHeaders(origin, allowedOrigins) {
   const headers = {
@@ -68,12 +81,12 @@ async function authenticate(request, env) {
 // KVは結果整合なので厳密なカウントにはならないが、「1人が無料枠を
 // 使い切るのを防ぐ」用途には十分。RATE_LIMITがバインドされていない場合は
 // 制限なしで動作する（ローカル検証や移行中に止まらないようにするため）。
-async function checkRateLimit(env, userId) {
+async function checkRateLimit(env, userId, limits = AI_LIMITS) {
   if (!env.RATE_LIMIT) return { ok: true };
 
   const now = new Date();
-  const dayKey = `rl:${userId}:${now.toISOString().slice(0, 10)}`;
-  const minKey = `rlm:${userId}:${Math.floor(now.getTime() / 60000)}`;
+  const dayKey = `${limits.day}:${userId}:${now.toISOString().slice(0, 10)}`;
+  const minKey = `${limits.min}:${userId}:${Math.floor(now.getTime() / 60000)}`;
 
   const [dayRaw, minRaw] = await Promise.all([
     env.RATE_LIMIT.get(dayKey),
@@ -82,14 +95,98 @@ async function checkRateLimit(env, userId) {
   const day = Number(dayRaw) || 0;
   const min = Number(minRaw) || 0;
 
-  if (day >= DAILY_LIMIT) return { ok: false, reason: 'DAILY_LIMIT', limit: DAILY_LIMIT };
-  if (min >= BURST_LIMIT) return { ok: false, reason: 'BURST_LIMIT', limit: BURST_LIMIT };
+  if (day >= limits.daily) return { ok: false, reason: 'DAILY_LIMIT', limit: limits.daily };
+  if (min >= limits.burst) return { ok: false, reason: 'BURST_LIMIT', limit: limits.burst };
 
   await Promise.all([
     env.RATE_LIMIT.put(dayKey, String(day + 1), { expirationTtl: 172800 }),
     env.RATE_LIMIT.put(minKey, String(min + 1), { expirationTtl: 120 }),
   ]);
-  return { ok: true, used: day + 1, limit: DAILY_LIMIT };
+  return { ok: true, used: day + 1, limit: limits.daily };
+}
+
+// ── 写真検索（Pexels） ────────────────────────────────────────────────────
+// 単語カードの画像は、以前は生成AIに描かせていたが抽象語で絵にならず、
+// 行ごとに生成を頼むので遅かった。既にある写真を検索して使う。
+// APIキーをブラウザに置けないのでここで中継する。
+
+// 英単語以外は弾く。Workerを任意のPexels検索プロキシにしないため。
+function normalizePhotoWord(raw) {
+  if (typeof raw !== 'string') return '';
+  const w = raw.trim().toLowerCase();
+  if (!w || w.length > 40) return '';
+  if (!/^[a-z][a-z0-9 '-]*$/.test(w)) return '';
+  return w;
+}
+
+// Pexelsの応答から、表示とクレジットに必要な4つだけ取り出す。
+// 余計なキーをそのまま流すと、クライアント側で何が来るか分からなくなる。
+function normalizePexelsPhotos(data) {
+  const photos = Array.isArray(data && data.photos) ? data.photos : [];
+  const httpsOnly = (v) => (typeof v === 'string' && v.startsWith('https://') ? v : '');
+  return photos
+    .slice(0, PHOTO_CANDIDATES)
+    .map((p) => ({
+      name: String((p && p.photographer) || '').slice(0, 80),
+      page: httpsOnly(p && p.url),
+      small: httpsOnly(p && p.src && p.src.tiny),
+      large: httpsOnly(p && p.src && p.src.medium),
+    }))
+    .filter((p) => p.small && p.large);
+}
+
+async function searchPhoto(env, word) {
+  const key = `ph:${word}`;
+  if (env.RATE_LIMIT) {
+    const cached = await env.RATE_LIMIT.get(key);
+    if (cached) {
+      try { return JSON.parse(cached); } catch { /* 壊れていたら引き直す */ }
+    }
+  }
+
+  let res;
+  try {
+    const url = `${PEXELS_URL}?query=${encodeURIComponent(word)}`
+      + `&per_page=${PHOTO_CANDIDATES}&orientation=square`;
+    res = await fetch(url, { headers: { Authorization: env.PEXELS_API_KEY } });
+  } catch {
+    return null;   // 一時的な失敗はキャッシュしない
+  }
+  if (!res.ok) return null;
+
+  let data;
+  try { data = await res.json(); } catch { return null; }
+
+  const list = normalizePexelsPhotos(data);
+  // 見つからなかった語も空配列で覚える。同じ語を何度も探しに行かないため。
+  if (env.RATE_LIMIT) {
+    await env.RATE_LIMIT.put(key, JSON.stringify(list), { expirationTtl: PHOTO_CACHE_TTL });
+  }
+  return list;
+}
+
+async function handlePhoto(payload, env, cors) {
+  const raw = Array.isArray(payload.words) ? payload.words : [];
+  if (raw.length > MAX_PHOTO_WORDS) {
+    return fail(`Too many words (max ${MAX_PHOTO_WORDS})`, 400, cors);
+  }
+
+  const words = [];
+  for (const item of raw) {
+    const w = normalizePhotoWord(item);
+    if (w && !words.includes(w)) words.push(w);
+  }
+
+  const photos = {};
+  // キーが未設定でもエラーにしない。写真は飾りなので、
+  // PEXELS_API_KEY を入れ忘れたWorkerでアプリが壊れないようにする。
+  if (!words.length || !env.PEXELS_API_KEY) return json({ photos }, 200, cors);
+
+  const results = await Promise.all(words.map((w) => searchPhoto(env, w)));
+  words.forEach((w, i) => {
+    if (results[i]) photos[w] = results[i];
+  });
+  return json({ photos }, 200, cors);
 }
 
 // ── 入力の正規化と検証 ────────────────────────────────────────────────────
@@ -154,19 +251,24 @@ export default {
     const user = await authenticate(request, env);
     if (!user) return fail('Unauthorized', 401, cors);
 
-    const rate = await checkRateLimit(env, user.id);
-    if (!rate.ok) {
-      // 429で返すとクライアント側の再試行処理が2.5秒後にもう一度投げてしまうため、
-      // 利用上限は403で返して「再試行しても無駄」と区別できるようにする。
-      return fail('AI usage limit reached', 403, cors, { code: rate.reason, limit: rate.limit });
-    }
-
+    // 本文を読むのはレート制限より先。どちらのカウンタを使うかが
+    // action で変わるため。壊れた本文で利用枠を減らさない利点もある。
     let payload;
     try {
       payload = await request.json();
     } catch {
       return fail('Invalid JSON body', 400, cors);
     }
+
+    const limits = payload && payload.action === 'photo' ? PHOTO_LIMITS : AI_LIMITS;
+    const rate = await checkRateLimit(env, user.id, limits);
+    if (!rate.ok) {
+      // 429で返すとクライアント側の再試行処理が2.5秒後にもう一度投げてしまうため、
+      // 利用上限は403で返して「再試行しても無駄」と区別できるようにする。
+      return fail('AI usage limit reached', 403, cors, { code: rate.reason, limit: rate.limit });
+    }
+
+    if (limits === PHOTO_LIMITS) return handlePhoto(payload, env, cors);
 
     const built = buildContents(payload);
     if (built.error) return fail(built.error, 400, cors);

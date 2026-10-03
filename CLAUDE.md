@@ -53,14 +53,19 @@ npm test         # Workerのユニットテスト + 実ブラウザのスモー�
 - **`prefers-reduced-motion`。** 新しいアニメーションは既存のガード
   （`style.css` に5箇所）に必ず追記する。
 - **運用費ゼロ。** すべて無料枠で動かす。ローカル計算で済むものにAIを使わない。
+- **一覧の行ごとに外部へ重い要求を出さない。** 単語帳は最大2000行あり、
+  遅延読み込みでも行の数だけリクエストが出る。以前、行ごとに画像生成を
+  頼んでいて遅く、無料サービスに負荷もかけていた（いまはPexelsの検索結果を
+  `image_url` に保存して、CDNの既存画像を読むだけにしている）。
 - **日付は `todayISO()` を使う。** `toISOString()` はUTCに変換するため、
   JSTでは朝9時前の日記が前日になる。
 - **HTMLに差し込む値は `escapeHtml()` を通す。** 属性値も同様。
 - **Supabaseの `{ data, error }` の `error` を捨てない。** 握り潰すと
   読み込み失敗が「データが空」として表示される。
-- **飾りのための列で、本体の記録を落とさない。** 単語の `image_url`（イラスト）は
-  列が無ければ外して保存を通す（`writeVocab`）。実際に、この列の未適用で
-  単語の追加と日記の保存が両方できなくなったことがある。
+- **飾りのための列で、本体の記録を落とさない。** 単語の写真用の列
+  （`image_url` / `image_credit`）は列が無ければ外して保存を通す（`writeVocab`）。
+  実際に、この列の未適用で単語の追加と日記の保存が両方できなくなったことがある。
+  いまは写真を保存後の別便で当てているので、単語の挿入自体がこの列を使わない。
 - **テストのスタブは本番と同じ厳しさで。** `test/supabase-stub.js` は
   テーブルごとの列を持っていて、知らない列を送ると PostgREST と同じ
   `PGRST204` を返す。緩いスタブは本番で落ちる書き込みを通してしまう。
@@ -96,8 +101,10 @@ npm test         # Workerのユニットテスト + 実ブラウザのスモー�
   既存テーブルに列を足さないので、運用中の環境では効かない
 - Worker のデプロイ: `cd worker && npx wrangler deploy`
 - KVネームスペースの作成: `npx wrangler kv namespace create RATE_LIMIT`
-  （IDを `worker/wrangler.toml` に貼る。未設定だとレート制限が無効）
+  （IDを `worker/wrangler.toml` に貼る。未設定だとレート制限と写真のキャッシュが無効）
 - `npx wrangler secret put GEMINI_API_KEY`
+- `npx wrangler secret put PEXELS_API_KEY`（単語カードの写真検索。
+  未設定でも単語の追加は通り、写真が付かないだけ。キーは https://www.pexels.com/api/ で取得）
 
 ## 今後の計画
 

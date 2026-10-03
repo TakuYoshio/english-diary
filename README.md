@@ -134,7 +134,8 @@ npm run verify    # 結線チェック → コントラスト → lint → テ�
 |---|---|---|
 | Supabase | 日記・単語帳・学習設定 | 保存（Row Level Securityで自分のデータのみアクセス可） |
 | Cloudflare Worker → Gemini | 日記本文・英訳・調べた単語・発音の認識結果 | AI添削・発音アドバイス |
-| Pollinations.ai | 単語帳に登録した**英単語**（URLに含む） | 単語カードのイラスト生成 |
+| Cloudflare Worker → Pexels | 単語帳に登録した**英単語**のみ | 単語カードの写真検索。ブラウザが話す相手はWorkerだけなので、Pexelsに端末の情報（IP・リファラ）は渡らない |
+| Pexels の画像CDN | 選ばれた写真の読み込み（`referrerpolicy="no-referrer"`） | 単語カードのサムネイル表示 |
 | ブラウザの音声認識 | マイク音声 | 発音チェック（Chrome/Safariの実装に依存し、サーバー処理の場合がある） |
 
 ---
@@ -147,4 +148,5 @@ npm run verify    # 結線チェック → コントラスト → lint → テ�
 | Supabase | 無料（500MB） |
 | Cloudflare Workers | 無料（1日10万リクエスト、KV 1日1000書き込み） |
 | Gemini API | 無料枠 |
+| Pexels API | 無料枠（200リクエスト/時・20,000/月。語ごとにWorkerのKVへ30日キャッシュ） |
 | **合計** | **¥0** |
