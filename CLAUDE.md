@@ -55,7 +55,7 @@ npm test         # Workerのユニットテスト + 実ブラウザのスモー�
 - **運用費ゼロ。** すべて無料枠で動かす。ローカル計算で済むものにAIを使わない。
 - **一覧の行ごとに外部へ重い要求を出さない。** 単語帳は最大2000行あり、
   遅延読み込みでも行の数だけリクエストが出る。以前、行ごとに画像生成を
-  頼んでいて遅く、無料サービスに負荷もかけていた（いまはPexelsの検索結果を
+  頼んでいて遅く、無料サービスに負荷もかけていた（いまはUnsplashの検索結果を
   `image_url` に保存して、CDNの既存画像を読むだけにしている）。
 - **日付は `todayISO()` を使う。** `toISOString()` はUTCに変換するため、
   JSTでは朝9時前の日記が前日になる。
@@ -66,6 +66,10 @@ npm test         # Workerのユニットテスト + 実ブラウザのスモー�
   （`image_url` / `image_credit`）は列が無ければ外して保存を通す（`writeVocab`）。
   実際に、この列の未適用で単語の追加と日記の保存が両方できなくなったことがある。
   いまは写真を保存後の別便で当てているので、単語の挿入自体がこの列を使わない。
+- **写真の規約を守る。** Unsplashは撮影者とUnsplashへのリンク（UTM付き）の表示と、
+  写真を実際に使うときの `download_location` への通知を求めている。
+  通知は `action: 'photo_used'` でまとめて出す（`notifyPhotosUsed`）。
+  クレジットの出し先は `PHOTO_SOURCES` から引くので、提供元を増やしても壊れない。
 - **テストのスタブは本番と同じ厳しさで。** `test/supabase-stub.js` は
   テーブルごとの列を持っていて、知らない列を送ると PostgREST と同じ
   `PGRST204` を返す。緩いスタブは本番で落ちる書き込みを通してしまう。
@@ -103,8 +107,9 @@ npm test         # Workerのユニットテスト + 実ブラウザのスモー�
 - KVネームスペースの作成: `npx wrangler kv namespace create RATE_LIMIT`
   （IDを `worker/wrangler.toml` に貼る。未設定だとレート制限と写真のキャッシュが無効）
 - `npx wrangler secret put GEMINI_API_KEY`
-- `npx wrangler secret put PEXELS_API_KEY`（単語カードの写真検索。
-  未設定でも単語の追加は通り、写真が付かないだけ。キーは https://www.pexels.com/api/ で取得）
+- `npx wrangler secret put UNSPLASH_ACCESS_KEY`（単語カードの写真検索。
+  未設定でも単語の追加は通り、写真が付かないだけ。
+  キーは https://unsplash.com/oauth/applications で取得）
 
 ## 今後の計画
 

@@ -89,7 +89,7 @@ const TRANSLATIONS = {
     'page-size-10': '10件', 'page-size-20': '20件', 'page-size-50': '50件',
     'toast-update-ready': '新しいバージョンがあります。次回起動時に更新されます',
     'pref-vocab-images-label': '単語帳に写真を表示する',
-    'pref-vocab-images-hint': 'オンにすると、登録した英単語が写真検索（Pexels）に送られます。中継は自前のサーバーが行うので、Pexelsに端末の情報は渡りません。',
+    'pref-vocab-images-hint': 'オンにすると、登録した英単語が写真検索（Unsplash）に送られます。中継は自前のサーバーが行うので、Unsplashに端末の情報は渡りません。',
     'error-ai-quota': '今日のAI利用が上限に達しました。また明日どうぞ',
     'error-tts': '音声を再生できませんでした',
     'error-srs': '学習記録を保存できませんでした: ',
@@ -345,7 +345,7 @@ const TRANSLATIONS = {
     'page-size-10': '10', 'page-size-20': '20', 'page-size-50': '50',
     'toast-update-ready': 'A new version is ready. It will apply next time you open the app',
     'pref-vocab-images-label': 'Show photos in the word list',
-    'pref-vocab-images-hint': 'When on, the English words you save are sent to a photo search (Pexels). Our own server relays the request, so Pexels never sees your device.',
+    'pref-vocab-images-hint': 'When on, the English words you save are sent to a photo search (Unsplash). Our own server relays the request, so Unsplash never sees your device.',
     'error-ai-quota': "You've reached today's AI limit. See you tomorrow!",
     'error-tts': "Couldn't play the audio",
     'error-srs': "Couldn't save your progress: ",
@@ -1953,7 +1953,7 @@ async function saveEntryEdit() {
 }
 
 // ── Vocab ─────────────────────────────────────────────────────────────────
-// 単語カードの写真は Pexels の検索結果を使う。APIキーをブラウザに置けないので
+// 単語カードの写真は Unsplash の検索結果を使う。APIキーをブラウザに置けないので
 // Worker が中継し、語ごとに KV へキャッシュする（worker/src/index.js）。
 //
 // 以前は生成AI（Pollinations）に1枚ずつ描かせていた。やめた理由は2つ。
@@ -1975,6 +1975,12 @@ function needsVocabPhoto(v) { return !!v && v.image_url == null; }
 
 const PHOTO_WORDS_PER_REQUEST = 20;   // Worker側の MAX_PHOTO_WORDS と揃える
 
+// 写真の出所。規約でサービス名へのリンクを出す必要があるので、
+// 保存済みの行が指す出所から表示を決める（将来ほかを足しても壊れない）。
+const PHOTO_SOURCES = {
+  unsplash: { label: 'Unsplash', home: 'https://unsplash.com/?utm_source=english-diary&utm_medium=referral' },
+};
+
 // この語はもう探した、という記録。見つからなかった語を描画ごとに
 // 探し直して無限に往復するのを防ぐ（リロードすればまた探す）。
 const _photoTried = new Set();
@@ -1987,20 +1993,37 @@ function photoQuery(en) {
   return /^[a-z][a-z0-9 '-]*$/.test(w) ? w : '';
 }
 
-// Workerの応答をそのまま信じない。表示とクレジットに使う4つだけ取り出す。
+// Workerの応答をそのまま信じない。表示とクレジットに使うものだけ取り出す。
 function photoCandidate(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const https = v => (typeof v === 'string' && v.startsWith('https://') ? v : '');
   const small = https(raw.small), large = https(raw.large);
-  if (!small || !large) return null;
-  return { name: String(raw.name || '').slice(0, 80), page: https(raw.page), small, large };
+  const source = PHOTO_SOURCES[raw.source] ? raw.source : '';
+  if (!small || !large || !source) return null;
+  return {
+    name: String(raw.name || '').slice(0, 80),
+    page: https(raw.page),
+    small, large, source,
+    // 「写真を使った」通知のURL。保存はせず、使った瞬間にWorkerへ渡すだけ。
+    download: https(raw.download),
+  };
 }
 
+// 保存するのはクレジットの表示に必要なものだけ。download は持ち越さない。
 function photoPatch(c) {
   return {
     image_url: c.small,
-    image_credit: { name: c.name, page: c.page, large: c.large, source: 'pexels' },
+    image_credit: { name: c.name, page: c.page, large: c.large, source: c.source },
   };
+}
+
+// Unsplashの規約で、写真を実際に使うときは「使った」通知を出す必要がある。
+// 通知の失敗でアプリを止める理由は無いので、待たずに投げて捨てる。
+function notifyPhotosUsed(downloads) {
+  const list = [...new Set((downloads || []).filter(Boolean))].slice(0, PHOTO_WORDS_PER_REQUEST);
+  if (!list.length) return;
+  _postWorker({ action: 'photo_used', downloads: list }, 8000)
+    .catch(e => console.warn('写真の使用通知に失敗しました', e));
 }
 
 // 写真は飾りなので、失敗しても例外を投げずに空で返す。
@@ -2035,6 +2058,7 @@ async function attachVocabPhotos(rows) {
   if (!photos.size) return 0;
 
   let updated = 0;
+  const used = [];
   for (const row of targets) {
     const candidates = photos.get(photoQuery(row.en));
     if (!candidates) continue;
@@ -2042,12 +2066,15 @@ async function attachVocabPhotos(rows) {
     const q = sb.from('vocab').update(photoPatch(candidates[0]));
     const { error } = row.id ? await q.eq('id', row.id) : await q.eq('en', row.en);
     if (error) {
-      if (isMissingImageColumn(error)) { warnMissingImageColumn(); return updated; }
+      if (isMissingImageColumn(error)) { warnMissingImageColumn(); break; }
       console.warn('写真の保存に失敗しました', error);
-      return updated;
+      break;
     }
+    used.push(candidates[0].download);
     updated++;
   }
+  // 1語ずつ通知するとバースト上限に当たるので、まとめて1回で出す
+  notifyPhotosUsed(used);
   return updated;
 }
 
@@ -2306,7 +2333,7 @@ function vocabThumb(v, imgSrc) {
 }
 
 // ── 写真の選び直し ────────────────────────────────────────────────────────
-// Pexelsの規約で撮影者名とPexelsへのリンクの表示が必要なので、
+// Unsplashの規約で撮影者名とUnsplashへのリンクの表示が必要なので、
 // 一覧の52pxサムネイルではなくこのモーダルでクレジットを出す。
 let _photoPick = null;   // { id, en, candidates, index }
 
@@ -2334,8 +2361,10 @@ async function cycleVocabPhoto() {
   const p = _photoPick;
   if (!p || !p.candidates.length) return;
   p.index = (p.index + 1) % p.candidates.length;
-  const patch = photoPatch(p.candidates[p.index]);
+  const chosen = p.candidates[p.index];
+  const patch = photoPatch(chosen);
   if (!await savePhotoPatch(p.id, patch)) return;
+  notifyPhotosUsed([chosen.download]);
   renderVocabPhotoModal({ row: { en: p.en, ...patch } });
   await renderVocab();
 }
@@ -2366,11 +2395,12 @@ function renderVocabPhotoModal({ row = null, loading = false, message = '' } = {
   if (loading) {
     creditEl.textContent = t('photo-loading');
   } else if (credit && credit.name) {
-    // 撮影者名はPexels由来の外部文字列。属性にも本文にもエスケープして入れる。
-    const page = credit.page || 'https://www.pexels.com/';
+    // 撮影者名は提供元由来の外部文字列。属性にも本文にもエスケープして入れる。
+    const src = PHOTO_SOURCES[credit.source] || PHOTO_SOURCES.unsplash;
+    const page = credit.page || src.home;
     creditEl.innerHTML = `${escapeHtml(t('photo-credit'))} `
       + `<a href="${escapeHtml(page)}" target="_blank" rel="noopener noreferrer">${escapeHtml(credit.name)}</a>`
-      + ` / <a href="https://www.pexels.com/" target="_blank" rel="noopener noreferrer">Pexels</a>`;
+      + ` / <a href="${escapeHtml(src.home)}" target="_blank" rel="noopener noreferrer">${escapeHtml(src.label)}</a>`;
   } else {
     creditEl.textContent = message;
   }

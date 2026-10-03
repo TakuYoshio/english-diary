@@ -5,19 +5,25 @@ import worker from '../worker/src/index.js';
 
 const ORIGIN = 'https://takuyoshio.github.io';
 let geminiCalls = [];
-let pexelsCalls = [];
-let pexelsStatus = 200;
+let searchCalls = [];
+let downloadCalls = [];
+let unsplashStatus = 200;
 let authOk = true;
 
-// Pexelsの応答（余計なキーも混ぜて、Worker側が落とすことを確かめる）
-const pexelsBody = () => ({
-  photos: [
-    { id: 1, photographer: 'Jane Doe', photographer_id: 9, url: 'https://www.pexels.com/photo/1/',
-      src: { tiny: 'https://images.pexels.com/photos/1/t.jpg', medium: 'https://images.pexels.com/photos/1/m.jpg', original: 'https://images.pexels.com/photos/1/o.jpg' } },
-    { id: 2, photographer: 'John Roe', url: 'https://www.pexels.com/photo/2/',
-      src: { tiny: 'https://images.pexels.com/photos/2/t.jpg', medium: 'https://images.pexels.com/photos/2/m.jpg' } },
-    // srcが足りない候補は落とされるべき
-    { id: 3, photographer: 'Broken', url: 'https://www.pexels.com/photo/3/', src: {} },
+// Unsplashの応答（余計なキーも混ぜて、Worker側が落とすことを確かめる）
+const unsplashBody = () => ({
+  total: 3,
+  results: [
+    { id: 'aaa', likes: 12,
+      urls: { thumb: 'https://images.unsplash.com/1?w=200', small: 'https://images.unsplash.com/1?w=400', raw: 'https://images.unsplash.com/1' },
+      links: { html: 'https://unsplash.com/photos/aaa', download_location: 'https://api.unsplash.com/photos/aaa/download?ixid=xyz' },
+      user: { name: 'Jane Doe', username: 'jane', links: { html: 'https://unsplash.com/@jane' } } },
+    { id: 'bbb',
+      urls: { thumb: 'https://images.unsplash.com/2?w=200', small: 'https://images.unsplash.com/2?w=400' },
+      links: { html: 'https://unsplash.com/photos/bbb', download_location: 'https://evil.example/steal' },
+      user: { username: 'roe', links: { html: 'http://unsplash.com/@roe' } } },
+    // urlsが足りない候補は落とされるべき
+    { id: 'ccc', urls: {}, links: {}, user: { name: 'Broken' } },
   ],
 });
 
@@ -29,9 +35,13 @@ globalThis.fetch = async (url, init) => {
       ? new Response(JSON.stringify({ id: 'user-1', email: 'a@b.c' }), { status: 200 })
       : new Response('no', { status: 401 });
   }
-  if (u.includes('api.pexels.com')) {
-    pexelsCalls.push(u);
-    return new Response(JSON.stringify(pexelsBody()), { status: pexelsStatus });
+  if (u.includes('api.unsplash.com/search/photos')) {
+    searchCalls.push(u);
+    return new Response(JSON.stringify(unsplashBody()), { status: unsplashStatus });
+  }
+  if (u.includes('api.unsplash.com') && u.includes('/download')) {
+    downloadCalls.push(u);
+    return new Response('{}', { status: 200 });
   }
   if (u.includes('generativelanguage')) {
     geminiCalls.push(JSON.parse(init.body));
@@ -54,7 +64,7 @@ const baseEnv = () => ({
   SUPABASE_URL: 'https://sb.example.com',
   SUPABASE_ANON_KEY: 'anon',
   GEMINI_API_KEY: 'key',
-  PEXELS_API_KEY: 'pexels-key',
+  UNSPLASH_ACCESS_KEY: 'unsplash-key',
   RATE_LIMIT: makeKV(),
 });
 
@@ -166,17 +176,102 @@ test('KV未バインドでも動く（制限なしで素通し）', async () => 
   assert.equal(res.status, 200);
 });
 
-// ── 写真検索（Pexels中継） ────────────────────────────────────────────────
+// ── 写真検索（Unsplash中継） ──────────────────────────────────────────────
 
-test('写真検索は表示とクレジットに必要な4つだけ返す', async () => {
-  pexelsCalls = [];
+test('写真検索は表示とクレジットに必要なものだけ返す', async () => {
+  searchCalls = [];
   const res = await post({ action: 'photo', words: ['grateful'] });
   assert.equal(res.status, 200);
   const { photos } = await res.json();
-  assert.equal(photos.grateful.length, 2, 'srcが足りない候補は落とす');
-  assert.deepEqual(Object.keys(photos.grateful[0]).sort(), ['large', 'name', 'page', 'small']);
+  assert.equal(photos.grateful.length, 2, 'urlsが足りない候補は落とす');
+  assert.deepEqual(Object.keys(photos.grateful[0]).sort(),
+    ['download', 'large', 'name', 'page', 'small', 'source']);
   assert.equal(photos.grateful[0].name, 'Jane Doe');
-  assert.equal(photos.grateful[0].small, 'https://images.pexels.com/photos/1/t.jpg');
+  assert.equal(photos.grateful[0].small, 'https://images.unsplash.com/1?w=200');
+  assert.equal(photos.grateful[0].large, 'https://images.unsplash.com/1?w=400');
+  assert.equal(photos.grateful[0].source, 'unsplash');
+});
+
+test('撮影者リンクにUTMが付く（Unsplashの規約）', async () => {
+  const res = await post({ action: 'photo', words: ['grateful'] });
+  const { photos } = await res.json();
+  assert.equal(photos.grateful[0].page,
+    'https://unsplash.com/@jane?utm_source=english-diary&utm_medium=referral');
+});
+
+test('撮影者名が無ければユーザー名で代替する', async () => {
+  const res = await post({ action: 'photo', words: ['grateful'] });
+  const { photos } = await res.json();
+  assert.equal(photos.grateful[1].name, 'roe');
+});
+
+test('httpsでないプロフィールURLは空にする', async () => {
+  const res = await post({ action: 'photo', words: ['grateful'] });
+  const { photos } = await res.json();
+  assert.equal(photos.grateful[1].page, '', 'http:// のリンクを通してはいけない');
+});
+
+test('api.unsplash.com 以外のdownload_locationは捨てる', async () => {
+  const res = await post({ action: 'photo', words: ['grateful'] });
+  const { photos } = await res.json();
+  assert.equal(photos.grateful[1].download, '', '外部URLを使用通知先にしてはいけない');
+  assert.equal(photos.grateful[0].download, 'https://api.unsplash.com/photos/aaa/download?ixid=xyz');
+});
+
+test('検索リクエストにClient-IDとsquarishが乗る', async () => {
+  searchCalls = [];
+  await post({ action: 'photo', words: ['grateful'] });
+  assert.match(searchCalls[0], /query=grateful/);
+  assert.match(searchCalls[0], /orientation=squarish/);
+  assert.match(searchCalls[0], /per_page=5/);
+});
+
+// ── 写真の使用通知（Unsplashの規約） ──────────────────────────────────────
+
+test('使用通知はdownload_locationを叩く', async () => {
+  downloadCalls = [];
+  const res = await post({ action: 'photo_used',
+    downloads: ['https://api.unsplash.com/photos/aaa/download?ixid=xyz'] });
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).notified, 1);
+  assert.equal(downloadCalls.length, 1);
+});
+
+test('使用通知はapi.unsplash.com以外を叩かない（SSRFの防止）', async () => {
+  downloadCalls = [];
+  const res = await post({ action: 'photo_used', downloads: [
+    'https://evil.example/photos/x/download',
+    'http://api.unsplash.com/photos/x/download',
+    'https://api.unsplash.com/photos/x/download/../../admin',
+    'https://api.unsplash.com/users/x',
+    'not a url',
+  ] });
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).notified, 0);
+  assert.equal(downloadCalls.length, 0);
+});
+
+test('使用通知もAIの1日80回を消費しない', async () => {
+  const env = baseEnv();
+  const today = new Date().toISOString().slice(0, 10);
+  await post({ action: 'photo_used', downloads: ['https://api.unsplash.com/photos/aaa/download'] }, { env });
+  assert.equal(env.RATE_LIMIT.store.get(`rl:user-1:${today}`), undefined);
+  assert.equal(env.RATE_LIMIT.store.get(`rlp:user-1:${today}`), '1');
+});
+
+test('使用通知の件数が多すぎると400', async () => {
+  const res = await post({ action: 'photo_used',
+    downloads: Array.from({ length: 21 }, (_, i) => `https://api.unsplash.com/photos/p${i}/download`) });
+  assert.equal(res.status, 400);
+});
+
+test('キー未設定なら使用通知は外に出ない', async () => {
+  const env = baseEnv();
+  delete env.UNSPLASH_ACCESS_KEY;
+  downloadCalls = [];
+  const res = await post({ action: 'photo_used', downloads: ['https://api.unsplash.com/photos/aaa/download'] }, { env });
+  assert.equal(res.status, 200);
+  assert.equal(downloadCalls.length, 0);
 });
 
 test('写真検索はAIの1日80回を消費しない', async () => {
@@ -205,38 +300,38 @@ test('写真にも専用の1日上限がある', async () => {
   assert.equal((await res.json()).error.code, 'DAILY_LIMIT');
 });
 
-test('2回目はKVから返りPexelsを叩かない', async () => {
+test('2回目はKVから返りUnsplashを叩かない', async () => {
   const env = baseEnv();
-  pexelsCalls = [];
+  searchCalls = [];
   await post({ action: 'photo', words: ['grateful'] }, { env });
-  assert.equal(pexelsCalls.length, 1);
+  assert.equal(searchCalls.length, 1);
   await post({ action: 'photo', words: ['grateful'] }, { env });
-  assert.equal(pexelsCalls.length, 1, '同じ語で2回目もPexelsを叩いている');
+  assert.equal(searchCalls.length, 1, '同じ語で2回目もUnsplashを叩いている');
 });
 
-test('0件だった語はKVの空配列から返し、Pexelsを叩き直さない', async () => {
+test('0件だった語はKVの空配列から返し、Unsplashを叩き直さない', async () => {
   const env = baseEnv();
   await env.RATE_LIMIT.put('ph:nosuchword', '[]');
-  pexelsCalls = [];
+  searchCalls = [];
   const res = await post({ action: 'photo', words: ['nosuchword'] }, { env });
   const { photos } = await res.json();
   assert.deepEqual(photos.nosuchword, []);
-  assert.equal(pexelsCalls.length, 0);
+  assert.equal(searchCalls.length, 0);
 });
 
 test('英単語以外の語は捨てる（検索プロキシにしない）', async () => {
-  pexelsCalls = [];
+  searchCalls = [];
   const res = await post({ action: 'photo', words: ['感謝', 'https://evil.example/x', '', 'a'.repeat(41), 'grateful'] });
   const { photos } = await res.json();
   assert.deepEqual(Object.keys(photos), ['grateful']);
-  assert.equal(pexelsCalls.length, 1);
+  assert.equal(searchCalls.length, 1);
 });
 
 test('同じ語を重ねても1回しか引かない', async () => {
   const env = baseEnv();
-  pexelsCalls = [];
+  searchCalls = [];
   await post({ action: 'photo', words: ['grateful', 'Grateful', ' grateful '] }, { env });
-  assert.equal(pexelsCalls.length, 1);
+  assert.equal(searchCalls.length, 1);
 });
 
 test('語数が多すぎると400', async () => {
@@ -244,19 +339,19 @@ test('語数が多すぎると400', async () => {
   assert.equal(res.status, 400);
 });
 
-test('PEXELS_API_KEY未設定でも200で空を返す', async () => {
+test('UNSPLASH_ACCESS_KEY未設定でも200で空を返す', async () => {
   const env = baseEnv();
-  delete env.PEXELS_API_KEY;
+  delete env.UNSPLASH_ACCESS_KEY;
   const res = await post({ action: 'photo', words: ['grateful'] }, { env });
   assert.equal(res.status, 200);
   assert.deepEqual((await res.json()).photos, {});
 });
 
-test('Pexelsが失敗してもその語を落とすだけで200', async () => {
+test('Unsplashが失敗してもその語を落とすだけで200', async () => {
   const env = baseEnv();
-  pexelsStatus = 500;
+  unsplashStatus = 500;
   const res = await post({ action: 'photo', words: ['grateful'] }, { env });
-  pexelsStatus = 200;
+  unsplashStatus = 200;
   assert.equal(res.status, 200);
   assert.deepEqual((await res.json()).photos, {});
 });

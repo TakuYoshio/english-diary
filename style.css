@@ -764,7 +764,7 @@ body {
 .rate-ok { background: var(--success-light); color: var(--success); }
 .rate-ng { background: var(--danger-light); color: var(--danger); }
 
-/* 写真の選び直しモーダル。Pexelsの規約で撮影者名とPexelsへのリンクが必要。 */
+/* 写真の選び直しモーダル。Unsplashの規約で撮影者名とUnsplashへのリンクが必要。 */
 .vocab-photo-card { max-width: 340px; text-align: center; }
 .vocab-photo-word {
   font-family: var(--font-display); font-size: 20px;

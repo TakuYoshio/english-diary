@@ -11,7 +11,7 @@ SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 # ユーザーごとのAI利用回数を数えるKV。これが無いと1アカウントで
 # Geminiの無料枠を使い切れてしまう。
 # 単語カードの写真の語ごとキャッシュ（ph:<語>、30日）も同じKVを使う。
-# 未設定だと同じ語で毎回Pexelsを叩くので、200リクエスト/時に当たりやすくなる。
+# 未設定だと同じ語で毎回Unsplashを叩くので、50リクエスト/時にすぐ当たる。
 # 作成方法:
 #   npx wrangler kv namespace create RATE_LIMIT
 # 出力された id を下の "" に貼る。バインドしないまま deploy しても
@@ -22,6 +22,7 @@ id = ""
 
 # Secrets（このファイルには置かず、CLIで登録する）:
 #   npx wrangler secret put GEMINI_API_KEY
-#   npx wrangler secret put PEXELS_API_KEY
-# PEXELS_API_KEY は未設定でも動く（写真が付かないだけ）。
-# キーの取得: https://www.pexels.com/api/
+#   npx wrangler secret put UNSPLASH_ACCESS_KEY
+# UNSPLASH_ACCESS_KEY は未設定でも動く（写真が付かないだけ）。
+# キーの取得: https://unsplash.com/oauth/applications で新規アプリを作り、
+# Access Key を登録する。Demoモードは50リクエスト/時なのでKVのキャッシュが効く前提。

@@ -34,7 +34,7 @@ create table if not exists public.vocab (
   note        text,
   correct     int not null default 0,
   wrong       int not null default 0,
-  image_url   text,                          -- 単語カードの写真URL（Pexelsの検索結果）
+  image_url   text,                          -- 単語カードの写真URL（Unsplashの検索結果）
   image_credit jsonb,                        -- その写真のクレジット { name, page, large, source }
   -- 間隔反復（エビングハウスの忘却曲線を参考にしたLeitner方式）
   srs_stage        integer not null default 0,

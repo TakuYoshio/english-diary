@@ -321,24 +321,31 @@ test('検索語は英単語だけを通す（Workerを検索プロキシにし�
   assert.equal(photoQuery(null), '');
 });
 
-test('候補は表示とクレジットに使う4つだけ残す', () => {
-  eq(photoCandidate({
-    name: 'Jane Doe', page: 'https://www.pexels.com/photo/1/',
-    small: 'https://img.example/t.jpg', large: 'https://img.example/m.jpg',
-    extra: 'ignored', id: 7,
-  }), { name: 'Jane Doe', page: 'https://www.pexels.com/photo/1/', small: 'https://img.example/t.jpg', large: 'https://img.example/m.jpg' });
+const CAND = {
+  name: 'Jane Doe', page: 'https://unsplash.com/@jane?utm_source=english-diary&utm_medium=referral',
+  small: 'https://images.unsplash.com/1?w=200', large: 'https://images.unsplash.com/1?w=400',
+  download: 'https://api.unsplash.com/photos/aaa/download', source: 'unsplash',
+};
+
+test('候補は表示とクレジットに使うものだけ残す', () => {
+  eq(photoCandidate({ ...CAND, extra: 'ignored', id: 7, likes: 99 }), CAND);
 });
 
 test('httpsでないURLの候補は捨てる', () => {
-  assert.equal(photoCandidate({ name: 'x', small: 'http://img/t.jpg', large: 'https://img/m.jpg' }), null);
-  assert.equal(photoCandidate({ name: 'x', small: 'javascript:alert(1)', large: 'https://img/m.jpg' }), null);
-  assert.equal(photoCandidate({ name: 'x', small: 'https://img/t.jpg' }), null, 'largeが無い候補');
+  assert.equal(photoCandidate({ ...CAND, small: 'http://img/t.jpg' }), null);
+  assert.equal(photoCandidate({ ...CAND, small: 'javascript:alert(1)' }), null);
+  assert.equal(photoCandidate({ ...CAND, large: undefined }), null, 'largeが無い候補');
   assert.equal(photoCandidate(null), null);
 });
 
+test('知らない出所の候補は捨てる（クレジットの出し先が決まらない）', () => {
+  assert.equal(photoCandidate({ ...CAND, source: 'somewhere-else' }), null);
+  assert.equal(photoCandidate({ ...CAND, source: undefined }), null);
+});
+
 test('候補のpageがhttpsでなければ空にする（リンク先に任意のURLを入れさせない）', () => {
-  const c = photoCandidate({ name: 'x', page: 'javascript:alert(1)', small: 'https://i/t.jpg', large: 'https://i/m.jpg' });
-  assert.equal(c.page, '');
+  assert.equal(photoCandidate({ ...CAND, page: 'javascript:alert(1)' }).page, '');
+  assert.equal(photoCandidate({ ...CAND, download: 'javascript:alert(1)' }).download, '');
 });
 
 test('image_url の3状態: nullだけが自動取得の対象', () => {
@@ -348,11 +355,12 @@ test('image_url の3状態: nullだけが自動取得の対象', () => {
   assert.equal(needsVocabPhoto({ image_url: 'https://img/t.jpg' }), false);
 });
 
-test('写真のパッチは2つの列だけを書く', () => {
-  const patch = photoPatch({ name: 'Jane', page: 'https://p/1/', small: 'https://i/t.jpg', large: 'https://i/m.jpg' });
+test('写真のパッチは2つの列だけを書き、使用通知URLは保存しない', () => {
+  const patch = photoPatch(CAND);
   eq(Object.keys(patch).sort(), ['image_credit', 'image_url']);
-  assert.equal(patch.image_url, 'https://i/t.jpg');
-  eq(patch.image_credit, { name: 'Jane', page: 'https://p/1/', large: 'https://i/m.jpg', source: 'pexels' });
+  assert.equal(patch.image_url, CAND.small);
+  eq(patch.image_credit, { name: CAND.name, page: CAND.page, large: CAND.large, source: 'unsplash' });
+  assert.equal('download' in patch.image_credit, false, 'download を保存する必要は無い');
 });
 
 test('単語の挿入は画像の列を一切送らない（保存が画像に依存しない）', () => {

@@ -37,7 +37,7 @@ await page.route('**/*', route => {
     if (!photoReply) return route.abort();
     return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ photos: photoReply }) });
   }
-  if (/images\.pexels\.com/.test(url)) { photoImageRequests++; return route.abort(); }
+  if (/images\.unsplash\.com/.test(url)) { photoImageRequests++; return route.abort(); }
   if (url.startsWith(BASE)) return route.continue();
   return route.abort();
 });
@@ -492,10 +492,12 @@ check('穴埋めのリクエストは action:photo と語の配列を送る',
 // 撮影者名とリンクには、外部由来の危険な値を混ぜて渡す。
 photoReply = {
   grateful: [
-    { name: 'Jane "quote" Doe', page: 'https://www.pexels.com/photo/1/',
-      small: 'https://images.pexels.com/photos/1/t.jpg', large: 'https://images.pexels.com/photos/1/m.jpg' },
+    { name: 'Jane "quote" Doe', page: 'https://unsplash.com/@jane?utm_source=english-diary&utm_medium=referral',
+      small: 'https://images.unsplash.com/1?w=200', large: 'https://images.unsplash.com/1?w=400',
+      download: 'https://api.unsplash.com/photos/aaa/download', source: 'unsplash' },
     { name: 'John Roe', page: 'javascript:alert(1)',
-      small: 'https://images.pexels.com/photos/2/t.jpg', large: 'https://images.pexels.com/photos/2/m.jpg' },
+      small: 'https://images.unsplash.com/2?w=200', large: 'https://images.unsplash.com/2?w=400',
+      download: 'https://api.unsplash.com/photos/bbb/download', source: 'unsplash' },
   ],
 };
 const saved = await page.evaluate(async () => {
@@ -505,15 +507,22 @@ const saved = await page.evaluate(async () => {
   target.image_url = null;
   target.image_credit = null;
   await queueVocabPhotos([{ id: target.id, en: 'grateful' }]);
+  await new Promise(r => setTimeout(r, 300));   // 使用通知は待たずに投げられる
   const row = allVocab.find(v => v.en === 'grateful');
   return { url: row.image_url, credit: row.image_credit, patches: window.__stubPatches().length };
 });
-check('写真が取れたら image_url が保存される', saved.url === 'https://images.pexels.com/photos/1/t.jpg', String(saved.url));
+saved.used = workerCalls.find(c => c.action === 'photo_used');
+check('写真が取れたら image_url が保存される', saved.url === 'https://images.unsplash.com/1?w=200', String(saved.url));
 check('撮影者クレジットも保存される',
-  saved.credit && saved.credit.name === 'Jane "quote" Doe' && saved.credit.source === 'pexels',
+  saved.credit && saved.credit.name === 'Jane "quote" Doe' && saved.credit.source === 'unsplash',
   JSON.stringify(saved.credit));
+check('使用通知が保存と同じ便で1回だけ出る（Unsplashの規約）',
+  saved.used && saved.used.action === 'photo_used'
+  && saved.used.downloads.length === 1
+  && saved.used.downloads[0] === 'https://api.unsplash.com/photos/aaa/download',
+  JSON.stringify(saved.used));
 
-// 写真モーダル: 撮影者名とPexelsへのリンクが出る（規約上の義務）
+// 写真モーダル: 撮影者名とUnsplashへのリンクが出る（規約上の義務）
 const modal = await page.evaluate(async () => {
   const target = allVocab.find(v => v.en === 'grateful');
   await openVocabPhoto(target.id);
@@ -525,7 +534,8 @@ const modal = await page.evaluate(async () => {
     creditText: creditEl.textContent,
     linkHref: link ? link.getAttribute('href') : '',
     linkRel: link ? link.getAttribute('rel') : '',
-    hasPexelsLink: [...creditEl.querySelectorAll('a')].some(a => a.href.includes('pexels.com')),
+    hasSourceLink: [...creditEl.querySelectorAll('a')].some(a => a.href.includes('unsplash.com')),
+    utm: [...creditEl.querySelectorAll('a')].every(a => a.href.includes('utm_source=english-diary')),
     nextEnabled: !document.getElementById('vocab-photo-next').disabled,
     imgSrc: document.querySelector('.vocab-photo-img')?.getAttribute('src') || '',
     xss: window.__xss === 1,
@@ -534,20 +544,28 @@ const modal = await page.evaluate(async () => {
 check('写真モーダルが開く', modal.visible && modal.word === 'grateful');
 check('撮影者名が表示される', modal.creditText.includes('Jane "quote" Doe'), modal.creditText);
 check('撮影者名を属性に入れてもXSSにならない', !modal.xss);
-check('Pexelsへのリンクがある', modal.hasPexelsLink);
+check('Unsplashへのリンクがある', modal.hasSourceLink);
+check('クレジットのリンクにUTMが付く（Unsplashの規約）', modal.utm);
 check('外部リンクに rel=noopener noreferrer が付く', /noopener/.test(modal.linkRel) && /noreferrer/.test(modal.linkRel), modal.linkRel);
-check('モーダルは大きい方の写真を使う', modal.imgSrc === 'https://images.pexels.com/photos/1/m.jpg', modal.imgSrc);
+check('モーダルは大きい方の写真を使う', modal.imgSrc === 'https://images.unsplash.com/1?w=400', modal.imgSrc);
 check('別の写真にするボタンが押せる', modal.nextEnabled);
 
 // 「別の写真にする」で次の候補に進む。javascript: のリンクは空に落とされている。
+workerCalls = [];
 const cycled = await page.evaluate(async () => {
   await cycleVocabPhoto();
+  await new Promise(r => setTimeout(r, 300));
   const row = allVocab.find(v => v.en === 'grateful');
   const link = document.getElementById('vocab-photo-credit').querySelector('a');
   return { url: row.image_url, href: link ? link.getAttribute('href') : '' };
 });
-check('別の写真にすると次の候補が保存される', cycled.url === 'https://images.pexels.com/photos/2/t.jpg', String(cycled.url));
-check('候補のjavascript:リンクはPexelsのトップに落とされる', cycled.href === 'https://www.pexels.com/', cycled.href);
+check('別の写真にすると次の候補が保存される', cycled.url === 'https://images.unsplash.com/2?w=200', String(cycled.url));
+check('候補のjavascript:リンクはUnsplashのトップに落とされる',
+  cycled.href === 'https://unsplash.com/?utm_source=english-diary&utm_medium=referral', cycled.href);
+check('写真を選び直したときも使用通知が出る',
+  workerCalls.some(c => c.action === 'photo_used'
+    && c.downloads[0] === 'https://api.unsplash.com/photos/bbb/download'),
+  JSON.stringify(workerCalls.map(c => c.action)));
 
 // 「写真を外す」は空文字。nullに戻すと穴埋めが拾い直してしまう。
 const cleared = await page.evaluate(async () => {

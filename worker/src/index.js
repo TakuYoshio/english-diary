@@ -1,7 +1,9 @@
 'use strict';
 
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent';
-const PEXELS_URL = 'https://api.pexels.com/v1/search';
+const UNSPLASH_URL = 'https://api.unsplash.com/search/photos';
+// 利用規約で、撮影者とUnsplashへのリンクにUTMを付けることが求められている。
+const UNSPLASH_UTM = 'utm_source=english-diary&utm_medium=referral';
 
 // ── 上限値 ────────────────────────────────────────────────────────────────
 // 1リクエストあたり
@@ -15,12 +17,14 @@ const DEFAULT_OUTPUT_TOKENS = 2048;
 const DAILY_LIMIT = 80;
 const BURST_LIMIT = 10;             // 直近1分あたり
 
-// 写真検索（Pexelsの無料枠は200リクエスト/時・20,000/月）
+// 写真検索（Unsplash の Demo モードは50リクエスト/時）。
+// 語ごとにKVへ長期キャッシュするので、同じ語で外に出るのは1回だけ。
 const MAX_PHOTO_WORDS = 20;         // 1リクエストで引ける語数
 const PHOTO_CANDIDATES = 5;         // 1語あたりの候補数
 const PHOTO_CACHE_TTL = 30 * 86400; // KVに置く期間（秒）
 const PHOTO_DAILY_LIMIT = 200;
-const PHOTO_BURST_LIMIT = 20;
+const PHOTO_BURST_LIMIT = 40;       // 検索1回＋使用通知20件が同じ分に入りうる
+const PHOTO_ACTIONS = new Set(['photo', 'photo_used']);
 
 // レート制限のカウンタはAI用と写真用で分ける。写真検索はAIではないので、
 // Geminiを守るための1日80回を食わせてはいけない。
@@ -105,12 +109,12 @@ async function checkRateLimit(env, userId, limits = AI_LIMITS) {
   return { ok: true, used: day + 1, limit: limits.daily };
 }
 
-// ── 写真検索（Pexels） ────────────────────────────────────────────────────
+// ── 写真検索（Unsplash） ──────────────────────────────────────────────────
 // 単語カードの画像は、以前は生成AIに描かせていたが抽象語で絵にならず、
 // 行ごとに生成を頼むので遅かった。既にある写真を検索して使う。
 // APIキーをブラウザに置けないのでここで中継する。
 
-// 英単語以外は弾く。Workerを任意のPexels検索プロキシにしないため。
+// 英単語以外は弾く。Workerを任意の画像検索プロキシにしないため。
 function normalizePhotoWord(raw) {
   if (typeof raw !== 'string') return '';
   const w = raw.trim().toLowerCase();
@@ -119,19 +123,52 @@ function normalizePhotoWord(raw) {
   return w;
 }
 
-// Pexelsの応答から、表示とクレジットに必要な4つだけ取り出す。
+const httpsOnly = (v) => (typeof v === 'string' && v.startsWith('https://') ? v : '');
+
+function withUtm(url) {
+  if (!url) return '';
+  return url + (url.includes('?') ? '&' : '?') + UNSPLASH_UTM;
+}
+
+// 「写真を使った」通知のURL。クライアントを経由して戻ってくるので、
+// api.unsplash.com の download エンドポイントだけに厳しく限る。
+// 任意のURLをWorkerから叩かせてはいけない。
+function unsplashDownloadUrl(raw) {
+  if (typeof raw !== 'string') return '';
+  let u;
+  try { u = new URL(raw); } catch { return ''; }
+  if (u.protocol !== 'https:' || u.hostname !== 'api.unsplash.com') return '';
+  if (!/^\/photos\/[\w-]+\/download$/.test(u.pathname)) return '';
+  return u.toString();
+}
+
+function unsplashHeaders(env) {
+  return {
+    Authorization: `Client-ID ${env.UNSPLASH_ACCESS_KEY}`,
+    'Accept-Version': 'v1',
+  };
+}
+
+// Unsplashの応答から、表示とクレジットに必要なものだけ取り出す。
 // 余計なキーをそのまま流すと、クライアント側で何が来るか分からなくなる。
-function normalizePexelsPhotos(data) {
-  const photos = Array.isArray(data && data.photos) ? data.photos : [];
-  const httpsOnly = (v) => (typeof v === 'string' && v.startsWith('https://') ? v : '');
-  return photos
+function normalizeUnsplashPhotos(data) {
+  const results = Array.isArray(data && data.results) ? data.results : [];
+  return results
     .slice(0, PHOTO_CANDIDATES)
-    .map((p) => ({
-      name: String((p && p.photographer) || '').slice(0, 80),
-      page: httpsOnly(p && p.url),
-      small: httpsOnly(p && p.src && p.src.tiny),
-      large: httpsOnly(p && p.src && p.src.medium),
-    }))
+    .map((p) => {
+      const user = (p && p.user) || {};
+      const urls = (p && p.urls) || {};
+      const links = (p && p.links) || {};
+      const profile = httpsOnly(user.links && user.links.html);
+      return {
+        name: String(user.name || user.username || '').slice(0, 80),
+        page: withUtm(profile),
+        small: httpsOnly(urls.thumb),    // 一覧の52pxサムネイル（200px）
+        large: httpsOnly(urls.small),    // モーダルの大きい写真（400px）
+        download: unsplashDownloadUrl(links.download_location),
+        source: 'unsplash',
+      };
+    })
     .filter((p) => p.small && p.large);
 }
 
@@ -146,9 +183,9 @@ async function searchPhoto(env, word) {
 
   let res;
   try {
-    const url = `${PEXELS_URL}?query=${encodeURIComponent(word)}`
-      + `&per_page=${PHOTO_CANDIDATES}&orientation=square`;
-    res = await fetch(url, { headers: { Authorization: env.PEXELS_API_KEY } });
+    const url = `${UNSPLASH_URL}?query=${encodeURIComponent(word)}`
+      + `&per_page=${PHOTO_CANDIDATES}&orientation=squarish&content_filter=high`;
+    res = await fetch(url, { headers: unsplashHeaders(env) });
   } catch {
     return null;   // 一時的な失敗はキャッシュしない
   }
@@ -157,12 +194,28 @@ async function searchPhoto(env, word) {
   let data;
   try { data = await res.json(); } catch { return null; }
 
-  const list = normalizePexelsPhotos(data);
+  const list = normalizeUnsplashPhotos(data);
   // 見つからなかった語も空配列で覚える。同じ語を何度も探しに行かないため。
   if (env.RATE_LIMIT) {
     await env.RATE_LIMIT.put(key, JSON.stringify(list), { expirationTtl: PHOTO_CACHE_TTL });
   }
   return list;
+}
+
+// Unsplashの規約で、写真を実際に使うときに download_location を叩く必要がある。
+// 失敗してもアプリを止める理由は無いので、結果は見ずに200を返す。
+async function handlePhotoUsed(payload, env, cors) {
+  const raw = Array.isArray(payload.downloads) ? payload.downloads : [];
+  if (raw.length > MAX_PHOTO_WORDS) {
+    return fail(`Too many downloads (max ${MAX_PHOTO_WORDS})`, 400, cors);
+  }
+  const urls = [...new Set(raw.map(unsplashDownloadUrl).filter(Boolean))];
+  if (!urls.length || !env.UNSPLASH_ACCESS_KEY) return json({ notified: 0 }, 200, cors);
+
+  await Promise.all(urls.map(async (url) => {
+    try { await fetch(url, { headers: unsplashHeaders(env) }); } catch { /* 通知の失敗は無視 */ }
+  }));
+  return json({ notified: urls.length }, 200, cors);
 }
 
 async function handlePhoto(payload, env, cors) {
@@ -179,8 +232,8 @@ async function handlePhoto(payload, env, cors) {
 
   const photos = {};
   // キーが未設定でもエラーにしない。写真は飾りなので、
-  // PEXELS_API_KEY を入れ忘れたWorkerでアプリが壊れないようにする。
-  if (!words.length || !env.PEXELS_API_KEY) return json({ photos }, 200, cors);
+  // UNSPLASH_ACCESS_KEY を入れ忘れたWorkerでアプリが壊れないようにする。
+  if (!words.length || !env.UNSPLASH_ACCESS_KEY) return json({ photos }, 200, cors);
 
   const results = await Promise.all(words.map((w) => searchPhoto(env, w)));
   words.forEach((w, i) => {
@@ -260,7 +313,7 @@ export default {
       return fail('Invalid JSON body', 400, cors);
     }
 
-    const limits = payload && payload.action === 'photo' ? PHOTO_LIMITS : AI_LIMITS;
+    const limits = payload && PHOTO_ACTIONS.has(payload.action) ? PHOTO_LIMITS : AI_LIMITS;
     const rate = await checkRateLimit(env, user.id, limits);
     if (!rate.ok) {
       // 429で返すとクライアント側の再試行処理が2.5秒後にもう一度投げてしまうため、
@@ -268,7 +321,8 @@ export default {
       return fail('AI usage limit reached', 403, cors, { code: rate.reason, limit: rate.limit });
     }
 
-    if (limits === PHOTO_LIMITS) return handlePhoto(payload, env, cors);
+    if (payload.action === 'photo') return handlePhoto(payload, env, cors);
+    if (payload.action === 'photo_used') return handlePhotoUsed(payload, env, cors);
 
     const built = buildContents(payload);
     if (built.error) return fail(built.error, 400, cors);
