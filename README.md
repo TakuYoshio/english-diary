@@ -39,9 +39,8 @@ GitHub Pages・Supabase・Cloudflare Workers・Gemini の無料枠だけで動�
 ### 1. Supabase（DB・ログイン）
 
 1. [supabase.com](https://supabase.com) でアカウント作成・プロジェクト作成
-2. SQL Editor で **`Task/schema.sql`** を実行する
-   （テーブル・列・インデックス・Row Level Security が一括で作られます）。
-   続けて **`Task/add-solo-sessions-table.sql`** も実行する（英語ひとりごと用）
+2. SQL Editor で **`Task/apply-all.sql` の中身**を貼って実行する
+   （テーブル・列・インデックス・Row Level Security が一括で作られます）
 3. Authentication → Providers で「Email」が有効なことを確認し、
    Authentication → URL Configuration の Site URL / Redirect URLs に
    実際の GitHub Pages URL（例: `https://あなたのID.github.io`）を追加
@@ -51,14 +50,16 @@ GitHub Pages・Supabase・Cloudflare Workers・Gemini の無料枠だけで動�
 5. 一緒に使う人は Authentication → Users → **Invite user** から招待する
    （アプリ内にサインアップ画面はありません）
 
-> **動かない機能があるときは `Task/check-schema.sql` を実行してください。**
-> 足りないテーブル・列と、それを直すSQLが一覧で返ります（何も返らなければ最新）。
-> マイグレーションは手で実行する方式なので、適用漏れに気づきにくいためです。
+> **何かが保存できない・新しい機能が動かないときは、`Task/apply-all.sql` の中身を
+> もう一度流してください。** 新規でも既存でも、何回流しても安全です
+> （すべて `if not exists`。既存のデータには一切触れません）。
+> 足りないものだけが追加されます。
 >
-> `Task/*.sql` はすべて再実行しても安全（`if not exists`）なので、
-> 迷ったら全部流して構いません。既存のデータには影響しません。
+> 何が足りないか先に見たい場合は `Task/check-schema.sql` を実行すると一覧で返ります。
 >
-> すでに運用中の環境に列を足す場合は `Task/add-*.sql` を個別に実行してください。
+> `Task/add-*.sql` は個別適用の記録として残していますが、通常は使いません。
+> `Task/schema.sql` は**新規セットアップ専用**です（既存テーブルに列を足さないため、
+> 運用中の環境では `apply-all.sql` を使ってください）。
 > `Task/supabase-migration.sql` は初回移行用で、冒頭に全行削除が含まれています
 > （既定ではコメントアウト済み）。
 

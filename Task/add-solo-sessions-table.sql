@@ -1,3 +1,4 @@
+-- 通常は Task/apply-all.sql を1本流せば足ります（このファイルの内容も含まれます）。
 -- 英語ひとりごと（Solo Talk）セッションの記録とAIレポートを保存するテーブルを追加します。
 -- transcript は音声認識の生テキスト、report は Gemini が返したレポートJSONです。
 -- Supabaseダッシュボード → SQL Editorで実行してください。

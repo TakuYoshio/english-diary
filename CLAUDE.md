@@ -73,6 +73,11 @@ npm test         # Workerのユニットテスト + 実ブラウザのスモー�
   インラインの `onclick` に対応する関数があるか、i18nキーがja/en両方に
   あるかを検査する。HTMLとJSのズレは実行するまで気づけないため。
 - `scripts/check-contrast.mjs` — 主要な文字色がWCAG AA（4.5:1）を満たすか。
+- `scripts/check-schema-sync.mjs` — `Task/apply-all.sql` と
+  `test/supabase-stub.js` の `COLUMNS` を双方向で突き合わせる。
+  コードを静的に追うだけでは `row.image_url = ...` のような後からの代入を
+  拾えないため、明示された一覧どうしを比べる方式にしてある。
+  実際に `image_url` の適用漏れで本番が壊れたので入れた。
 - `test/worker.test.mjs` — Workerの検証・レート制限ロジック（fetchとKVをスタブ）。
 - `test/smoke.mjs` — Supabaseをスタブした実ブラウザで主要タブを一巡し、
   コンソールエラー・XSS・アクセシビリティ・パフォーマンスの回帰を見る。
@@ -81,13 +86,14 @@ npm test         # Workerのユニットテスト + 実ブラウザのスモー�
 
 コードからは実行できない。変更したら依頼すること。
 
-- `Task/*.sql` を Supabase ダッシュボードの SQL Editor で実行
-  （英語ひとりごとには `Task/add-solo-sessions-table.sql` が必要）。
-  **依頼するときはファイルパスではなく中身を貼ること。** SQL Editor から
-  リポジトリのファイルは見えない
-- 適用漏れが疑われるときは `Task/check-schema.sql` を流してもらう。
-  足りないテーブル・列と直すSQLが一覧で返る。
-  `Task/*.sql` はすべて `if not exists` で再実行安全にしてある
+- **DBの変更を依頼するときは、常に `Task/apply-all.sql` の中身を貼る。**
+  新規でも既存でも、何回流しても安全な唯一の実行対象。
+  個別の `add-*.sql` を案内しない（どれが適用済みか利用者には分からない）
+- **ファイルパスではなく中身を貼ること。** SQL Editor からリポジトリのファイルは見えない
+- 列を足したら `Task/apply-all.sql` と `test/supabase-stub.js` の `COLUMNS` の
+  **両方**に追加する。`scripts/check-schema-sync.mjs` が食い違いを検出して落とす
+- `Task/schema.sql` は新規セットアップ専用。`create table if not exists` は
+  既存テーブルに列を足さないので、運用中の環境では効かない
 - Worker のデプロイ: `cd worker && npx wrangler deploy`
 - KVネームスペースの作成: `npx wrangler kv namespace create RATE_LIMIT`
   （IDを `worker/wrangler.toml` に貼る。未設定だとレート制限が無効）

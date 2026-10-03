@@ -6,7 +6,8 @@
 -- どれを適用済みか分からなくなりがちです（実際、image_url 列の未適用で
 -- 単語が保存できなくなったことがあります）。
 -- 何も行が返らなければ、スキーマは最新です。
--- 行が返ったら、そこに書かれた SQL をそのまま実行してください。
+-- 行が返ったら、Task/apply-all.sql の中身を SQL Editor に貼って実行してください。
+-- （apply-all.sql は何回流しても安全で、足りないものだけを足します）
 -- ============================================================
 
 with expected(tbl, col, fix) as (values
@@ -25,8 +26,8 @@ with expected(tbl, col, fix) as (values
   ('vocab', 'last_reviewed_at',
    'alter table public.vocab add column if not exists last_reviewed_at timestamptz;'),
   -- profiles / solo_sessions は列ではなくテーブルごと必要（下で別に見る）
-  ('profiles', 'user_id', 'Task/add-user-profiles-table.sql を実行してください'),
-  ('solo_sessions', 'id', 'Task/add-solo-sessions-table.sql を実行してください')
+  ('profiles', 'user_id', 'apply-all.sql の中身を実行してください'),
+  ('solo_sessions', 'id', 'apply-all.sql の中身を実行してください')
 )
 select
   e.tbl  as "テーブル",

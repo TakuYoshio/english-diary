@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "serve": "http-server -p 8931 -c-1",
-    "check": "node scripts/check-wiring.mjs",
+    "check": "node scripts/check-wiring.mjs && node scripts/check-schema-sync.mjs",
     "lint": "eslint .",
     "test": "node test/unit.test.mjs && node test/solo.test.mjs && node test/worker.test.mjs && node test/run.mjs",
     "verify": "npm run check && node scripts/check-contrast.mjs && npm run lint && npm test",
