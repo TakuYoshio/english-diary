@@ -15,15 +15,15 @@ SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 #
 # 作成方法:
 #   npx wrangler kv namespace create RATE_LIMIT
-# 出力された id を下に貼り、3行のコメントを外す。
+# 出力された id を下に貼る。
 #
-# ⚠ 未設定のあいだは、ブロックごとコメントアウトしたままにする。
+# ⚠ 未設定のあいだは、ブロックごとコメントアウトしておくこと。
 #   id = "" と書くと wrangler 4 が「空のidは不正」として設定の解析で止まり、
 #   deploy だけでなく login や kv namespace create まで実行できなくなる。
 #   （実際にこれで詰まった。空文字をプレースホルダに使わない）
-# [[kv_namespaces]]
-# binding = "RATE_LIMIT"
-# id = ""
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "b5f08b01fd4b4e5399b476fd5afe3f97"
 
 # Secrets（このファイルには置かず、CLIで登録する）:
 #   npx wrangler secret put GEMINI_API_KEY
