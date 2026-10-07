@@ -105,7 +105,12 @@ npm test         # Workerのユニットテスト + 実ブラウザのスモー�
   既存テーブルに列を足さないので、運用中の環境では効かない
 - Worker のデプロイ: `cd worker && npx wrangler deploy`
 - KVネームスペースの作成: `npx wrangler kv namespace create RATE_LIMIT`
-  （IDを `worker/wrangler.toml` に貼る。未設定だとレート制限と写真のキャッシュが無効）
+  （IDを `worker/wrangler.toml` に貼り、`[[kv_namespaces]]` のコメントを外す。
+  未設定だとレート制限と写真のキャッシュが無効）
+- **`wrangler.toml` に空の値をプレースホルダとして書かない。** `id = ""` は
+  wrangler 4 が設定の解析で弾くため、`deploy` だけでなく `login` や
+  `kv namespace create` まで実行できなくなる。未設定はブロックごと
+  コメントアウトで表す（`scripts/check-wrangler.mjs` が検査する）
 - `npx wrangler secret put GEMINI_API_KEY`
 - `npx wrangler secret put UNSPLASH_ACCESS_KEY`（単語カードの写真検索。
   未設定でも単語の追加は通り、写真が付かないだけ。

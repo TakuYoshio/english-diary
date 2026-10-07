@@ -12,13 +12,18 @@ SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 # Geminiの無料枠を使い切れてしまう。
 # 単語カードの写真の語ごとキャッシュ（ph:<語>、30日）も同じKVを使う。
 # 未設定だと同じ語で毎回Unsplashを叩くので、50リクエスト/時にすぐ当たる。
+#
 # 作成方法:
 #   npx wrangler kv namespace create RATE_LIMIT
-# 出力された id を下の "" に貼る。バインドしないまま deploy しても
-# Workerは動くが、レート制限は無効になる。
-[[kv_namespaces]]
-binding = "RATE_LIMIT"
-id = ""
+# 出力された id を下に貼り、3行のコメントを外す。
+#
+# ⚠ 未設定のあいだは、ブロックごとコメントアウトしたままにする。
+#   id = "" と書くと wrangler 4 が「空のidは不正」として設定の解析で止まり、
+#   deploy だけでなく login や kv namespace create まで実行できなくなる。
+#   （実際にこれで詰まった。空文字をプレースホルダに使わない）
+# [[kv_namespaces]]
+# binding = "RATE_LIMIT"
+# id = ""
 
 # Secrets（このファイルには置かず、CLIで登録する）:
 #   npx wrangler secret put GEMINI_API_KEY
