@@ -72,6 +72,36 @@ const TRANSLATIONS = {
     'error-password-mismatch': 'パスワードが一致しません',
     'error-password-short': 'パスワードは6文字以上にしてください',
     'error-reset-expired': 'リンクの有効期限が切れています。もう一度リセットメールを送信してください',
+    'btn-edit': '編集', 'btn-save': '保存',
+    'aria-entries-page-size': '1ページの表示件数',
+    'aria-vocab-en': '英語の単語',
+    'aria-vocab-photo': '写真を選び直す:',
+    'btn-photo-next': '別の写真にする',
+    'btn-photo-clear': '写真を外す',
+    'photo-credit': '撮影:',
+    'photo-loading': '写真を探しています…',
+    'photo-none': 'この単語に合う写真が見つかりませんでした',
+    'photo-off': '設定で写真の表示をオフにしています',
+    'toast-photo-cleared': '写真を外しました',
+    'aria-vocab-search': '単語帳を検索',
+    'aria-situational-answer': '英文で答える',
+    'aria-streak': '連続記録とレベルを見る',
+    'page-size-10': '10件', 'page-size-20': '20件', 'page-size-50': '50件',
+    'toast-update-ready': '新しいバージョンがあります。次回起動時に更新されます',
+    'pref-vocab-images-label': '単語帳に写真を表示する',
+    'pref-vocab-images-hint': 'オンにすると、登録した英単語が写真検索（Unsplash）に送られます。中継は自前のサーバーが行うので、Unsplashに端末の情報は渡りません。',
+    'error-ai-quota': '今日のAI利用が上限に達しました。また明日どうぞ',
+    'error-tts': '音声を再生できませんでした',
+    'error-srs': '学習記録を保存できませんでした: ',
+    'error-load-entries': '日記を読み込めませんでした',
+    'error-load-vocab': '単語帳を読み込めませんでした: ',
+    'error-load-profile': '設定を読み込めませんでした: ',
+    'error-onboarding-save': '設定を保存できませんでした。設定画面からあとで保存できます: ',
+    'toast-onboarding-skipped': '設定はいつでも⚙から変更できます',
+    'btn-onboarding-skip': 'あとで設定する',
+    'boot-error-title': 'アプリを起動できませんでした',
+    'boot-error-hint': '通信状況を確認して、もう一度お試しください。',
+    'btn-retry': '再読み込み',
     'loading-correcting': 'AIが添削中…', 'loading-feedback': 'フィードバック生成中…',
     'error-ai': 'AI添削エラー: ', 'error-save': '保存エラー: ', 'error-vocab': 'エラー: ',
     'toast-saved': '日記を保存しました！', 'toast-words-added': '件の単語を単語帳に追加。',
@@ -117,6 +147,95 @@ const TRANSLATIONS = {
     'first-attempt-all-correct': 'すべて認識されました！',
     // Situational sentence practice
     'quiz-mode-flashcard': '単語テスト', 'quiz-mode-situational': '状況文で練習',
+    'quiz-mode-diary': '日記から復習',
+    // 記憶の育ち具合（Word Garden）
+    'stage-seed': '芽が出たところ', 'stage-sprout': '双葉', 'stage-bud': 'つぼみ', 'stage-bloom': '満開',
+    'review-next-label': '次の復習',
+    'review-due-now': '今日', 'review-due-tomorrow': '明日', 'review-due-days': 'あと{n}日',
+    'vocab-weak-chip': '苦手 {n}語',
+    'quiz-weak-only': '苦手な{n}語だけ',
+    'toast-weak-graduated': '「{word}」が苦手から卒業！🎉',
+    // 日記から復習
+    'diary-quiz-empty': 'AI添削まで終えた日記がまだありません<br>日記を書いて添削してもらおう',
+    'dq-source': '{date} の日記より',
+    'dq-kind-cloze': '空いているところに入る単語は？',
+    'dq-kind-order': '正しい順に並べてみよう',
+    'dq-jp-hint': 'そのとき書いたこと:',
+    'dq-tap-words': '下の単語をタップして並べよう',
+    'dq-pick-first': '単語を並べてから確認してね',
+    'dq-finished': 'おつかれさま！{total}問中{ok}問正解',
+    // ── 英語でひとりごと（Solo Talk） ──
+    'solo-cta-title': '英語でひとりごと', 'solo-cta-sub': '5分から。英語だけで話してみよう',
+    'solo-back': '← ホームへ',
+    'solo-title': '英語でひとりごと', 'solo-sub': '英語だけで話し続ける時間をつくろう',
+    'solo-unsupported': 'このブラウザは音声認識に対応していません。タイピングで参加できます。',
+    'solo-duration-label': 'どれくらい話す？', 'solo-unit-min': '分',
+    'solo-mode-label': 'モード',
+    'solo-mode-solo': 'ひとりごと', 'solo-mode-solo-desc': 'お題が順番に出ます。AIは最後だけ。',
+    'solo-mode-talk': 'コトラと会話', 'solo-mode-talk-desc': 'コトラが相槌と質問を返します。',
+    'solo-soon': '準備中',
+    'solo-pack-label': 'お題',
+    'solo-pack-mixed': 'おまかせ', 'solo-pack-today': '今日の出来事', 'solo-pack-work': '仕事・勉強',
+    'solo-pack-surroundings': '身のまわり実況', 'solo-pack-free': '自由（お題なし）',
+    'solo-start': '▶ はじめる', 'solo-start-typing': '⌨️ タイピングで参加する',
+    'solo-long-warning': '長時間モードの注意\n\n・画面が消えると音声認識が止まります。自動ロックをオフにしてください\n・電池を多く使います\n・認識が切れるたびに数語を取りこぼすことがあります\n・Androidでは再接続のたびに通知音が鳴る端末があります（ヘッドホン推奨）',
+    'solo-long-ok': '了解',
+    'solo-resume-text': '前回の{min}分セッションが途中で終了しています（約{words}語）。',
+    'solo-resume-yes': 'レポートを作る', 'solo-resume-no': '破棄する',
+    'solo-mic-listening': '🎙 聞いています', 'solo-mic-reconnecting': '⚠️ 再接続中…',
+    'solo-mic-needs-tap': '⚠️ タップして再開', 'solo-mic-paused': '⏸ 一時停止中',
+    'solo-mic-dead': '🚫 マイクが使えません', 'solo-mic-typing': '⌨️ タイピング',
+    'solo-tap-resume': '🎙 タップして続ける',
+    'solo-another-prompt': '🔀 別のお題',
+    'solo-count-words': '語数', 'solo-count-filler': 'filler',
+    'solo-pause': '⏸ 一時停止', 'solo-resume': '▶ 再開',
+    'solo-typing-toggle': '⌨️ タイピング', 'solo-typing-add': '＋ 追加',
+    'solo-typing-label': '英語で書く', 'solo-typing-ph': '英語で書いてみよう…',
+    'solo-finish': '終了してレポート',
+    'solo-auto-paused': 'アプリを離れたので一時停止しました',
+    'solo-wakelock-hint': '画面が消えないよう、自動ロックをオフにしてください',
+    'solo-processing-1': '文字起こしを整えています…', 'solo-processing-2': '表現をチェック中…',
+    'solo-processing-3': 'レポートをまとめています…',
+    'solo-too-short': 'ちょっと短かったにゃ。もう少し話すとレポートが作れるよ',
+    'solo-report-limit': '今日のレポート作成は上限に達しました。記録だけ保存します',
+    'solo-report-failed': 'レポートを作れませんでした（記録は保存されています）: ',
+    'solo-save-failed': '記録を保存できませんでした: ',
+    'solo-report-missing': 'レポートは作れませんでしたが、話した内容は保存されています。',
+    'solo-report-headline': '{min}分、英語だけで話しきった！',
+    'solo-score-fluency': '流暢さ', 'solo-score-variety': '語彙の幅', 'solo-score-accuracy': '正確さ',
+    'solo-asr-disclaimer': '音声認識の聞き間違いが含まれることがあります。心当たりのない指摘は無視してOK。',
+    'solo-good-title': 'よかった表現', 'solo-fix-title': '直したい表現',
+    'solo-maybe-misheard': 'もしかしたら聞き間違いかも（{n}件）',
+    'solo-upgrade-title': 'もっと自然に言うなら', 'solo-vocab-title': '単語帳に追加',
+    'solo-vocab-add': '＋ まとめて単語帳に追加',
+    'solo-vocab-added': '{n}語を単語帳に追加！明日のテストに出るにゃ',
+    'solo-vocab-none-added': 'すべて登録済みでした',
+    'solo-used-vocab': '単語帳の語が会話で使えていました: {words}',
+    'solo-next-title': '次回のテーマ', 'solo-show-transcript': '全文を見る',
+    'solo-report-close': 'ホームへ',
+    'warn-vocab-no-image-column': '写真用の列が未作成のため、写真なしで保存しました（単語は記録されています）',
+    'solo-list-empty': 'まだひとりごとの記録がありません',
+    'solo-list-sessions': '回数', 'solo-list-total': '合計',
+    'solo-list-no-report': 'レポートなし',
+    'solo-load-failed': 'セッションを読み込めませんでした',
+    'badge-solo-first': 'はじめてのひとりごと',
+    'badge-solo-30min': '30分ノンストップ',
+    'badge-solo-total-300': '累計5時間スピーキング',
+    // コトラの週報
+    'weekly-title': 'コトラの週報',
+    'weekly-cta': '先週のレポートができたよ',
+    'weekly-open': '📮 先週の週報を見る',
+    'weekly-close': '今週もがんばる 🔥',
+    'weekly-headline': '先週は{n}日書けたにゃ！',
+    'weekly-stat-days': '書いた日',
+    'weekly-stat-words': '新しい単語',
+    'weekly-stat-pron': '発音ベスト',
+    'weekly-stat-run': '連続で書けた',
+    'weekly-unit-days': '日',
+    'weekly-unit-words': '語',
+    'weekly-unit-score': '点',
+    'weekly-highlight': 'この文、良かったにゃ',
+    'btn-close': '閉じる',
     'situational-target-label': '使う単語', 'situational-or': 'または英語でタイピング',
     'ph-situational-answer': 'ここに英語で回答…', 'btn-situational-grade': 'AI採点',
     'btn-situational-next': '次の問題へ →',
@@ -126,7 +245,7 @@ const TRANSLATIONS = {
     'confirm-delete-word': 'この単語を削除しますか？', 'btn-delete': '削除', 'toast-word-deleted': '単語を削除しました',
     // Streak / progress
     'streak-title': '現在{current}日連続。最長記録は{longest}日', 'streak-title-zero': '今日書いて連続記録をはじめよう',
-    'entries-view-list': '一覧', 'entries-view-calendar': 'カレンダー', 'entries-view-stats': '統計',
+    'entries-view-list': '一覧', 'entries-view-calendar': 'カレンダー', 'entries-view-stats': '統計', 'entries-view-speaking': 'スピーキング',
     'stats-diary-trend': '日記数（週次）', 'stats-vocab-trend': '単語帳の登録数推移',
     'stats-pron-trend': '発音スコア（初回）の推移', 'stats-accuracy': '単語テストの正答率',
     'stats-category': 'カテゴリ別の指摘回数', 'stats-entries-suffix': '件', 'stats-words-suffix': '語',
@@ -209,6 +328,36 @@ const TRANSLATIONS = {
     'error-password-mismatch': 'Passwords do not match',
     'error-password-short': 'Password must be at least 6 characters',
     'error-reset-expired': 'This link has expired. Please request a new reset email',
+    'btn-edit': 'Edit', 'btn-save': 'Save',
+    'aria-entries-page-size': 'Entries per page',
+    'aria-vocab-en': 'Word in English',
+    'aria-vocab-photo': 'Change the photo for',
+    'btn-photo-next': 'Try another photo',
+    'btn-photo-clear': 'Remove photo',
+    'photo-credit': 'Photo by',
+    'photo-loading': 'Looking for a photo…',
+    'photo-none': 'No matching photo was found for this word',
+    'photo-off': 'Photos are turned off in settings',
+    'toast-photo-cleared': 'Photo removed',
+    'aria-vocab-search': 'Search your word list',
+    'aria-situational-answer': 'Answer in English',
+    'aria-streak': 'View your streak and level',
+    'page-size-10': '10', 'page-size-20': '20', 'page-size-50': '50',
+    'toast-update-ready': 'A new version is ready. It will apply next time you open the app',
+    'pref-vocab-images-label': 'Show photos in the word list',
+    'pref-vocab-images-hint': 'When on, the English words you save are sent to a photo search (Unsplash). Our own server relays the request, so Unsplash never sees your device.',
+    'error-ai-quota': "You've reached today's AI limit. See you tomorrow!",
+    'error-tts': "Couldn't play the audio",
+    'error-srs': "Couldn't save your progress: ",
+    'error-load-entries': "Couldn't load your diaries",
+    'error-load-vocab': "Couldn't load your word list: ",
+    'error-load-profile': "Couldn't load your settings: ",
+    'error-onboarding-save': "Couldn't save your settings. You can save them later from Settings: ",
+    'toast-onboarding-skipped': 'You can change these any time from ⚙',
+    'btn-onboarding-skip': 'Set up later',
+    'boot-error-title': "Couldn't start the app",
+    'boot-error-hint': 'Check your connection and try again.',
+    'btn-retry': 'Reload',
     'loading-correcting': 'AI is correcting…', 'loading-feedback': 'Generating feedback…',
     'error-ai': 'AI correction error: ', 'error-save': 'Save error: ', 'error-vocab': 'Error: ',
     'toast-saved': 'Diary saved!', 'toast-words-added': ' words added to vocabulary.',
@@ -254,6 +403,95 @@ const TRANSLATIONS = {
     'first-attempt-all-correct': 'All words recognized!',
     // Situational sentence practice
     'quiz-mode-flashcard': 'Word Quiz', 'quiz-mode-situational': 'Situational Practice',
+    'quiz-mode-diary': 'From Your Diary',
+    // 記憶の育ち具合（Word Garden）
+    'stage-seed': 'Just sprouted', 'stage-sprout': 'Growing', 'stage-bud': 'Budding', 'stage-bloom': 'In full bloom',
+    'review-next-label': 'Next review',
+    'review-due-now': 'today', 'review-due-tomorrow': 'tomorrow', 'review-due-days': 'in {n} days',
+    'vocab-weak-chip': '{n} tricky',
+    'quiz-weak-only': 'Only my {n} tricky words',
+    'toast-weak-graduated': '"{word}" is no longer tricky! 🎉',
+    // 日記から復習
+    'diary-quiz-empty': "You don't have any AI-corrected diaries yet<br>Write one and get it corrected",
+    'dq-source': 'From your diary on {date}',
+    'dq-kind-cloze': 'Which word fills the blank?',
+    'dq-kind-order': 'Put the words in the right order',
+    'dq-jp-hint': 'What you wrote:',
+    'dq-tap-words': 'Tap the words below to build the sentence',
+    'dq-pick-first': 'Build the sentence first',
+    'dq-finished': 'Nice work! {ok} out of {total} correct',
+    // ── 英語でひとりごと（Solo Talk） ──
+    'solo-cta-title': 'Talk to yourself in English', 'solo-cta-sub': 'Start with 5 minutes. English only.',
+    'solo-back': '← Home',
+    'solo-title': 'Solo English', 'solo-sub': 'Make time to keep speaking English',
+    'solo-unsupported': "This browser doesn't support speech recognition. You can join by typing.",
+    'solo-duration-label': 'How long?', 'solo-unit-min': 'min',
+    'solo-mode-label': 'Mode',
+    'solo-mode-solo': 'Solo talk', 'solo-mode-solo-desc': 'Prompts appear one by one. AI only at the end.',
+    'solo-mode-talk': 'Chat with Kotora', 'solo-mode-talk-desc': 'Kotora reacts and asks questions.',
+    'solo-soon': 'Coming soon',
+    'solo-pack-label': 'Prompts',
+    'solo-pack-mixed': 'Surprise me', 'solo-pack-today': 'Today', 'solo-pack-work': 'Work & study',
+    'solo-pack-surroundings': 'Around you', 'solo-pack-free': 'Free (no prompts)',
+    'solo-start': '▶ Start', 'solo-start-typing': '⌨️ Join by typing',
+    'solo-long-warning': 'Before a long session\n\n• Recognition stops when the screen turns off. Disable auto-lock\n• It uses a lot of battery\n• A few words may be lost each time recognition reconnects\n• Some Android phones play a sound on every reconnect (headphones recommended)',
+    'solo-long-ok': 'Got it',
+    'solo-resume-text': 'Your last {min}-minute session ended early (about {words} words).',
+    'solo-resume-yes': 'Make the report', 'solo-resume-no': 'Discard',
+    'solo-mic-listening': '🎙 Listening', 'solo-mic-reconnecting': '⚠️ Reconnecting…',
+    'solo-mic-needs-tap': '⚠️ Tap to resume', 'solo-mic-paused': '⏸ Paused',
+    'solo-mic-dead': '🚫 Mic unavailable', 'solo-mic-typing': '⌨️ Typing',
+    'solo-tap-resume': '🎙 Tap to continue',
+    'solo-another-prompt': '🔀 Another prompt',
+    'solo-count-words': 'words', 'solo-count-filler': 'filler',
+    'solo-pause': '⏸ Pause', 'solo-resume': '▶ Resume',
+    'solo-typing-toggle': '⌨️ Type', 'solo-typing-add': '+ Add',
+    'solo-typing-label': 'Write in English', 'solo-typing-ph': 'Write in English…',
+    'solo-finish': 'Finish & get report',
+    'solo-auto-paused': 'Paused because you left the app',
+    'solo-wakelock-hint': 'Turn off auto-lock so the screen stays on',
+    'solo-processing-1': 'Tidying up the transcript…', 'solo-processing-2': 'Checking your expressions…',
+    'solo-processing-3': 'Writing your report…',
+    'solo-too-short': 'That was a bit short. Talk a little longer and I can write a report',
+    'solo-report-limit': "You've hit today's report limit. Saving the session only",
+    'solo-report-failed': "Couldn't create the report (your session is saved): ",
+    'solo-save-failed': "Couldn't save the session: ",
+    'solo-report-missing': "The report couldn't be created, but what you said has been saved.",
+    'solo-report-headline': 'You spoke English for {min} minutes straight!',
+    'solo-score-fluency': 'Fluency', 'solo-score-variety': 'Vocabulary range', 'solo-score-accuracy': 'Accuracy',
+    'solo-asr-disclaimer': "Speech recognition can mishear you. Feel free to ignore anything that doesn't ring true.",
+    'solo-good-title': 'Nice expressions', 'solo-fix-title': 'Worth fixing',
+    'solo-maybe-misheard': 'Possibly misheard ({n})',
+    'solo-upgrade-title': 'More natural ways to say it', 'solo-vocab-title': 'Add to your word list',
+    'solo-vocab-add': '+ Add all to word list',
+    'solo-vocab-added': 'Added {n} words! They will show up in tomorrow\'s quiz',
+    'solo-vocab-none-added': 'All of them were already saved',
+    'solo-used-vocab': 'You used these words from your list: {words}',
+    'solo-next-title': 'Focus for next time', 'solo-show-transcript': 'Show full transcript',
+    'solo-report-close': 'Home',
+    'warn-vocab-no-image-column': 'The photo column is missing, so the word was saved without one',
+    'solo-list-empty': 'No solo sessions yet',
+    'solo-list-sessions': 'Sessions', 'solo-list-total': 'Total',
+    'solo-list-no-report': 'no report',
+    'solo-load-failed': "Couldn't load that session",
+    'badge-solo-first': 'First solo talk',
+    'badge-solo-30min': '30 minutes non-stop',
+    'badge-solo-total-300': '5 hours of speaking',
+    // コトラの週報
+    'weekly-title': "Kotora's Weekly Report",
+    'weekly-cta': "Last week's report is ready",
+    'weekly-open': "📮 See last week's report",
+    'weekly-close': "Let's go this week 🔥",
+    'weekly-headline': 'You wrote on {n} days last week!',
+    'weekly-stat-days': 'Days written',
+    'weekly-stat-words': 'New words',
+    'weekly-stat-pron': 'Best pronunciation',
+    'weekly-stat-run': 'Longest run',
+    'weekly-unit-days': 'days',
+    'weekly-unit-words': 'words',
+    'weekly-unit-score': 'points',
+    'weekly-highlight': 'I liked this sentence',
+    'btn-close': 'Close',
     'situational-target-label': 'Words to use', 'situational-or': 'or type your answer in English',
     'ph-situational-answer': 'Type your English answer…', 'btn-situational-grade': 'AI Grade',
     'btn-situational-next': 'Next question →',
@@ -263,7 +501,7 @@ const TRANSLATIONS = {
     'confirm-delete-word': 'Delete this word?', 'btn-delete': 'Delete', 'toast-word-deleted': 'Word deleted',
     // Streak / progress
     'streak-title': '{current}-day streak. Longest: {longest} days', 'streak-title-zero': 'Write today to start a streak',
-    'entries-view-list': 'List', 'entries-view-calendar': 'Calendar', 'entries-view-stats': 'Stats',
+    'entries-view-list': 'List', 'entries-view-calendar': 'Calendar', 'entries-view-stats': 'Stats', 'entries-view-speaking': 'Speaking',
     'stats-diary-trend': 'Entries per week', 'stats-vocab-trend': 'Vocabulary growth',
     'stats-pron-trend': 'Pronunciation score (first attempt)', 'stats-accuracy': 'Word quiz accuracy',
     'stats-category': 'Feedback by category', 'stats-entries-suffix': ' entries', 'stats-words-suffix': ' words',
@@ -328,6 +566,14 @@ function applyLang() {
   document.querySelectorAll('[data-i18n-html]').forEach(el => {
     el.innerHTML = t(el.getAttribute('data-i18n-html'));
   });
+  // 見出しやプレースホルダしか手がかりが無い入力欄・アイコンボタン向け。
+  // title属性も翻訳対象にする（従来は日本語がベタ書きのままだった）
+  document.querySelectorAll('[data-i18n-aria]').forEach(el => {
+    el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria')));
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    el.title = t(el.getAttribute('data-i18n-title'));
+  });
   const langBtn = document.getElementById('lang-btn');
   if (langBtn) langBtn.textContent = lang === 'ja' ? 'EN' : 'JA';
   document.documentElement.lang = lang === 'ja' ? 'ja' : 'en';
@@ -354,7 +600,7 @@ async function enterApp(session) {
   document.getElementById('app').style.display = 'block';
   setDateLabel();
   await loadProfile();
-  await Promise.all([loadEntries(), renderVocab(), loadEntriesMeta()]);
+  await Promise.all([loadEntries(), renderVocab(), loadEntriesMeta(), loadSoloMeta()]);
   initQuizTab();
   refreshProgressUI();
   switchTab('home');
@@ -367,7 +613,10 @@ function defaultProfile() {
 }
 
 async function loadProfile() {
-  const { data } = await sb.from('profiles').select('*').eq('user_id', currentUserId).maybeSingle();
+  const { data, error } = await sb.from('profiles').select('*').eq('user_id', currentUserId).maybeSingle();
+  // profilesテーブルが無い・権限が無い場合でも既定値でアプリは使えるようにし、
+  // 原因が分かるようにトーストだけ出す（黙って握り潰すと調査できない）
+  if (error) showToast(t('error-load-profile') + error.message, 'warn');
   currentProfile = data || defaultProfile();
 }
 
@@ -384,16 +633,32 @@ function collectPreferenceForm(prefix) {
   };
 }
 
+// 写真の表示は端末ごとの設定なのでprofilesには入れず、ここで保存する
+function saveVocabImagePref(prefix) {
+  const el = document.getElementById(`${prefix}-vocab-images`);
+  if (el) setVocabImagesEnabled(el.checked);
+}
+
 function openOnboarding() {
-  document.getElementById('onboarding-modal').style.display = 'flex';
+  // 設定は任意なのでEscapeで閉じられてよい（閉じられないと詰む不具合があった）
+  openModal('onboarding-modal');
 }
 
 async function completeOnboarding() {
   const payload = collectPreferenceForm('onboarding');
+  saveVocabImagePref('onboarding');
   const { error } = await sb.from('profiles').upsert(payload, { onConflict: 'user_id' });
-  if (error) { showToast(t('error-save') + error.message, 'error'); return; }
+  // 保存に失敗してもモーダルは閉じる。閉じられないとアプリ全体が操作不能になるため、
+  // 選択内容はメモリ上のプロフィールにだけ反映し、設定画面から再保存できる状態にする。
   currentProfile = payload;
   closeModal('onboarding-modal');
+  if (error) showToast(t('error-onboarding-save') + error.message, 'error');
+}
+
+// オンボーディングを保存せずに閉じる。既定のプロフィールのままアプリを使い始められる。
+function skipOnboarding() {
+  closeModal('onboarding-modal');
+  showToast(t('toast-onboarding-skipped'), 'info');
 }
 
 function populateSettingsPreferences(profile) {
@@ -404,13 +669,16 @@ function populateSettingsPreferences(profile) {
     el.checked = el.value === (profile.shadowing_level || 'normal');
   });
   document.getElementById('settings-auto-lookup').checked = !!profile.auto_vocab_lookup;
+  document.getElementById('settings-vocab-images').checked = vocabImagesEnabled();
 }
 
 async function savePreferences() {
   const payload = collectPreferenceForm('settings');
+  saveVocabImagePref('settings');
   const { error } = await sb.from('profiles').upsert(payload, { onConflict: 'user_id' });
   if (error) { showToast(t('error-save') + error.message, 'error'); return; }
   currentProfile = payload;
+  filterAndRenderVocab();
   showToast(t('toast-prefs-saved'), 'success');
 }
 
@@ -424,13 +692,23 @@ function showLogin() {
 
 // ── パスワードリセット ────────────────────────────────────────────────────
 function setSetupView(id) {
-  ['login-view', 'reset-request-view', 'reset-update-view'].forEach(v => {
+  ['login-view', 'reset-request-view', 'reset-update-view', 'boot-error-view'].forEach(v => {
     const el = document.getElementById(v);
     if (el) el.style.display = v === id ? 'block' : 'none';
   });
 }
 
 function showLoginView() { setSetupView('login-view'); }
+
+// 起動時に例外が出た場合の避難先。これが無いとログイン画面もアプリ本体も
+// display:none のままになり、画面が真っ白のまま操作不能になる。
+function showBootError(err) {
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('setup-screen').style.display = 'flex';
+  const detail = document.getElementById('boot-error-detail');
+  if (detail) detail.textContent = err && err.message ? err.message : String(err || '');
+  setSetupView('boot-error-view');
+}
 
 function showResetRequestView() {
   const loginEmail = document.getElementById('s-email').value.trim();
@@ -470,23 +748,50 @@ async function submitNewPassword() {
   if (session) { await enterApp(session); } else { showLogin(); }
 }
 
-window.addEventListener('DOMContentLoaded', async () => {
-  applyLang();
-  // supabase-jsがハッシュのトークンを消費する前に、リカバリーリンク経由かを覚えておく
-  const bootHash = location.hash;
-  initSB();
-  sb.auth.onAuthStateChange((event) => {
-    if (event === 'PASSWORD_RECOVERY') showPasswordUpdateView();
+// ── Service Worker（ホーム画面に追加・オフライン起動） ────────────────────
+// file:// で開いた場合やSW非対応ブラウザでは何もしない（登録失敗でアプリは壊さない）
+function registerServiceWorker() {
+  if (!navigator.serviceWorker || location.protocol === 'file:') return;
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      // 新しいバージョンが用意できたら、次回起動時に自動で切り替わるよう待機を解除する
+      reg.addEventListener('updatefound', () => {
+        const sw = reg.installing;
+        if (!sw) return;
+        sw.addEventListener('statechange', () => {
+          if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+            showToast(t('toast-update-ready'), 'info');
+          }
+        });
+      });
+    }).catch(() => { /* 登録できなくてもオンラインなら通常どおり動く */ });
   });
-  const { data: { session } } = await sb.auth.getSession();
-  if (bootHash.includes('type=recovery')) {
-    history.replaceState(null, '', location.pathname + location.search);
-    showPasswordUpdateView();
-  } else if (bootHash.includes('error=')) {
-    history.replaceState(null, '', location.pathname + location.search);
-    showLogin();
-    showToast(t('error-reset-expired'), 'error');
-  } else if (session) { await enterApp(session); } else { showLogin(); }
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+  // 起動経路のどこかが失敗しても、必ず何らかの画面を出す。
+  // ここでthrowするとログイン画面もアプリ本体もdisplay:noneのままになり真っ白になる。
+  try {
+    applyLang();
+    registerServiceWorker();
+    // supabase-jsがハッシュのトークンを消費する前に、リカバリーリンク経由かを覚えておく
+    const bootHash = location.hash;
+    initSB();
+    sb.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') showPasswordUpdateView();
+    });
+    const { data: { session } } = await sb.auth.getSession();
+    if (bootHash.includes('type=recovery')) {
+      history.replaceState(null, '', location.pathname + location.search);
+      showPasswordUpdateView();
+    } else if (bootHash.includes('error=')) {
+      history.replaceState(null, '', location.pathname + location.search);
+      showLogin();
+      showToast(t('error-reset-expired'), 'error');
+    } else if (session) { await enterApp(session); } else { showLogin(); }
+  } catch (e) {
+    showBootError(e);
+  }
 });
 
 // ── Login / Logout ───────────────────────────────────────────────────────
@@ -503,7 +808,7 @@ async function loginUser() {
 function openSettings() {
   document.getElementById('settings-email').textContent = currentUserEmail;
   populateSettingsPreferences(currentProfile || defaultProfile());
-  document.getElementById('settings-modal').style.display = 'flex';
+  openModal('settings-modal');
 }
 async function logoutUser() {
   await sb.auth.signOut();
@@ -520,7 +825,10 @@ function switchTab(name) {
   if (name === 'home')    renderHome();
   if (name === 'entries') loadEntries();
   if (name === 'vocab')   renderVocab();
-  if (name === 'quiz')    initQuizTab();
+  if (name === 'quiz')    openQuizTab();
+  if (name === 'solo')    openSoloTab();
+  // 独り言タブを離れるときはマイクを解放し、途中までを保存しておく
+  if (name !== 'solo' && typeof soloAbandonIfRunning === 'function') soloAbandonIfRunning();
 }
 
 // ── ホーム画面 ─────────────────────────────────────────────────────────────
@@ -548,6 +856,8 @@ function renderHome() {
     capEl.textContent = t('mascot-next-level').replace('{xp}', xpLeft);
   }
   renderHome._lastXpLeft = xpLeft;
+  // 週が明けて先週のレポートが未読なら、ホームに導線を出す（モーダルは勝手に開かない）
+  if (typeof checkWeeklyReport === 'function') checkWeeklyReport();
   document.getElementById('home-xp-fill').style.width = Math.round(stats.xpIntoLevel / stats.xpForNextLevel * 100) + '%';
 
   if (typeof kotoraImg === 'function') {
@@ -566,11 +876,14 @@ function renderHome() {
   const diaryDone = entriesMeta.some(e => e.date === todayISO());
   const dueCount = countDueVocab();
   const quizDone = LS.get('missionQuiz:' + todayISO()) === '1';
+  // 期限切れ単語を全部消化しないと達成にならないと、単語を追加するほど達成不能になる。
+  // 「今日1語でも復習した」または「期限切れが0」で達成扱いにする。
+  const reviewDone = dueCount === 0 || LS.get('missionReview:' + todayISO()) === '1';
   const missions = [
     { icon: 'i-pencil', cls: 'mission-coral', title: t('mission-diary'), done: diaryDone, tab: 'diary' },
     { icon: 'i-book',   cls: 'mission-teal',
       title: dueCount > 0 ? t('mission-review').replace('{count}', dueCount) : t('mission-review-none'),
-      done: dueCount === 0, tab: 'quiz' },
+      done: reviewDone, tab: 'quiz' },
     { icon: 'i-quiz',   cls: 'mission-gold', title: t('mission-quiz'), done: quizDone, tab: 'quiz' },
   ];
   document.getElementById('home-missions').innerHTML = missions.map(m => `
@@ -585,7 +898,60 @@ function renderHome() {
 }
 
 // ── Modal ─────────────────────────────────────────────────────────────────
-function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+// モーダルは4種類あるが、いずれもフォーカス管理・Escape・フォーカストラップが
+// 無かった。キーボードとスクリーンリーダーの利用者はモーダルの外に取り残されるため、
+// 開閉を共通化してここでまとめて面倒を見る。
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const _modalStack = [];
+
+function _focusableIn(el) {
+  return [...el.querySelectorAll(FOCUSABLE)].filter(n => n.offsetParent !== null || n === document.activeElement);
+}
+
+function _onModalKeydown(e) {
+  const top = _modalStack[_modalStack.length - 1];
+  if (!top) return;
+  if (e.key === 'Escape') {
+    if (top.dismissible === false) return;
+    e.preventDefault();
+    closeModal(top.id);
+    return;
+  }
+  if (e.key !== 'Tab') return;
+  const items = _focusableIn(document.getElementById(top.id));
+  if (!items.length) return;
+  const first = items[0], last = items[items.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+}
+
+// dismissible: false を渡すとEscapeで閉じない（確認ダイアログは明示的な選択を求める）
+function openModal(id, { dismissible = true } = {}) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = 'flex';
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  if (!_modalStack.length) document.addEventListener('keydown', _onModalKeydown, true);
+  _modalStack.push({ id, dismissible, returnTo: document.activeElement });
+  // 開いた直後は最初の操作可能な要素へフォーカスを移す
+  const items = _focusableIn(el);
+  (items[0] || el).focus({ preventScroll: true });
+}
+
+function closeModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = 'none';
+  const i = _modalStack.findIndex(m => m.id === id);
+  if (i !== -1) {
+    const [entry] = _modalStack.splice(i, 1);
+    // 開く前にフォーカスがあった要素へ戻す
+    if (entry.returnTo && document.contains(entry.returnTo)) {
+      entry.returnTo.focus({ preventScroll: true });
+    }
+  }
+  if (!_modalStack.length) document.removeEventListener('keydown', _onModalKeydown, true);
+}
 
 // ── Date ──────────────────────────────────────────────────────────────────
 const DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -593,13 +959,19 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 function fmtDate(iso) {
   const d = new Date(iso + 'T00:00:00');
   const day = d.getDate();
-  const sfx = [,'st','nd','rd'][day%10 > 3 ? 0 : day%10] || 'th';
+  const sfx = (day % 100 >= 11 && day % 100 <= 13) ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[day % 10] || 'th');
   return `${DAYS[d.getDay()]} ${MONTHS[d.getMonth()]} ${day}${sfx} ${d.getFullYear()}`;
 }
 function setDateLabel() {
-  document.getElementById('today-label').textContent = fmtDate(new Date().toISOString().split('T')[0]);
+  document.getElementById('today-label').textContent = fmtDate(todayISO());
 }
-function todayISO() { return new Date().toISOString().split('T')[0]; }
+// 端末のローカル暦日を 'YYYY-MM-DD' で返す。
+// toISOString()はUTCに変換してしまうため、JST（UTC+9）では朝9時前に書いた日記が
+// 「前日」として記録され、ストリーク・カレンダー・ミッション判定がすべてずれる。
+function localISO(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function todayISO() { return localISO(new Date()); }
 
 // ── 日記ステップ切り替え（1画面1機能ウィザード）────────────────────────────
 let currentDiaryStep = 1, maxDiaryStepReached = 1;
@@ -646,12 +1018,12 @@ function addWordRow(jp = '') {
   row.className = 'word-row';
   row.innerHTML = `
     <div class="word-row-main">
-      <input type="text" class="input word-jp" placeholder="${t('ph-word-jp')}" value="${escapeHtml(jp)}" onblur="autoLookupOnBlur(this,'jp2en')" />
+      <input type="text" class="input word-jp" placeholder="${escapeHtml(t('ph-word-jp'))}" aria-label="${escapeHtml(t('ph-word-jp'))}" value="${escapeHtml(jp)}" onblur="autoLookupOnBlur(this,'jp2en')" />
       <span class="arrow">→</span>
-      <input type="text" class="input word-en" placeholder="${t('ph-word-en')}" onblur="autoLookupOnBlur(this,'en2jp')" />
+      <input type="text" class="input word-en" placeholder="${escapeHtml(t('ph-word-en'))}" aria-label="${escapeHtml(t('ph-word-en'))}" onblur="autoLookupOnBlur(this,'en2jp')" />
       <button class="icon-btn red" onclick="removeWordRow(this)">✕</button>
     </div>
-    <textarea class="input word-note" placeholder="${t('ph-word-note')}"></textarea>
+    <textarea class="input word-note" placeholder="${escapeHtml(t('ph-word-note'))}" aria-label="${escapeHtml(t('ph-word-note'))}"></textarea>
   `;
   document.getElementById('unknown-words-list').appendChild(row);
 }
@@ -851,9 +1223,15 @@ function startAiProgress() {
   };
 }
 
+let _aiCorrecting = false;
+
 async function goStep5() {
   const en2 = document.getElementById('diary-en2').value.trim();
   if (!en2) { showToast(t('alert-write-en2'), 'warn'); return; }
+  // 連打すると進捗バーのタイマーとGemini呼び出しが二重に走り、
+  // 遅いほうの応答が新しいほうを上書きしてしまう
+  if (_aiCorrecting) return;
+  _aiCorrecting = true;
 
   goToDiaryStep(5);
   if (typeof mascotSetMood === 'function') mascotSetMood('step5-mascot', 'excited');
@@ -876,6 +1254,7 @@ async function goStep5() {
 
   window._correctedText = en2;
   window._lastFeedback  = null;
+  window._aiCorrectionFailed = false;
 
   const fastPromise = callGemini(buildFastCorrectionPrompt(jp, en1, en2), FAST_CORRECTION_SCHEMA)
     .then(res => {
@@ -885,13 +1264,20 @@ async function goStep5() {
       window._correctedText = data.corrected;
     })
     .catch(e => {
-      correctedEl.textContent = en2 + '\n\n(' + t('error-ai') + e.message + ')';
+      correctedEl.textContent = en2;
       window._correctedText = en2;
+      // 添削に失敗した事実を残す。これを見ずに保存するとエラー文がDBのcorrectedに入る。
+      window._aiCorrectionFailed = true;
+      showToast(t('error-ai') + e.message, 'error');
     });
 
+  // 詳細フィードバックは4カテゴリ分の添削と日本語解説を含むため長くなる。
+  // Worker側の既定値では足りず、JSONが途中で切れてparseに失敗することがあった。
   const detailedPromise = callGemini(
     buildDetailedFeedbackPrompt(jp, en1, words, en2, currentProfile?.skill_focus || []),
-    DETAILED_FEEDBACK_SCHEMA
+    DETAILED_FEEDBACK_SCHEMA,
+    30000,
+    { maxOutputTokens: 3072 }
   ).then(res => {
     const data = JSON.parse(res);
     renderFeedback(data);
@@ -907,6 +1293,7 @@ async function goStep5() {
   });
 
   await Promise.allSettled([fastPromise, detailedPromise]);
+  _aiCorrecting = false;
   stopProgress();
   if (typeof mascotSetMood === 'function') mascotSetMood('step5-mascot', 'delighted');
   if (typeof kotoraSay === 'function') kotoraSay('step5-mascot', 'step5-done');
@@ -970,18 +1357,40 @@ function renderCategorizedFeedback(categories, boxId = 'ai-corrections-box', lis
 }
 
 // ── TTS (ブラウザ内蔵 Web Speech API) ────────────────────────────────────
-function speakText(text, onRepEnd) {
-  const btn = document.getElementById('tts-btn');
+// opts.btnId: 再生中ラベルを出すボタン。nullを渡すとどのボタンも触らない（クイズ音声など）
+// opts.onSettled(ok): 成功・失敗どちらでも必ず1回だけ呼ばれる。呼び出し側のボタン復帰用。
+// onRepEnd は「最後まで読み上げられた」ときだけ呼ぶ（シャドーイングの回数カウント用）。
+function speakText(text, onRepEnd, opts = {}) {
+  const btnId = opts.btnId === undefined ? 'tts-btn' : opts.btnId;
+  const btn = btnId ? document.getElementById(btnId) : null;
   speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang = 'en-US';
   utter.rate = 0.9;
   const voices = speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
   if (voices.length) utter.voice = voices[0];
-  utter.onend = () => {
+
+  let settled = false;
+  const finish = (ok) => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(watchdog);
     if (btn) { btn.textContent = t('btn-tts-replay'); btn.disabled = false; }
-    if (onRepEnd) onRepEnd();
+    if (opts.onSettled) opts.onSettled(ok);
+    if (ok && onRepEnd) onRepEnd();
   };
+
+  utter.onend = () => finish(true);
+  // onerrorを配線しないと、再生に失敗したときボタンが無効のまま戻らず操作不能になる
+  utter.onerror = (e) => {
+    finish(false);
+    if (e && e.error !== 'interrupted' && e.error !== 'canceled') {
+      showToast(t('error-tts'), 'warn');
+    }
+  };
+  // 一部ブラウザはonend/onerrorを一切発火せずに黙って終わることがあるため保険をかける
+  const watchdog = setTimeout(() => finish(false), Math.max(8000, text.length * 220));
+
   if (btn) { btn.textContent = t('btn-tts-playing'); btn.disabled = false; }
   speechSynthesis.speak(utter);
 }
@@ -995,9 +1404,10 @@ function speakCorrected() {
 function playShadowingRep(text) {
   const btn = document.getElementById('hear-target-btn');
   if (btn) btn.disabled = true;
-  speakText(text, () => {
-    registerShadowingRep();
-    if (btn) btn.disabled = false;
+  speakText(text, registerShadowingRep, {
+    btnId: null,
+    // 成功・失敗どちらでもボタンを戻す。失敗時に戻さないとシャドーイングが進めなくなる。
+    onSettled: () => { if (btn) btn.disabled = false; },
   });
 }
 
@@ -1026,8 +1436,14 @@ function updateShadowingUI() {
   document.getElementById('shadow-progress-label').textContent =
     `${Math.min(shadowingReps, shadowingTarget)} / ${shadowingTarget}`;
   const reachedGoal = shadowingReps >= shadowingTarget;
-  if (reachedGoal) {
-    document.getElementById('step6-speech-area').classList.remove('gated');
+  const area = document.getElementById('step6-speech-area');
+  area.classList.toggle('gated', !reachedGoal);
+  // CSSの pointer-events:none はマウスしか塞げず、キーボードではTabで到達して
+  // Enterで録音が始まってしまう。実際にdisabledも立てる。
+  const micBtn = document.getElementById('mic-btn');
+  if (micBtn) {
+    micBtn.disabled = !reachedGoal;
+    micBtn.setAttribute('aria-disabled', String(!reachedGoal));
   }
   if (typeof mascotUpdateShadowPose === 'function') mascotUpdateShadowPose(pct, reachedGoal);
 }
@@ -1037,7 +1453,7 @@ function skipShadowingGate() {
 }
 
 let _modalCorrectedText = '';
-function speakModalText() { if (_modalCorrectedText) speakText(_modalCorrectedText); }
+function speakModalText() { if (_modalCorrectedText) speakText(_modalCorrectedText, null, { btnId: null }); }
 
 // ── STEP 5 → 6 ───────────────────────────────────────────────────────────
 function goStep6() {
@@ -1047,7 +1463,8 @@ function goStep6() {
   resetShadowingGate();
   firstPronunciationAttempt = null;
   document.getElementById('speech-first-attempt').style.display = 'none';
-  setTimeout(() => playShadowingRep(corrected), 400);
+  // iOS Safariはユーザー操作を伴わない再生をブロックするため自動再生はしない。
+  // 「もう一度聞く」ボタンをタップして始めてもらう。
 }
 
 // ── Web Speech API (Step 6 / 過去日記詳細ページ共通) ───────────────────────
@@ -1299,11 +1716,28 @@ function renderPronunciationTips(tips, ctx) {
 }
 
 // ── Save Diary ────────────────────────────────────────────────────────────
+let _savingDiary = false;
+
 async function saveDiary() {
+  // 連打すると同じ日記が2件作られるため、保存中は弾く
+  if (_savingDiary) return;
+  const saveBtn = document.getElementById('save-diary-btn');
+  _savingDiary = true;
+  if (saveBtn) saveBtn.disabled = true;
+  try {
+    await saveDiaryInner();
+  } finally {
+    _savingDiary = false;
+    if (saveBtn) saveBtn.disabled = false;
+  }
+}
+
+async function saveDiaryInner() {
   const jp        = document.getElementById('diary-jp').value.trim();
   const en1       = document.getElementById('diary-en1').value.trim();
   const en2       = document.getElementById('diary-en2').value.trim();
-  const corrected = window._correctedText || '';
+  // AI呼び出しが失敗したときはエラー文が_correctedTextに入っているため、そのまま保存しない
+  const corrected = window._aiCorrectionFailed ? '' : (window._correctedText || '');
   if (!jp) { showToast(t('alert-write-before-save'), 'warn'); return; }
 
   const newWords = [];
@@ -1330,21 +1764,7 @@ async function saveDiary() {
   });
   if (error) { showToast(t('error-save') + error.message, 'error'); return; }
 
-  let toAdd = [];
-  if (newWords.length) {
-    const { data: existing } = await sb.from('vocab').select('en');
-    const existingSet = new Set((existing||[]).map(v => v.en.toLowerCase()));
-    const seenInBatch = new Set();
-    toAdd = newWords.filter(w => {
-      const key = w.en.toLowerCase();
-      if (existingSet.has(key) || seenInBatch.has(key)) return false;
-      seenInBatch.add(key);
-      return true;
-    });
-    if (toAdd.length) {
-      await sb.from('vocab').insert(toAdd.map(w => ({ ...w, correct: 0, wrong: 0, user_id: currentUserId, image_url: vocabImageUrl(w.en) })));
-    }
-  }
+  const toAdd = await addVocabBatch(newWords);
 
   document.getElementById('diary-jp').value  = '';
   document.getElementById('diary-en1').value = '';
@@ -1367,6 +1787,7 @@ async function saveDiary() {
 
   await loadEntries();
   await loadEntriesMeta();
+  invalidateFeedbackWindow();
   refreshProgressUI();
   renderHome();
   const newStreak = computeStreaks(entriesMeta).current;
@@ -1395,7 +1816,12 @@ function sanitizeSearchTerm(term) {
   return term.trim().replace(/[,()%]/g, '');
 }
 
+// 入力が速いと前のクエリが後から返って新しい結果を上書きすることがある。
+// 発行順に番号を振り、最新の応答だけを描画する。
+let _entriesQuerySeq = 0;
+
 async function loadEntries() {
+  const seq = ++_entriesQuerySeq;
   const section  = document.getElementById('entries-section');
   const list     = document.getElementById('entries-list');
   const pageInfo = document.getElementById('entries-page-info');
@@ -1407,7 +1833,18 @@ async function loadEntries() {
   }
   const from = (entriesPage - 1) * entriesPageSize;
   const to   = from + entriesPageSize - 1;
-  const { data, count } = await query.range(from, to);
+  const { data, count, error } = await query.range(from, to);
+  if (seq !== _entriesQuerySeq) return; // より新しい検索が走っている
+
+  // エラーを捨てると読み込み失敗が「まだ日記がありません」と表示され、
+  // データが消えたように見えてしまう
+  if (error) {
+    section.style.display = 'block';
+    list.innerHTML = `<div class="empty-state-small">${escapeHtml(t('error-load-entries'))}</div>`;
+    pageInfo.textContent = '';
+    showToast(t('error-load-entries'), 'error');
+    return;
+  }
 
   if (!count && !term) { section.style.display = 'none'; return; }
   section.style.display = 'block';
@@ -1516,15 +1953,205 @@ async function saveEntryEdit() {
 }
 
 // ── Vocab ─────────────────────────────────────────────────────────────────
-function _hashSeed(str) {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
-  return h;
+// 単語カードの写真は Unsplash の検索結果を使う。APIキーをブラウザに置けないので
+// Worker が中継し、語ごとに KV へキャッシュする（worker/src/index.js）。
+//
+// 以前は生成AI（Pollinations）に1枚ずつ描かせていた。やめた理由は2つ。
+//   1. grateful や reluctant のような抽象語が絵にならなかった。抽象語ほど
+//      ストックフォトが人の表情や場面でタグ付けして持っているので検索が強い
+//   2. 行ごとに「1枚描いてくれ」を投げていた。単語帳は最大2000行あるので、
+//      スクロールするたびに無料の生成サービスへ生成要求が飛んでいた
+//
+// 表示するかどうかは端末ごとの設定としてlocalStorageに持つ（既定はオン）。
+// profilesテーブルに列を足すと手動マイグレーションが必要になるため。
+function vocabImagesEnabled() { return LS.get('vocabImages') !== '0'; }
+function setVocabImagesEnabled(on) { LS.set('vocabImages', on ? '1' : '0'); }
+
+// image_url は3つの状態を持つ。列を増やさずに「意図的に写真なし」を表すため。
+//   null … まだ探していない（自動で探す対象）
+//   ''   … 利用者が「写真を外す」を選んだ（探し直さない）
+//   URL  … 選ばれた写真。image_credit に撮影者クレジットが入る
+function needsVocabPhoto(v) { return !!v && v.image_url == null; }
+
+const PHOTO_WORDS_PER_REQUEST = 20;   // Worker側の MAX_PHOTO_WORDS と揃える
+
+// 写真の出所。規約でサービス名へのリンクを出す必要があるので、
+// 保存済みの行が指す出所から表示を決める（将来ほかを足しても壊れない）。
+const PHOTO_SOURCES = {
+  unsplash: { label: 'Unsplash', home: 'https://unsplash.com/?utm_source=english-diary&utm_medium=referral' },
+};
+
+// この語はもう探した、という記録。見つからなかった語を描画ごとに
+// 探し直して無限に往復するのを防ぐ（リロードすればまた探す）。
+const _photoTried = new Set();
+
+// Workerへ渡す検索語。英単語そのままで引く（AIは使わない）。
+// Worker側でも同じ条件で弾くが、無駄な往復を減らすため手前でも揃えておく。
+function photoQuery(en) {
+  const w = String(en || '').trim().toLowerCase();
+  if (!w || w.length > 40) return '';
+  return /^[a-z][a-z0-9 '-]*$/.test(w) ? w : '';
 }
-function vocabImageUrl(en) {
-  const prompt = encodeURIComponent(`simple flat illustration of ${en}, minimal, white background, flashcard style`);
-  const seed = _hashSeed(en.toLowerCase().trim());
-  return `https://image.pollinations.ai/prompt/${prompt}?width=256&height=256&seed=${seed}&nologo=true`;
+
+// Workerの応答をそのまま信じない。表示とクレジットに使うものだけ取り出す。
+function photoCandidate(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const https = v => (typeof v === 'string' && v.startsWith('https://') ? v : '');
+  const small = https(raw.small), large = https(raw.large);
+  const source = PHOTO_SOURCES[raw.source] ? raw.source : '';
+  if (!small || !large || !source) return null;
+  return {
+    name: String(raw.name || '').slice(0, 80),
+    page: https(raw.page),
+    small, large, source,
+    // 「写真を使った」通知のURL。保存はせず、使った瞬間にWorkerへ渡すだけ。
+    download: https(raw.download),
+  };
+}
+
+// 保存するのはクレジットの表示に必要なものだけ。download は持ち越さない。
+function photoPatch(c) {
+  return {
+    image_url: c.small,
+    image_credit: { name: c.name, page: c.page, large: c.large, source: c.source },
+  };
+}
+
+// Unsplashの規約で、写真を実際に使うときは「使った」通知を出す必要がある。
+// 通知の失敗でアプリを止める理由は無いので、待たずに投げて捨てる。
+function notifyPhotosUsed(downloads) {
+  const list = [...new Set((downloads || []).filter(Boolean))].slice(0, PHOTO_WORDS_PER_REQUEST);
+  if (!list.length) return;
+  _postWorker({ action: 'photo_used', downloads: list }, 8000)
+    .catch(e => console.warn('写真の使用通知に失敗しました', e));
+}
+
+// 写真は飾りなので、失敗しても例外を投げずに空で返す。
+// 呼び出し側（単語の保存）を巻き添えにしない。
+async function fetchVocabPhotos(words) {
+  const out = new Map();
+  if (!vocabImagesEnabled()) return out;
+  const list = [...new Set((words || []).map(photoQuery).filter(Boolean))]
+    .slice(0, PHOTO_WORDS_PER_REQUEST);
+  if (!list.length) return out;
+  try {
+    const data = await _postWorker({ action: 'photo', words: list }, 12000);
+    for (const [word, raw] of Object.entries((data && data.photos) || {})) {
+      const candidates = (Array.isArray(raw) ? raw : []).map(photoCandidate).filter(Boolean);
+      if (candidates.length) out.set(word, candidates);
+    }
+  } catch (e) {
+    console.warn('写真の取得に失敗しました（単語の記録には影響しません）', e);
+  }
+  return out;
+}
+
+// 保存済みの行に写真を当てる。単語はもう保存されているので、
+// ここで失敗しても記録は失われない。戻り値は更新できた件数。
+async function attachVocabPhotos(rows) {
+  const targets = (rows || []).filter(r => r && photoQuery(r.en));
+  if (!targets.length) return 0;
+  // 取得の成否にかかわらず「探した」と記録する。失敗を無限に繰り返さないため。
+  targets.forEach(r => _photoTried.add(photoQuery(r.en)));
+
+  const photos = await fetchVocabPhotos(targets.map(r => r.en));
+  if (!photos.size) return 0;
+
+  let updated = 0;
+  const used = [];
+  for (const row of targets) {
+    const candidates = photos.get(photoQuery(row.en));
+    if (!candidates) continue;
+    // 挿入直後は id が手元に無いので、その場合は en で引く（RLSで自分の行だけ）
+    const q = sb.from('vocab').update(photoPatch(candidates[0]));
+    const { error } = row.id ? await q.eq('id', row.id) : await q.eq('en', row.en);
+    if (error) {
+      if (isMissingImageColumn(error)) { warnMissingImageColumn(); break; }
+      console.warn('写真の保存に失敗しました', error);
+      break;
+    }
+    used.push(candidates[0].download);
+    updated++;
+  }
+  // 1語ずつ通知するとバースト上限に当たるので、まとめて1回で出す
+  notifyPhotosUsed(used);
+  return updated;
+}
+
+// 写真の取得は最長12秒かかるので、単語の保存を待たせない。
+// 取れたら静かに差し替える。テストから待てるように最後の処理を保持しておく。
+let _vocabPhotoWork = Promise.resolve(0);
+function queueVocabPhotos(rows) {
+  _vocabPhotoWork = attachVocabPhotos(rows)
+    .then(n => (n ? renderVocab().then(() => n) : n))
+    .catch(e => { console.warn('写真の付与に失敗しました', e); return 0; });
+  return _vocabPhotoWork;
+}
+
+
+// ── 単語の書き込み ────────────────────────────────────────────────────────
+// 単語カードの写真は飾りであって、単語そのものの記録を止めてよい理由にはならない。
+// ところが画像用の列が未作成の環境では PostgREST が挿入を丸ごと拒否し、
+// 単語の追加だけでなく日記の保存まで巻き添えで失敗する。
+// 列が無いと分かったら写真を諦めて記録だけ通す。
+let _vocabImageColumnMissing = false;
+const VOCAB_IMAGE_COLUMNS = ['image_url', 'image_credit'];
+
+// PostgREST はスキーマキャッシュに無い列を PGRST204 で返す
+function isMissingImageColumn(error) {
+  if (!error) return false;
+  const msg = String(error.message || '');
+  if (error.code !== 'PGRST204' && !/schema cache/i.test(msg)) return false;
+  return VOCAB_IMAGE_COLUMNS.some(col => msg.includes(col));
+}
+
+// 一度しか出さない。毎回出すと記録のたびに警告が出て鬱陶しい。
+function warnMissingImageColumn() {
+  if (warnMissingImageColumn._warned) return;
+  warnMissingImageColumn._warned = true;
+  _vocabImageColumnMissing = true;
+  showToast(t('warn-vocab-no-image-column'), 'warn');
+}
+
+// 挿入・更新に渡す1行分のオブジェクトを組み立てる。
+// 写真は保存後に別便で当てるので、ここでは画像の列を一切送らない。
+// こうしておくと、単語の追加と日記の保存が画像の列に依存しなくなる。
+function vocabRow(word, { includeDefaults = false } = {}) {
+  const row = { en: word.en, jp: word.jp, note: word.note || '' };
+  if (includeDefaults) {
+    row.correct = 0;
+    row.wrong = 0;
+    row.user_id = currentUserId;
+  }
+  return row;
+}
+
+// 画像の列が無い環境では、その列を外して1回だけやり直す。
+// 成功したらセッション中は覚えておき、以降は最初から送らない。
+async function writeVocab(run, rows) {
+  const { error } = await run(rows);
+  if (!error) return { ok: true };
+  if (!isMissingImageColumn(error)) return { ok: false, error };
+
+  const stripped = rows.map(r => {
+    const copy = { ...r };
+    VOCAB_IMAGE_COLUMNS.forEach(col => { delete copy[col]; });
+    return copy;
+  });
+  const retry = await run(stripped);
+  if (retry.error) return { ok: false, error: retry.error };
+  warnMissingImageColumn();
+  return { ok: true };
+}
+
+// 写真だけを更新する。writeVocab は画像の列を外して再試行する関数なので、
+// 画像しか入っていない更新には使えない（外すと空の更新になってしまう）。
+async function savePhotoPatch(id, patch) {
+  const { error } = await sb.from('vocab').update(patch).eq('id', id);
+  if (!error) return true;
+  if (isMissingImageColumn(error)) { warnMissingImageColumn(); return false; }
+  showToast(t('error-vocab') + error.message, 'error');
+  return false;
 }
 
 async function addVocab() {
@@ -1532,17 +2159,52 @@ async function addVocab() {
   const jp   = document.getElementById('v-jp').value.trim();
   const note = document.getElementById('v-note').value.trim();
   if (!en || !jp) { showToast(t('alert-vocab-fill'), 'warn'); return; }
-  const { error } = await sb.from('vocab').insert({ en, jp, note, correct: 0, wrong: 0, user_id: currentUserId, image_url: vocabImageUrl(en) });
-  if (error) { showToast(t('error-vocab') + error.message, 'error'); return; }
+  const res = await writeVocab(rows => sb.from('vocab').insert(rows),
+    [vocabRow({ en, jp, note }, { includeDefaults: true })]);
+  if (!res.ok) { showToast(t('error-vocab') + res.error.message, 'error'); return; }
   document.getElementById('v-en').value = '';
   document.getElementById('v-jp').value = '';
   document.getElementById('v-note').value = '';
+  invalidateQuiz();
   await renderVocab();
+  queueVocabPhotos([{ en }]);
+}
+
+// 複数語をまとめて単語帳に入れる。既存の語と、同じバッチ内の重複を除いてから挿入する。
+// 日記の保存と独り言レポートの両方から呼ぶため、saveDiary からここへ切り出した。
+// 戻り値は実際に追加された語の配列（呼び出し側が件数を表示するため）。
+async function addVocabBatch(words) {
+  if (!words || !words.length) return [];
+
+  const { data: existing, error: readError } = await sb.from('vocab').select('en').limit(VOCAB_LIMIT);
+  if (readError) { showToast(t('error-vocab') + readError.message, 'error'); return []; }
+
+  const existingSet = new Set((existing || []).map(v => String(v.en || '').toLowerCase()));
+  const seenInBatch = new Set();
+  const toAdd = words.filter(w => {
+    const key = String(w.en || '').trim().toLowerCase();
+    if (!key || existingSet.has(key) || seenInBatch.has(key)) return false;
+    seenInBatch.add(key);
+    return true;
+  });
+  if (!toAdd.length) return [];
+
+  const res = await writeVocab(rows => sb.from('vocab').insert(rows),
+    toAdd.map(w => vocabRow(w, { includeDefaults: true })));
+  // 失敗を黙って捨てると「◯語追加しました」と嘘のトーストが出る
+  if (!res.ok) { showToast(t('error-vocab') + res.error.message, 'error'); return []; }
+
+  invalidateQuiz();
+  // 写真は待たない。日記の保存を最長12秒も止めてしまうため。
+  queueVocabPhotos(toAdd);
+  return toAdd;
 }
 async function deleteVocab(id) {
   const ok = await showConfirm({ message: t('confirm-delete-word'), okLabel: t('btn-delete'), danger: true });
   if (!ok) return;
-  await sb.from('vocab').delete().eq('id', id);
+  const { error } = await sb.from('vocab').delete().eq('id', id);
+  if (error) { showToast(t('error-vocab') + error.message, 'error'); return; }
+  invalidateQuiz();
   await renderVocab();
   showToast(t('toast-word-deleted'), 'success');
 }
@@ -1550,11 +2212,31 @@ let allVocab = [];
 let vocabSearch = '';
 let editingVocabId = null;
 
+// PostgRESTは上限未指定だと1000行で黙って打ち切る。SRSの出題プールや
+// 重複判定が静かに狂うのを避けるため、どのクエリにも明示的に上限を置く。
+const VOCAB_LIMIT = 2000;
+
 async function renderVocab() {
-  const { data } = await sb.from('vocab').select('*').order('created_at', { ascending: false });
+  const { data, error } = await sb.from('vocab')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(VOCAB_LIMIT);
+  if (error) { showToast(t('error-load-vocab') + error.message, 'error'); return; }
   allVocab = data || [];
   editingVocabId = null;
   filterAndRenderVocab();
+  backfillVocabPhotos();
+}
+
+// 写真がまだ無い行を、1回の描画につき1リクエストぶんだけ埋める。
+// 探した語は _photoTried に入るので、見つからなくても描画ごとに探し直さない。
+// 20語を超える場合は、埋まるたびの再描画で次の20語に進んで自然に収束する。
+function backfillVocabPhotos() {
+  if (!vocabImagesEnabled() || _vocabImageColumnMissing) return;
+  const pending = allVocab
+    .filter(v => needsVocabPhoto(v) && !_photoTried.has(photoQuery(v.en)))
+    .slice(0, PHOTO_WORDS_PER_REQUEST);
+  if (pending.length) queueVocabPhotos(pending);
 }
 
 function startEditVocab(id) { editingVocabId = id; filterAndRenderVocab(); }
@@ -1564,9 +2246,18 @@ async function saveEditVocab(id) {
   const jp   = document.getElementById(`ve-jp-${id}`).value.trim();
   const note = document.getElementById(`ve-note-${id}`).value.trim();
   if (!en || !jp) { showToast(t('alert-vocab-fill'), 'warn'); return; }
-  const { error } = await sb.from('vocab').update({ en, jp, note, image_url: vocabImageUrl(en) }).eq('id', id);
-  if (error) { showToast(t('error-vocab') + error.message, 'error'); return; }
+  const patch = vocabRow({ en, jp, note });
+  // 単語そのものが変わったら、前の単語で選んだ写真は合わないので探し直す
+  const prev = allVocab.find(v => v.id === id);
+  const enChanged = prev && String(prev.en || '').toLowerCase() !== en.toLowerCase();
+  if (enChanged && !_vocabImageColumnMissing) {
+    patch.image_url = null;
+    patch.image_credit = null;
+  }
+  const res = await writeVocab(rows => sb.from('vocab').update(rows[0]).eq('id', id), [patch]);
+  if (!res.ok) { showToast(t('error-vocab') + res.error.message, 'error'); return; }
   editingVocabId = null;
+  invalidateQuiz();
   await renderVocab();
 }
 
@@ -1579,6 +2270,8 @@ function filterAndRenderVocab() {
   const vocab = term
     ? allVocab.filter(v => v.en.toLowerCase().includes(term) || v.jp.toLowerCase().includes(term))
     : allVocab;
+
+  renderVocabGarden();
 
   if (!vocab.length) {
     count.textContent = '';
@@ -1598,36 +2291,160 @@ function filterAndRenderVocab() {
       return `<div class="vocab-row vocab-row-editing">
         <input type="text" class="input" id="ve-en-${v.id}" value="${escapeHtml(v.en)}" />
         <input type="text" class="input" id="ve-jp-${v.id}" value="${escapeHtml(v.jp)}" />
-        <input type="text" class="input" id="ve-note-${v.id}" value="${escapeHtml(v.note||'')}" />
-        <button class="icon-btn" onclick="saveEditVocab(${v.id})" title="保存">💾</button>
-        <button class="icon-btn" onclick="cancelEditVocab()" title="キャンセル">✕</button>
+        <textarea class="input" id="ve-note-${v.id}" rows="2">${escapeHtml(v.note||'')}</textarea>
+        <button class="icon-btn" onclick="saveEditVocab(${v.id})" title="${escapeHtml(t('btn-save'))}" aria-label="${escapeHtml(t('btn-save'))}">💾</button>
+        <button class="icon-btn" onclick="cancelEditVocab()" title="${escapeHtml(t('btn-cancel'))}" aria-label="${escapeHtml(t('btn-cancel'))}">✕</button>
       </div>`;
     }
     const total = (v.correct||0) + (v.wrong||0);
     const rate  = total ? Math.round(v.correct/total*100) : null;
     const cls   = rate===null ? 'rate-new' : rate>=70 ? 'rate-ok' : 'rate-ng';
-    return `<div class="vocab-row">
-      <img class="v-thumb" src="${v.image_url || vocabImageUrl(v.en)}" alt="${escapeHtml(v.en)}" loading="lazy" onerror="this.style.visibility='hidden'" />
+    // 設定がオフなら保存済みのURLも読みに行かない（第三者へのリクエストを出さない）
+    const imgSrc = vocabImagesEnabled() ? (v.image_url || '') : '';
+    // 記憶の育ち具合。.vocab-rowはflex-wrapで、伸びるのは3つのテキストセルだけなので
+    // flex-shrink:0 の要素を足しても既存レイアウトは潰れない。
+    const stageTitle = `${t('stage-' + srsStageKey(v.srs_stage))} ・ ${t('review-next-label')} ${nextReviewLabel(v)}`;
+    return `<div class="vocab-row${isWeakWord(v) ? ' vocab-row-weak' : ''}">
+      ${vocabThumb(v, imgSrc)}
       <div class="v-en">${escapeHtml(v.en)}</div>
       <div class="v-jp">${escapeHtml(v.jp)}</div>
       <div class="v-note">${escapeHtml(v.note||'')}</div>
+      <span class="v-stage" title="${escapeHtml(stageTitle)}" aria-label="${escapeHtml(stageTitle)}">${srsStageIcon(v.srs_stage)}</span>
       <span class="v-rate ${cls}">${rate===null ? t('vocab-untested') : rate+'%'}</span>
-      <button class="icon-btn" onclick="startEditVocab(${v.id})" title="編集">✏️</button>
-      <button class="icon-btn red" onclick="deleteVocab(${v.id})" title="削除">✕</button>
+      <button class="icon-btn" onclick="startEditVocab(${v.id})" title="${escapeHtml(t('btn-edit'))}" aria-label="${escapeHtml(t('btn-edit'))} ${escapeHtml(v.en)}">✏️</button>
+      <button class="icon-btn red" onclick="deleteVocab(${v.id})" title="${escapeHtml(t('btn-delete'))}" aria-label="${escapeHtml(t('btn-delete'))} ${escapeHtml(v.en)}">✕</button>
     </div>`;
   }).join('');
 }
 
+// サムネイル。.vocab-row はモバイルで既に7要素あって余裕が無いので、
+// ボタンを足すのではなく、元からあるサムネイル自体をタップ先にする。
+// 写真が無い行は頭文字のタイルを出す（第三者へのリクエストは発生しない）。
+function vocabThumb(v, imgSrc) {
+  if (!vocabImagesEnabled()) return '';
+  const label = `${t('aria-vocab-photo')} ${v.en}`;
+  const initial = String(v.en || '?').trim().slice(0, 1).toUpperCase();
+  const img = imgSrc
+    ? `<img class="v-thumb" src="${escapeHtml(imgSrc)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'" />`
+    : '';
+  return `<button class="v-thumb-btn" onclick="openVocabPhoto(${v.id})" `
+    + `title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">`
+    + `<span class="v-thumb-fallback" aria-hidden="true">${escapeHtml(initial)}</span>${img}</button>`;
+}
+
+// ── 写真の選び直し ────────────────────────────────────────────────────────
+// Unsplashの規約で撮影者名とUnsplashへのリンクの表示が必要なので、
+// 一覧の52pxサムネイルではなくこのモーダルでクレジットを出す。
+let _photoPick = null;   // { id, en, candidates, index }
+
+async function openVocabPhoto(id) {
+  const v = allVocab.find(x => x.id === id);
+  if (!v) return;
+  _photoPick = { id, en: v.en, candidates: [], index: -1 };
+  renderVocabPhotoModal({ loading: true, row: v });
+  openModal('vocab-photo-modal');
+
+  if (!vocabImagesEnabled()) { renderVocabPhotoModal({ message: t('photo-off'), row: v }); return; }
+
+  const photos = await fetchVocabPhotos([v.en]);
+  // 待っている間に閉じられた／別の語を開いたら、古い結果を描かない
+  if (!_photoPick || _photoPick.id !== id) return;
+  const candidates = photos.get(photoQuery(v.en)) || [];
+  _photoPick.candidates = candidates;
+  // いま表示している写真が候補の何番目かを覚える。
+  // そうしないと「別の写真にする」が同じ写真を出してしまう。
+  _photoPick.index = candidates.findIndex(c => c.small === (v.image_url || ''));
+  renderVocabPhotoModal({ row: v, message: candidates.length ? '' : t('photo-none') });
+}
+
+async function cycleVocabPhoto() {
+  const p = _photoPick;
+  if (!p || !p.candidates.length) return;
+  p.index = (p.index + 1) % p.candidates.length;
+  const chosen = p.candidates[p.index];
+  const patch = photoPatch(chosen);
+  if (!await savePhotoPatch(p.id, patch)) return;
+  notifyPhotosUsed([chosen.download]);
+  renderVocabPhotoModal({ row: { en: p.en, ...patch } });
+  await renderVocab();
+}
+
+async function clearVocabPhoto() {
+  const p = _photoPick;
+  if (!p) return;
+  // 空文字は「利用者が外した」の意味。nullに戻すと自動取得が拾い直してしまう。
+  if (!await savePhotoPatch(p.id, { image_url: '', image_credit: null })) return;
+  _photoPick = null;
+  closeModal('vocab-photo-modal');
+  showToast(t('toast-photo-cleared'));
+  await renderVocab();
+}
+
+function renderVocabPhotoModal({ row = null, loading = false, message = '' } = {}) {
+  const p = _photoPick;
+  const en = (row && row.en) || (p && p.en) || '';
+  document.getElementById('vocab-photo-word').textContent = en;
+
+  const credit = (row && row.image_credit) || null;
+  const large = (credit && credit.large) || (row && row.image_url) || '';
+  document.getElementById('vocab-photo-frame').innerHTML = large
+    ? `<img class="vocab-photo-img" src="${escapeHtml(large)}" alt="" referrerpolicy="no-referrer" />`
+    : `<div class="vocab-photo-empty" aria-hidden="true">${escapeHtml(String(en || '?').slice(0, 1).toUpperCase())}</div>`;
+
+  const creditEl = document.getElementById('vocab-photo-credit');
+  if (loading) {
+    creditEl.textContent = t('photo-loading');
+  } else if (credit && credit.name) {
+    // 撮影者名は提供元由来の外部文字列。属性にも本文にもエスケープして入れる。
+    const src = PHOTO_SOURCES[credit.source] || PHOTO_SOURCES.unsplash;
+    const page = credit.page || src.home;
+    creditEl.innerHTML = `${escapeHtml(t('photo-credit'))} `
+      + `<a href="${escapeHtml(page)}" target="_blank" rel="noopener noreferrer">${escapeHtml(credit.name)}</a>`
+      + ` / <a href="${escapeHtml(src.home)}" target="_blank" rel="noopener noreferrer">${escapeHtml(src.label)}</a>`;
+  } else {
+    creditEl.textContent = message;
+  }
+
+  document.getElementById('vocab-photo-next').disabled = !(p && p.candidates.length);
+}
+
+// 単語帳ヘッダーの「🌸12 🌷8 🌿15 🌱20 ／ 苦手5語」チップ。
+// #vocab-count は textContent 前提なので、兄弟の専用コンテナに描く。
+function renderVocabGarden() {
+  const el = document.getElementById('vocab-garden');
+  if (!el) return;
+  if (!allVocab.length) { el.innerHTML = ''; el.style.display = 'none'; return; }
+
+  const g = computeGardenCounts(allVocab);
+  const chips = [
+    { icon: '🌸', n: g.bloom,  key: 'bloom'  },
+    { icon: '🌷', n: g.bud,    key: 'bud'    },
+    { icon: '🌿', n: g.sprout, key: 'sprout' },
+    { icon: '🌱', n: g.seed,   key: 'seed'   },
+  ].filter(c => c.n > 0);
+
+  const weak = weakVocab(allVocab).length;
+  el.style.display = 'flex';
+  el.innerHTML = chips.map(c =>
+    `<span class="stat-chip" title="${escapeHtml(t('stage-' + c.key))}">${c.icon} <strong>${c.n}</strong></span>`
+  ).join('') + (weak
+    ? `<span class="stat-chip chip-weak">${escapeHtml(t('vocab-weak-chip').replace('{n}', weak))}</span>`
+    : '');
+}
+
+// 1打鍵ごとにリスト全体のHTMLを組み直すと（1行につき画像1枚）重いのでデバウンスする
+let vocabSearchTimer = null;
 function onVocabSearchInput(value) {
   vocabSearch = value;
-  filterAndRenderVocab();
+  clearTimeout(vocabSearchTimer);
+  vocabSearchTimer = setTimeout(filterAndRenderVocab, 180);
 }
 
 // ── SRS（間隔反復・エビングハウスの忘却曲線を参考にした固定ステージ方式） ──
 const SRS_INTERVALS_DAYS = [0, 1, 3, 7, 14, 30, 90];
 
 async function fetchDueVocab(limit = 20, preloaded = null) {
-  const vocab = preloaded || (await sb.from('vocab').select('*')).data || [];
+  const vocab = preloaded || (await sb.from('vocab').select('*').limit(VOCAB_LIMIT)).data || [];
   const now = Date.now();
   const due = vocab
     .filter(v => new Date(v.next_review_at || 0).getTime() <= now)
@@ -1654,15 +2471,75 @@ function computeSrsUpdate(v, isOk) {
   };
 }
 
+// ── 記憶の育ち具合（Word Garden） ──────────────────────────────────────────
+// srs_stage 0〜6 を 芽→双葉→つぼみ→花 の4段階に畳んで見せる。
+// SRSは以前から動いていたが画面に一切出ておらず、「賢く出題されている」ことが
+// ユーザーから見えていなかった。
+const SRS_STAGE_ICONS = ['🌱', '🌱', '🌿', '🌿', '🌷', '🌷', '🌸'];
+const SRS_STAGE_KEYS  = ['seed', 'seed', 'sprout', 'sprout', 'bud', 'bud', 'bloom'];
+
+function srsStageIndex(stage) {
+  const s = Math.max(0, Math.min(SRS_INTERVALS_DAYS.length - 1, stage || 0));
+  return s;
+}
+function srsStageIcon(stage) { return SRS_STAGE_ICONS[srsStageIndex(stage)]; }
+function srsStageKey(stage)  { return SRS_STAGE_KEYS[srsStageIndex(stage)]; }
+
+// 「あと3日」「今日」のように残り日数を返す
+function nextReviewLabel(v) {
+  const at = v.next_review_at ? new Date(v.next_review_at) : null;
+  if (!at || Number.isNaN(at.getTime())) return t('review-due-now');
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const due = new Date(at); due.setHours(0, 0, 0, 0);
+  const days = Math.round((due - today) / 86400000);
+  if (days <= 0) return t('review-due-now');
+  if (days === 1) return t('review-due-tomorrow');
+  return t('review-due-days').replace('{n}', days);
+}
+
+// 苦手判定。win_streak列を足さずに既存のcorrect/wrongだけで決める。
+// 正解を重ねて正答率が60%を超えた時点で自動的に苦手から外れる＝卒業。
+function isWeakWord(v) {
+  const wrong = v.wrong || 0;
+  const total = (v.correct || 0) + wrong;
+  return wrong >= 2 && total > 0 && (v.correct || 0) / total < 0.6;
+}
+
+function weakVocab(list) { return (list || []).filter(isWeakWord); }
+
 // ── Quiz ──────────────────────────────────────────────────────────────────
 let queue=[], currentCard=null, qStats={ok:0,ng:0,streak:0};
+// 「苦手だけ」トグルの状態。出題プールの絞り込みにだけ使い、出題形式は変えない。
+let weakOnlyMode = false;
+
+function renderWeakToggle() {
+  const wrap = document.getElementById('weak-toggle-wrap');
+  const btn  = document.getElementById('weak-toggle-btn');
+  if (!wrap || !btn) return;
+  const weak = weakVocab(allVocab);
+  // 該当0件なら押せても意味がないので出さない
+  wrap.style.display = weak.length ? 'flex' : 'none';
+  if (!weak.length) weakOnlyMode = false;
+  btn.classList.toggle('active', weakOnlyMode);
+  btn.setAttribute('aria-pressed', String(weakOnlyMode));
+  btn.textContent = t('quiz-weak-only').replace('{n}', weak.length);
+}
+
+function toggleWeakOnly() {
+  weakOnlyMode = !weakOnlyMode;
+  renderWeakToggle();
+  startQuiz();
+}
+
 async function startQuiz() {
-  const { data: vocab } = await sb.from('vocab').select('*');
+  const { data: vocab } = await sb.from('vocab').select('*').limit(VOCAB_LIMIT);
   allVocab = vocab || [];
   const empty=document.getElementById('quiz-empty'), area=document.getElementById('quiz-area');
-  if (!allVocab.length) { empty.style.display='block'; area.style.display='none'; return; }
+  if (!allVocab.length) { empty.style.display='block'; area.style.display='none'; renderWeakToggle(); return; }
   empty.style.display='none'; area.style.display='block';
-  const due = await fetchDueVocab(30, allVocab);
+  renderWeakToggle();
+  const pool = weakOnlyMode ? weakVocab(allVocab) : allVocab;
+  const due = await fetchDueVocab(30, pool);
   queue = due.map(v => {
     const type = pickQuestionType();
     const dir = type === 'listen' ? 'en2jp' : (Math.random()<0.5?'en2jp':'jp2en');
@@ -1738,7 +2615,7 @@ function renderQuizCard(card) {
 
   const listenBtn = document.getElementById('quiz-listen-btn');
   listenBtn.style.display = isListen ? 'inline-block' : 'none';
-  if (isListen) setTimeout(() => speakText(v.en), 300);
+  if (isListen) setTimeout(() => speakText(v.en, null, { btnId: null }), 300);
 
   const choicesEl = document.getElementById('quiz-choices');
   choicesEl.innerHTML = '';
@@ -1758,7 +2635,7 @@ function renderQuizCard(card) {
   input.style.display = isMc ? 'none' : 'block';
   document.querySelector('.quiz-actions').style.display = isMc ? 'none' : 'flex';
 }
-function playQuizAudio() { if (currentCard) speakText(currentCard.v.en); }
+function playQuizAudio() { if (currentCard) speakText(currentCard.v.en, null, { btnId: null }); }
 // trim・小文字化・全角半角統一(NFKC)・カタカナ→ひらがな
 function normalizeAnswer(s) {
   let x = String(s).trim().toLowerCase().normalize('NFKC');
@@ -1799,30 +2676,57 @@ function checkChoice(btn, isOk, correctText) {
   btn.classList.add(isOk ? 'choice-correct' : 'choice-wrong');
   recordQuizResult(isOk, correctText, currentCard, false);
 }
+// 単語1語の正誤をSRSと単語帳に反映する。出題形式に依存しないので、
+// 単語テストからも日記クイズからも呼べる。
+// 戻り値の graduated は「苦手単語から卒業した」フラグ（回答前後で判定が変わったか）。
+async function applySrsResult(v, isOk) {
+  const wasWeak = isWeakWord(v);
+  const srs = computeSrsUpdate(v, isOk);
+  const delta = isOk ? { correct: (v.correct || 0) + 1 } : { wrong: (v.wrong || 0) + 1 };
+
+  const { error } = await sb.from('vocab').update({ ...delta, ...srs }).eq('id', v.id);
+  if (error) { showToast(t('error-srs') + error.message, 'error'); return { ok: false, graduated: false }; }
+
+  // allVocabはホームの「復習する単語」件数と単語帳表示の元データ。ここを更新しないと、
+  // 復習し終えた単語がいつまでも期限切れとして数えられる。
+  Object.assign(v, delta, srs);
+  const inList = allVocab.find(x => x.id === v.id);
+  if (inList && inList !== v) Object.assign(inList, delta, srs);
+  LS.set('missionReview:' + todayISO(), '1');
+
+  return { ok: true, graduated: wasWeak && !isWeakWord(v) };
+}
+
+// 苦手を卒業したらコトラが祝う（単語テスト・日記クイズ共通）
+function celebrateGraduation(slotId, word) {
+  showToast(t('toast-weak-graduated').replace('{word}', word), 'success');
+  if (typeof kotoraSay === 'function') kotoraSay(slotId, 'weak-graduate', { vars: { word } });
+}
+
 async function recordQuizResult(isOk, correctText, card, typo=false) {
   const {v} = card;
   const banner=document.getElementById('result-banner');
   banner.style.display='block';
-  const srs = computeSrsUpdate(v, isOk);
   if (isOk) {
     qStats.ok++; qStats.streak++;
     banner.className='result-banner result-ok';
     banner.textContent=t('quiz-correct')+correctText+'」'+(typo?t('quiz-typo-note'):'');
-    await sb.from('vocab').update({ correct:(v.correct||0)+1, ...srs }).eq('id',v.id);
     if (qStats.streak > 0 && qStats.streak % 5 === 0) showToast(`🔥 ${qStats.streak} ${t('quiz-streak-toast')}`);
   } else {
     qStats.ng++; qStats.streak=0;
     banner.className='result-banner result-ng';
     banner.textContent=t('quiz-wrong')+correctText+'」';
-    await sb.from('vocab').update({ wrong:(v.wrong||0)+1, ...srs }).eq('id',v.id);
   }
-  pulseQuizCard(isOk);
+  const { graduated } = await applySrsResult(v, isOk);
+  pulseQuizCard(isOk, document.querySelector('#quiz-flashcard-area .quiz-card'));
   if (typeof mascotReactQuiz === 'function') mascotReactQuiz(isOk);
   updateQStats(true);
+  if (graduated) celebrateGraduation('quiz-mascot', v.en);
   setTimeout(nextQ,1600);
 }
-function pulseQuizCard(isOk) {
-  const card = document.querySelector('.quiz-card');
+// card は対象の .quiz-card 要素。省略時に document.querySelector('.quiz-card') へ
+// 落とすと、モードが増えたときに常に先頭のカードが光ってしまう。
+function pulseQuizCard(isOk, card) {
   if (!card) return;
   const cls = isOk ? 'card-correct-pulse' : 'card-wrong-pulse';
   card.classList.add(cls);
@@ -1845,16 +2749,360 @@ function updateQStats(hasCard) {
   document.getElementById('q-bar').style.width=total?Math.round(done/total*100)+'%':'0%';
 }
 
-// ── Quiz mode toggle（単語テスト / 状況文で練習） ────────────────────────────
-function initQuizTab() {
-  switchQuizMode(LS.get('quizMode') || 'flashcard', true);
+// ── 日記から復習（Diary Quiz） ────────────────────────────────────────────
+// 自分が書いて添削してもらった英文から、穴埋めと並べ替えをローカル生成する。
+// 自分の言葉・自分の出来事なので記憶に定着しやすく、書きっぱなしの日記が資産になる。
+// AIは使わない（運用費ゼロの制約を守る）。
+
+// 穴埋めの空所にしない語。冠詞・前置詞・代名詞・be動詞・助動詞など、
+// 文脈が無くても当てられてしまう機能語を外す。
+const DQ_STOPWORDS = new Set([
+  'a','an','the','and','or','but','so','if','then','than','that','this','these','those',
+  'i','you','he','she','it','we','they','me','him','her','us','them','my','your','his',
+  'its','our','their','mine','yours','ours','theirs','myself','yourself',
+  'am','is','are','was','were','be','been','being','do','does','did','done',
+  'have','has','had','will','would','can','could','shall','should','may','might','must',
+  'of','in','on','at','to','for','with','from','by','as','about','into','over','after',
+  'before','when','while','because','very','just','also','too','not','no','yes',
+  'there','here','what','which','who','how','why','all','some','any','more','most',
+]);
+
+const DQ_MIN_WORDS = 5;
+const DQ_MAX_WORDS = 12;
+const DQ_POOL_ENTRIES = 20;
+const DQ_QUESTIONS = 10;
+
+// 「Mr.」のような略語の直後で文を切らないための除外リスト
+const DQ_ABBREVIATIONS = /(?:^|\s)(?:Mr|Mrs|Ms|Dr|Prof|St|Jr|Sr|vs|etc|No|Fig|Ave|Rd)\.$/i;
+
+// 添削済み英文を文に割る。終止符のあとに空白＋大文字が続く箇所を境界とみなしつつ、
+// 直前が略語なら結合し直す。誤って切ると意味の通らない断片が出題されてしまう。
+function splitSentences(text) {
+  const parts = String(text || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(/(?<=[.!?])\s+(?=[A-Z"'])/);
+
+  const out = [];
+  parts.forEach(part => {
+    const piece = part.trim();
+    if (!piece) return;
+    if (out.length && DQ_ABBREVIATIONS.test(out[out.length - 1])) {
+      out[out.length - 1] += ' ' + piece;
+    } else {
+      out.push(piece);
+    }
+  });
+  return out;
 }
-function switchQuizMode(mode, skipSave) {
+
+// 判定・表示用に語を切り出す（末尾の句読点は落とす）
+function dqWords(sentence) {
+  return sentence.split(' ').filter(Boolean);
+}
+function dqBareWord(w) {
+  return w.replace(/^[^A-Za-z']+|[^A-Za-z']+$/g, '');
+}
+
+// 空所にする語を選ぶ。優先度: ①単語帳にありSRS期限切れ ②単語帳にある
+// ③4文字以上の内容語。どれも無ければ null（その文は穴埋めに使わない）。
+function pickClozeIndex(words, vocabByWord) {
+  const now = Date.now();
+  const candidates = words.map((w, i) => {
+    const bare = dqBareWord(w).toLowerCase();
+    if (!bare || bare.length < 3 || DQ_STOPWORDS.has(bare)) return null;
+    const v = vocabByWord.get(bare);
+    if (v) {
+      const due = new Date(v.next_review_at || 0).getTime() <= now;
+      return { i, priority: due ? 0 : 1, v };
+    }
+    if (bare.length >= 4) return { i, priority: 2, v: null };
+    return null;
+  }).filter(Boolean);
+
+  if (!candidates.length) return null;
+  const best = Math.min(...candidates.map(c => c.priority));
+  const tier = candidates.filter(c => c.priority === best);
+  return tier[Math.floor(Math.random() * tier.length)];
+}
+
+let dqQueue = [], dqCard = null, dqStats = { ok: 0, ng: 0 };
+let dqPicked = [];   // 並べ替えで回答欄に積んだ語 [{word, bankIndex}]
+
+async function startDiaryQuiz() {
+  const empty = document.getElementById('diary-quiz-empty');
+  const area  = document.getElementById('diary-quiz-area');
+
+  const { data, error } = await sb.from('entries')
+    .select('id,date,jp,corrected')
+    .not('corrected', 'is', null)
+    .order('date', { ascending: false })
+    .limit(DQ_POOL_ENTRIES);
+  if (error) { showToast(t('error-load-entries'), 'error'); return; }
+
+  dqQueue = buildDiaryQuizPool(data || [], allVocab);
+  if (!dqQueue.length) { empty.style.display = 'block'; area.style.display = 'none'; return; }
+  empty.style.display = 'none'; area.style.display = 'block';
+
+  dqStats = { ok: 0, ng: 0 };
+  nextDiaryQ();
+}
+
+// 出題リストを組み立てる。DBに触らない純粋な関数なのでテストから直接呼べる。
+function buildDiaryQuizPool(entries, vocab) {
+  const vocabByWord = new Map();
+  (vocab || []).forEach(v => {
+    const key = String(v.en || '').trim().toLowerCase();
+    if (key && !vocabByWord.has(key)) vocabByWord.set(key, v);
+  });
+
+  const questions = [];
+  (entries || []).forEach(e => {
+    splitSentences(e.corrected).forEach(sentence => {
+      const words = dqWords(sentence);
+      if (words.length < DQ_MIN_WORDS || words.length > DQ_MAX_WORDS) return;
+
+      const cloze = pickClozeIndex(words, vocabByWord);
+      if (cloze) {
+        questions.push({
+          kind: 'cloze', entry: e, sentence, words,
+          blankIndex: cloze.i, answer: dqBareWord(words[cloze.i]), vocab: cloze.v,
+        });
+      }
+      // 短めの文は並べ替えにも向く
+      if (words.length <= 9) {
+        questions.push({ kind: 'order', entry: e, sentence, words });
+      }
+    });
+  });
+
+  // 同じ文が穴埋めと並べ替えで連続しないようシャッフルしてから頭を取る
+  return questions.sort(() => Math.random() - 0.5).slice(0, DQ_QUESTIONS);
+}
+
+function nextDiaryQ() {
+  const banner = document.getElementById('dq-banner');
+  banner.style.display = 'none';
+  document.getElementById('dq-recall').style.display = 'none';
+  document.getElementById('dq-actions').style.display = 'flex';
+
+  dqCard = dqQueue.shift() || null;
+  updateDqStats();
+  if (!dqCard) { finishDiaryQuiz(); return; }
+
+  if (typeof mascotSetMood === 'function') mascotSetMood('diary-quiz-mascot', 'idle');
+  document.getElementById('dq-source').textContent =
+    t('dq-source').replace('{date}', fmtShortDate(dqCard.entry.date));
+  document.getElementById('dq-kind').textContent = t('dq-kind-' + dqCard.kind);
+
+  const clozeBox = document.getElementById('dq-cloze');
+  const orderBox = document.getElementById('dq-order');
+  clozeBox.style.display = dqCard.kind === 'cloze' ? 'block' : 'none';
+  orderBox.style.display = dqCard.kind === 'order' ? 'block' : 'none';
+
+  if (dqCard.kind === 'cloze') renderClozeQuestion(dqCard);
+  else renderOrderQuestion(dqCard);
+}
+
+function renderClozeQuestion(card) {
+  const el = document.getElementById('dq-sentence');
+  el.innerHTML = card.words.map((w, i) =>
+    i === card.blankIndex
+      ? `<span class="dq-blank">${'_'.repeat(Math.max(4, card.answer.length))}</span>`
+      : escapeHtml(w)
+  ).join(' ');
+  const input = document.getElementById('dq-input');
+  input.value = '';
+  input.disabled = false;
+  input.focus({ preventScroll: true });
+}
+
+function renderOrderQuestion(card) {
+  dqPicked = [];
+  document.getElementById('dq-jp-hint').textContent = card.entry.jp
+    ? t('dq-jp-hint') + ' ' + card.entry.jp
+    : '';
+  const bank = document.getElementById('dq-bank');
+  // シャッフルした語を「バンク」に並べ、タップで回答欄へ積む
+  const shuffled = card.words.map((w, i) => ({ w, i })).sort(() => Math.random() - 0.5);
+  bank.innerHTML = shuffled.map(({ w }, idx) =>
+    `<button type="button" class="quiz-choice-btn dq-chip" data-bank="${idx}" onclick="dqPickWord(${idx})">${escapeHtml(w)}</button>`
+  ).join('');
+  bank._words = shuffled.map(x => x.w);
+  renderDqAnswer();
+}
+
+function renderDqAnswer() {
+  const el = document.getElementById('dq-answer');
+  el.innerHTML = dqPicked.length
+    ? dqPicked.map((p, i) =>
+        `<button type="button" class="dq-chip dq-chip-picked" onclick="dqUnpickWord(${i})">${escapeHtml(p.word)}</button>`
+      ).join('')
+    : `<span class="dq-answer-placeholder">${escapeHtml(t('dq-tap-words'))}</span>`;
+}
+
+function dqPickWord(bankIndex) {
+  const bank = document.getElementById('dq-bank');
+  const btn = bank.querySelector(`[data-bank="${bankIndex}"]`);
+  if (!btn || btn.disabled) return;
+  btn.disabled = true;
+  dqPicked.push({ word: bank._words[bankIndex], bankIndex });
+  renderDqAnswer();
+}
+
+function dqUnpickWord(pos) {
+  const [removed] = dqPicked.splice(pos, 1);
+  if (!removed) return;
+  const btn = document.getElementById('dq-bank').querySelector(`[data-bank="${removed.bankIndex}"]`);
+  if (btn) btn.disabled = false;
+  renderDqAnswer();
+}
+
+async function checkDiaryAnswer() {
+  if (!dqCard) return;
+  let isOk, typo = false;
+  if (dqCard.kind === 'cloze') {
+    const input = document.getElementById('dq-input');
+    const res = judgeAnswer(input.value, dqCard.answer);
+    isOk = res.ok; typo = res.typo;
+    input.disabled = true;
+  } else {
+    if (!dqPicked.length) { showToast(t('dq-pick-first'), 'warn'); return; }
+    // 語の並びだけを見る（元の文の句読点・大文字小文字は問わない）
+    const got  = dqPicked.map(p => dqBareWord(p.word).toLowerCase()).join(' ');
+    const want = dqCard.words.map(w => dqBareWord(w).toLowerCase()).join(' ');
+    isOk = got === want;
+  }
+  await recordDiaryResult(isOk, typo);
+}
+
+async function recordDiaryResult(isOk, typo) {
+  const banner = document.getElementById('dq-banner');
+  banner.style.display = 'block';
+  banner.className = 'result-banner ' + (isOk ? 'result-ok' : 'result-ng');
+  const answerText = dqCard.kind === 'cloze' ? dqCard.answer : dqCard.sentence;
+  banner.textContent = (isOk ? t('quiz-correct') : t('quiz-wrong')) + answerText + '」'
+    + (isOk && typo ? t('quiz-typo-note') : '');
+
+  if (isOk) dqStats.ok++; else dqStats.ng++;
+  updateDqStats();
+  pulseQuizCard(isOk, document.getElementById('diary-quiz-card'));
+  if (typeof mascotSetMood === 'function') mascotSetMood('diary-quiz-mascot', isOk ? 'delighted' : 'sad');
+  if (typeof kotoraSay === 'function') {
+    kotoraSay('diary-quiz-mascot', isOk ? 'quiz-ok' : 'quiz-ng', { typewriter: false, duration: 1600 });
+  }
+  LS.set('missionQuiz:' + todayISO(), '1');
+
+  // 正解したら元の日記を思い出しカードとして見せる（記憶のフック）
+  if (isOk) showRecallCard(dqCard.entry);
+
+  // 出題した語が単語帳にあれば、単語テストと同じようにSRSへ反映する
+  if (dqCard.vocab) {
+    const { graduated } = await applySrsResult(dqCard.vocab, isOk);
+    if (graduated) celebrateGraduation('diary-quiz-mascot', dqCard.vocab.en);
+  }
+
+  document.getElementById('dq-actions').style.display = 'none';
+  setTimeout(nextDiaryQ, isOk ? 2600 : 2200);
+}
+
+function showRecallCard(entry) {
+  document.getElementById('dq-recall-date').textContent = fmtShortDate(entry.date);
+  document.getElementById('dq-recall-jp').textContent = entry.jp || '';
+  document.getElementById('dq-recall-en').textContent = entry.corrected || '';
+  document.getElementById('dq-recall').style.display = 'block';
+}
+
+function skipDiaryQ() {
+  if (!dqCard) return;
+  dqQueue.push(dqCard);
+  nextDiaryQ();
+}
+
+function updateDqStats() {
+  document.getElementById('dq-ok').textContent = dqStats.ok;
+  document.getElementById('dq-ng').textContent = dqStats.ng;
+  document.getElementById('dq-left').textContent = dqQueue.length + (dqCard ? 1 : 0);
+  const total = dqStats.ok + dqStats.ng + dqQueue.length + (dqCard ? 1 : 0);
+  const done  = dqStats.ok + dqStats.ng;
+  document.getElementById('dq-bar').style.width = total ? Math.round(done / total * 100) + '%' : '0%';
+}
+
+function finishDiaryQuiz() {
+  document.getElementById('dq-cloze').style.display = 'none';
+  document.getElementById('dq-order').style.display = 'none';
+  document.getElementById('dq-actions').style.display = 'none';
+  document.getElementById('dq-kind').textContent = '';
+  document.getElementById('dq-source').textContent = '';
+  const banner = document.getElementById('dq-banner');
+  banner.style.display = 'block';
+  banner.className = 'result-banner result-ok';
+  banner.textContent = t('dq-finished').replace('{ok}', dqStats.ok).replace('{total}', dqStats.ok + dqStats.ng);
+  if (dqStats.ok > 0 && typeof burstConfetti === 'function') burstConfetti();
+  if (typeof mascotSetMood === 'function') mascotSetMood('diary-quiz-mascot', 'happy');
+}
+
+// 「8/1」のような短い日付表記
+function fmtShortDate(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  if (Number.isNaN(d.getTime())) return iso;
+  return getLang() === 'ja'
+    ? `${d.getMonth() + 1}/${d.getDate()}`
+    : `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+}
+
+// ── Quiz mode toggle（単語テスト / 日記から復習 / 状況文で練習） ──────────────
+// モードを足すたびに複数箇所を直すとズレるので、ここ1つに集約する。
+// area: 表示を切り替えるコンテナのid / start: 初回に出題を組み立てる関数
+const QUIZ_MODES = {
+  flashcard:   { area: 'quiz-flashcard-area',   start: () => startQuiz() },
+  diary:       { area: 'quiz-diary-area',       start: () => startDiaryQuiz() },
+  situational: { area: 'quiz-situational-area', start: () => startSituationalPractice() },
+};
+const DEFAULT_QUIZ_MODE = 'flashcard';
+
+// 出題を開始済みのモード。テストタブを開くたびに作り直すと、進行中のクイズが巻き戻り、
+// シチュエーション練習では毎回Gemini（＝無料枠）を消費してしまう。
+let _quizStarted = {};
+
+function currentQuizMode() {
+  const saved = LS.get('quizMode');
+  return QUIZ_MODES[saved] ? saved : DEFAULT_QUIZ_MODE;
+}
+
+// 表示の切り替えだけを行う。出題開始もAI呼び出しもしない。
+function applyQuizMode(mode) {
   document.querySelectorAll('.quiz-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
-  document.getElementById('quiz-flashcard-area').style.display   = mode === 'flashcard'   ? 'block' : 'none';
-  document.getElementById('quiz-situational-area').style.display = mode === 'situational' ? 'block' : 'none';
+  Object.entries(QUIZ_MODES).forEach(([name, def]) => {
+    const el = document.getElementById(def.area);
+    if (el) el.style.display = name === mode ? 'block' : 'none';
+  });
+}
+
+function startQuizMode(mode) {
+  if (_quizStarted[mode]) return;
+  _quizStarted[mode] = true;
+  QUIZ_MODES[mode].start();
+}
+
+// 単語帳や日記が変わったら次にテストタブを開いたときに作り直す
+function invalidateQuiz() { _quizStarted = {}; }
+
+// 起動時に呼ばれる。表示を整えるだけで、出題はテストタブを開くまで遅延させる。
+function initQuizTab() { applyQuizMode(currentQuizMode()); }
+
+// テストタブを開いたとき
+function openQuizTab() {
+  const mode = currentQuizMode();
+  applyQuizMode(mode);
+  startQuizMode(mode);
+}
+
+// モード切替ボタンから
+function switchQuizMode(mode, skipSave) {
+  applyQuizMode(mode);
   if (!skipSave) LS.set('quizMode', mode);
-  if (mode === 'flashcard') startQuiz(); else startSituationalPractice();
+  startQuizMode(mode);
 }
 
 // ── シチュエーション文練習（発話・タイピング両対応、SRSで出す単語を決定） ──
@@ -1899,7 +3147,7 @@ let currentSituational = null;
 
 async function startSituationalPractice() {
   const empty = document.getElementById('situational-empty'), area = document.getElementById('situational-area');
-  const { data: vocab } = await sb.from('vocab').select('*');
+  const { data: vocab } = await sb.from('vocab').select('*').limit(VOCAB_LIMIT);
   allVocab = vocab || [];
   if (!allVocab.length) { empty.style.display='block'; area.style.display='none'; return; }
   empty.style.display='none'; area.style.display='block';
@@ -1976,8 +3224,17 @@ async function applySituationalSrsUpdate(data) {
 }
 
 // ── Gemini (Cloudflare Worker 経由) ─────────────────────────────────────────
-async function callGemini(prompt, schema, timeoutMs = 20000) {
-  const body = JSON.stringify({ prompt, schema });
+// opts.maxOutputTokens: 長いJSONを返させる呼び出しで指定する（Worker側で4096までクランプ）
+// opts.system / opts.contents: マルチターン会話用（Workerが両形式を受ける）
+function callGemini(prompt, schema, timeoutMs = 20000, opts = {}) {
+  // _postWorker は応答のJSONをそのまま返す（写真検索はGeminiの形で返らないため）。
+  // Geminiのテキストを取り出すのはこちらの役目。
+  return _postWorker({ prompt, schema, ...opts }, timeoutMs)
+    .then(data => data?.candidates?.[0]?.content?.parts?.[0]?.text || '');
+}
+
+async function _postWorker(payload, timeoutMs) {
+  const body = JSON.stringify(payload);
 
   for (let attempt = 0; ; attempt++) {
     const { data: { session } } = await sb.auth.getSession();
@@ -2003,9 +3260,11 @@ async function callGemini(prompt, schema, timeoutMs = 20000) {
       continue;
     }
     if (res.status === 401) throw new Error(t('alert-auth-error'));
+    // 403 は利用回数の上限。再試行しても無駄なので専用のメッセージを出す。
+    if (res.status === 403) throw new Error(t('error-ai-quota'));
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    return data;
   }
 }
 
@@ -2018,6 +3277,10 @@ function showToast(msg, type = 'info') {
     container = document.createElement('div');
     container.id = 'toast-container';
     container.className = 'toast-container';
+    // スクリーンリーダーに結果とエラーを伝える。これが無いと成否が一切届かない。
+    container.setAttribute('role', 'status');
+    container.setAttribute('aria-live', 'polite');
+    container.setAttribute('aria-atomic', 'false');
     document.body.appendChild(container);
   }
   const el = document.createElement('div');
@@ -2045,17 +3308,23 @@ function showConfirm({ message, okLabel, danger = false }) {
     textEl.textContent = message;
     okBtn.textContent = okLabel || t('btn-delete');
     okBtn.className = 'btn btn-sm' + (danger ? ' btn-danger' : ' btn-primary');
-    modal.style.display = 'flex';
+    // 確認ダイアログはEscapeで閉じない（どちらを選んだか曖昧にしないため）。
+    // 代わりに「キャンセル」へ最初のフォーカスを置く。
+    openModal('confirm-modal', { dismissible: false });
+    cancelBtn.focus({ preventScroll: true });
 
     const cleanup = (result) => {
-      modal.style.display = 'none';
+      closeModal('confirm-modal');
       okBtn.removeEventListener('click', onOk);
       cancelBtn.removeEventListener('click', onCancel);
+      modal.removeEventListener('keydown', onKey);
       resolve(result);
     };
     const onOk = () => cleanup(true);
     const onCancel = () => cleanup(false);
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); cleanup(false); } };
     okBtn.addEventListener('click', onOk);
     cancelBtn.addEventListener('click', onCancel);
+    modal.addEventListener('keydown', onKey);
   });
 }

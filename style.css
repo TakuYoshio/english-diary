@@ -9,16 +9,22 @@
   --border-strong: #DFC8AE;
   --text: #3D2E23;
   --text-muted: #7C6A5A;
-  --text-faint: #AC9A88;
+  /* 旧 #AC9A88 は白地で2.7:1しかなく、11〜13pxの本文に使うには低すぎた。
+     色相と彩度は保ったまま明度だけ下げてWCAG AA（4.5:1）を満たす値に置き換えている。 */
+  --text-faint: #826E5A;
   /* ブランド: コーラル（--mascot-fur #E8934F 系統） */
   --accent: #FF7847;
   --accent-light: #FFEAE0;
   --accent-mid: #F05E2E;
   --accent-dark: #D14A1E;
+  /* 白文字を載せる面（ボタン・チップ）専用。--accent のままだと白文字が2.6:1で読めない。
+     装飾（見出し・バー・枠線・アイコン）には引き続き --accent を使い、ポップな印象は保つ。 */
+  --accent-on-white-text: #DB3A00;
   /* セカンダリ: ティール（正解・統計） */
   --secondary: #1CAF9E;
   --secondary-light: #DFF5F1;
   --secondary-dark: #128577;
+  --secondary-on-white-text: #158578;
   /* ハイライト: マリーゴールド（XP・ストリーク・バッジ） */
   --gold: #F6B93B;
   --warn: #F6B93B;
@@ -27,6 +33,7 @@
   --danger: #F04444;
   --danger-light: #FDE8E8;
   --danger-dark: #C23434;
+  --danger-on-white-text: #CE2B2B;
   --success: #1CAF9E;
   --success-light: #DFF5F1;
   --locked: #F6EFE7;
@@ -264,11 +271,15 @@ body {
   display: flex; gap: 6px; align-items: center;
   max-width: 340px; margin: 0 auto 16px;
 }
+/* キーボードで到達できるよう <button> にしてあるので、既定の見た目は消す */
 .diary-progress-dot {
+  appearance: none; border: none; padding: 0; font: inherit;
   flex: 1; height: 8px; border-radius: 6px;
   background: var(--border); cursor: default;
   transition: background 0.2s, box-shadow 0.2s;
 }
+/* 8pxしか高さが無く、フォーカスが見えないと現在地を見失うため輪郭を出す */
+.diary-progress-dot:focus-visible { outline: 2px solid var(--accent-mid); outline-offset: 3px; }
 .diary-progress-dot.done { background: var(--accent); opacity: 0.45; cursor: pointer; }
 .diary-progress-dot.current { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
 .diary-progress-label {
@@ -421,6 +432,8 @@ body {
 .shadow-progress { margin-bottom: 1rem; }
 .shadow-progress .progress-track { margin-bottom: 6px; }
 .shadow-progress-label { text-align: center; font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 10px; }
+/* pointer-events:none はマウスしか塞がない。キーボードからは Tab で到達でき
+   Enterで発火してしまうため、JS側で disabled も併用している（updateShadowingUI）。 */
 .speech-area.gated .mic-btn { opacity: 0.35; pointer-events: none; filter: grayscale(60%); }
 
 /* ── SPEECH (Step 6) ── */
@@ -694,6 +707,11 @@ body {
   box-shadow: var(--shadow);
 }
 .vocab-add-row .input { flex: 1; min-width: 90px; }
+/* メモは複数行書けるので、追加行の中で自分の行を使う。
+   モバイルでは元々 flex-wrap で折り返している。 */
+.vocab-add-row textarea.input {
+  flex: 1 1 100%; min-height: 46px; resize: vertical;
+}
 .vocab-count { font-size: 12px; color: var(--text-faint); margin-bottom: 10px; }
 .vocab-row {
   display: flex; align-items: center; gap: 10px;
@@ -702,25 +720,151 @@ body {
   margin-bottom: 8px; flex-wrap: wrap;
   box-shadow: var(--shadow);
 }
-.v-thumb {
+/* サムネイル自体がタップ先（写真の選び直し）。
+   .vocab-row はモバイルで既に7要素あり、ボタンを足す余裕が無い。 */
+.v-thumb-btn {
+  appearance: none; -webkit-appearance: none;
+  border: 0; margin: 0; padding: 0; background: none;
+  font: inherit; cursor: pointer;
+  position: relative; flex-shrink: 0; line-height: 0;
   width: 52px; height: 52px; border-radius: 14px;
-  object-fit: cover; flex-shrink: 0;
+}
+.v-thumb-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.v-thumb {
+  position: absolute; inset: 0;
+  width: 52px; height: 52px; border-radius: 14px;
+  object-fit: cover;
   background: var(--surface2);
+}
+/* 写真が無い／読めなかったときの頭文字タイル。外部へのリクエストは出ない。 */
+.v-thumb-fallback {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 14px;
+  background: var(--accent-light); color: var(--text);
+  font-family: var(--font-display); font-weight: 700;
+  font-size: 20px; line-height: 1;
+  user-select: none;
 }
 .v-en { font-family: var(--font-display); font-weight: 700; flex: 1.2; font-size: 16px; min-width: 100px; }
 .v-jp { color: var(--text-muted); flex: 1; font-size: 14px; min-width: 80px; }
-.v-note { color: var(--text-faint); flex: 1.5; font-size: 13px; min-width: 80px; }
+.v-note {
+  color: var(--text-faint); flex: 1.5; font-size: 13px; min-width: 80px;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
 .v-rate {
   font-size: 11px; font-weight: 700;
   padding: 3px 9px; border-radius: 20px; flex-shrink: 0;
 }
 .vocab-row-editing input[id^="ve-en-"] { flex: 1.2; min-width: 100px; }
 .vocab-row-editing input[id^="ve-jp-"] { flex: 1; min-width: 80px; }
-.vocab-row-editing input[id^="ve-note-"] { flex: 1.5; min-width: 80px; }
+.vocab-row-editing [id^="ve-note-"] { flex: 1.5; min-width: 80px; resize: vertical; }
 .vocab-row-editing .input { width: auto; }
 .rate-new { background: var(--surface2); color: var(--text-faint); }
 .rate-ok { background: var(--success-light); color: var(--success); }
 .rate-ng { background: var(--danger-light); color: var(--danger); }
+
+/* 写真の選び直しモーダル。Unsplashの規約で撮影者名とUnsplashへのリンクが必要。 */
+.vocab-photo-card { max-width: 340px; text-align: center; }
+.vocab-photo-word {
+  font-family: var(--font-display); font-size: 20px;
+  margin: 0 0 12px; color: var(--text);
+}
+.vocab-photo-frame {
+  position: relative; width: 100%; aspect-ratio: 1 / 1;
+  border-radius: var(--radius); overflow: hidden;
+  background: var(--surface2);
+}
+.vocab-photo-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vocab-photo-empty {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--accent-light); color: var(--text);
+  font-family: var(--font-display); font-weight: 700; font-size: 56px;
+}
+.vocab-photo-credit {
+  font-size: 12px; color: var(--text-faint);
+  margin: 10px 0 14px; min-height: 1.2em;
+}
+.vocab-photo-credit a { color: var(--accent-on-white-text); }
+
+/* ── WORD GARDEN（記憶の育ち具合） ── */
+/* .vocab-row は flex-wrap で、伸びるのは .v-en/.v-jp/.v-note の3つだけ。
+   flex-shrink:0 の要素を足しても既存の min-width は割り込まれない。 */
+.v-stage {
+  flex-shrink: 0; font-size: 18px; line-height: 1;
+  cursor: help; user-select: none;
+}
+.vocab-row-weak { border-color: var(--warn); background: var(--warn-light); }
+.vocab-garden {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.vocab-garden .stat-chip { padding: 4px 11px; font-size: 12px; }
+.chip-weak {
+  background: var(--warn-light); border-color: var(--warn);
+  color: var(--warn-text); font-weight: 700;
+}
+
+/* 苦手特訓トグル */
+.weak-toggle-wrap { display: flex; justify-content: center; margin-bottom: 14px; }
+.weak-toggle-btn {
+  appearance: none; font: inherit; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  border-radius: 20px; padding: 6px 16px; font-size: 13px; font-weight: 700;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.weak-toggle-btn:hover { border-color: var(--warn); }
+.weak-toggle-btn.active {
+  background: var(--warn-light); border-color: var(--warn); color: var(--warn-text);
+}
+
+/* ── 日記から復習（Diary Quiz） ── */
+.dq-sentence {
+  font-size: 17px; line-height: 2; text-align: left;
+  margin-bottom: 16px; color: var(--text);
+}
+.dq-blank {
+  display: inline-block; min-width: 56px;
+  border-bottom: 2.5px solid var(--accent);
+  color: var(--accent-mid); font-weight: 700; letter-spacing: 0.1em;
+}
+.dq-hint-jp {
+  font-size: 13px; color: var(--text-muted); text-align: left;
+  margin-bottom: 12px; line-height: 1.6;
+}
+/* 並べ替えの回答欄。空でも高さを保って、積むたびに画面が跳ねないようにする */
+.dq-answer-slot {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  min-height: 54px; padding: 8px;
+  background: var(--surface2); border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-sm); margin-bottom: 14px;
+}
+.dq-answer-placeholder { font-size: 13px; color: var(--text-faint); margin: 0 auto; }
+.dq-bank { grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); }
+.dq-chip {
+  appearance: none; font: inherit; cursor: pointer;
+  padding: 7px 13px; font-size: 15px; font-weight: 600;
+  border-radius: 10px; min-height: 0;
+}
+.dq-chip:disabled { opacity: 0.3; cursor: default; }
+.dq-chip-picked {
+  background: var(--accent-light); border: 1.5px solid var(--accent);
+  color: var(--accent-dark);
+}
+/* 正解したときに出す「思い出しカード」 */
+.dq-recall {
+  text-align: left; margin-top: 14px; padding: 12px 14px;
+  background: var(--surface2); border-radius: var(--radius-sm);
+  animation: rise-in 0.3s ease;
+}
+.dq-recall-date {
+  font-size: 11px; font-weight: 700; color: var(--text-faint);
+  text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px;
+}
+.dq-recall-jp { font-size: 14px; color: var(--text-muted); margin-bottom: 6px; line-height: 1.7; }
+.dq-recall-en { font-size: 15px; color: var(--text); line-height: 1.7; }
 
 /* ── QUIZ ── */
 .quiz-stats-row { display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; flex-wrap: wrap; }
@@ -830,13 +974,13 @@ body {
 .btn:hover { background: var(--surface2); }
 .btn:active { transform: scale(0.98); }
 .btn-primary {
-  background: var(--accent); color: #fff; border-color: var(--accent);
+  background: var(--accent-on-white-text); color: #fff; border-color: var(--accent-on-white-text);
   box-shadow: var(--btn-shadow); border-bottom: none;
 }
 .btn-primary:hover { background: var(--accent-mid); border-color: var(--accent-mid); }
 .btn-primary:active { transform: translateY(3px); box-shadow: none; }
 .btn-danger {
-  background: var(--danger); color: #fff; border-color: var(--danger);
+  background: var(--danger-on-white-text); color: #fff; border-color: var(--danger-on-white-text);
   box-shadow: 0 4px 0 var(--danger-dark); border-bottom: none;
 }
 .btn-danger:hover { background: var(--danger-dark); border-color: var(--danger-dark); }
@@ -995,7 +1139,10 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .toast { transition: opacity 0.01s linear; transform: none !important; }
   .modal-card, .result-banner, .quiz-card.card-enter, .home-mission-card,
-  .step-card.just-unlocked, .streak-badge.streak-pulse { animation: none !important; }
+  .step-card.just-unlocked, .streak-badge.streak-pulse,
+  .dq-recall, .weekly-card, .solo-prompt-flip, .solo-home-cta { animation: none !important; }
+  /* リングの残り時間は動きではなく数値で伝わるので、遷移も切る */
+  .solo-ring-bar { transition: none !important; }
 }
 
 /* ── FX ── */
@@ -1277,4 +1424,237 @@ svg.kotora-img * { transform-box: fill-box; }
   .mascot-modal-display { width: 96px; height: 96px; }
   .home-kotora { width: 170px; height: 170px; }
   .home-greeting { font-size: 23px; }
+}
+
+/* ── コトラの週報 ── */
+.weekly-home-cta {
+  appearance: none; font: inherit; cursor: pointer; width: 100%;
+  display: flex; align-items: center; gap: 12px;
+  background: linear-gradient(135deg, var(--warn-light) 0%, var(--accent-light) 100%);
+  border: 1px solid var(--gold); border-radius: var(--radius);
+  padding: 13px 15px; margin-bottom: 14px;
+  box-shadow: var(--shadow); text-align: left;
+  animation: rise-in 0.35s ease;
+}
+.weekly-cta-icon { font-size: 22px; line-height: 1; flex-shrink: 0; }
+.weekly-cta-text { flex: 1; font-size: 14px; font-weight: 700; color: var(--text); }
+
+.weekly-hero { text-align: center; margin-bottom: 1.1rem; }
+.weekly-kotora { width: 120px; height: 120px; margin: 0 auto 8px; }
+.weekly-range {
+  font-size: 11px; font-weight: 700; color: var(--text-faint);
+  text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px;
+}
+.weekly-headline { font-family: var(--font-display); font-size: 20px; font-weight: 700; color: var(--text); }
+/* .stat-grid は768px以下で1列になる（統計のグラフは幅が要るため）。
+   週報の数字カードは中身が小さく、4枚縦積みだとスクロールが長くなるので2列を保つ。 */
+.weekly-stats { margin-bottom: 1.1rem; }
+@media (max-width: 768px) {
+  .stat-grid.weekly-stats { grid-template-columns: 1fr 1fr; }
+}
+.weekly-stats .stat-card { text-align: center; }
+.weekly-stats .stat-card-big { font-size: 26px; }
+.weekly-quote {
+  background: var(--surface2); border-radius: var(--radius-sm);
+  padding: 12px 14px; margin-bottom: 1.1rem;
+}
+.weekly-quote-text {
+  margin: 6px 0; font-size: 15px; line-height: 1.7; color: var(--text);
+  border-left: 3px solid var(--accent); padding-left: 10px;
+}
+.weekly-quote-date { font-size: 12px; color: var(--text-faint); }
+.weekly-message {
+  font-size: 14px; line-height: 1.7; color: var(--text-muted);
+  text-align: center; margin-bottom: 1rem;
+}
+
+/* ── 英語でひとりごと（Solo Talk） ── */
+.solo-home-cta {
+  appearance: none; font: inherit; cursor: pointer; width: 100%;
+  display: flex; align-items: center; gap: 12px; text-align: left;
+  background: linear-gradient(135deg, var(--accent-light) 0%, var(--secondary-light) 100%);
+  border: 1px solid var(--accent); border-radius: var(--radius);
+  padding: 14px 15px; margin-bottom: 14px; box-shadow: var(--shadow);
+}
+.solo-cta-icon { font-size: 24px; line-height: 1; flex-shrink: 0; }
+.solo-cta-body { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.solo-cta-title { font-size: 15px; font-weight: 700; color: var(--text); }
+.solo-cta-sub { font-size: 12px; color: var(--text-muted); }
+
+.solo-back { margin-bottom: 14px; }
+.solo-hero { text-align: center; margin-bottom: 1.4rem; }
+.solo-hero .mascot-hero { width: 130px; height: 130px; margin: 0 auto 8px; }
+.solo-title { font-family: var(--font-display); font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+.solo-sub { font-size: 14px; color: var(--text-muted); }
+
+.solo-notice {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 11px 13px;
+  font-size: 13px; line-height: 1.7; color: var(--text-muted); margin-bottom: 14px;
+}
+.solo-notice-warn { background: var(--warn-light); border-color: var(--warn); color: var(--warn-text); }
+
+.solo-field { margin-bottom: 1.3rem; }
+.solo-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.solo-chip {
+  appearance: none; font: inherit; cursor: pointer;
+  background: var(--surface); border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm); padding: 11px 18px;
+  font-size: 17px; font-weight: 700; color: var(--text);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.solo-chip-unit { font-size: 12px; font-weight: 600; margin-left: 2px; color: var(--text-muted); }
+.solo-chip.active {
+  background: var(--accent-light); border-color: var(--accent); color: var(--accent-dark);
+}
+.solo-chip.active .solo-chip-unit { color: var(--accent-dark); }
+
+.solo-mode-cards { display: flex; flex-direction: column; gap: 8px; }
+.solo-mode-card {
+  appearance: none; font: inherit; cursor: pointer; text-align: left;
+  display: flex; flex-direction: column; gap: 3px;
+  background: var(--surface); border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm); padding: 12px 14px;
+}
+.solo-mode-card.active { background: var(--accent-light); border-color: var(--accent); }
+.solo-mode-name { font-size: 15px; font-weight: 700; color: var(--text); }
+.solo-mode-desc { font-size: 12px; color: var(--text-muted); }
+.solo-mode-disabled { opacity: 0.5; cursor: not-allowed; }
+.solo-soon-chip {
+  font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px;
+  background: var(--surface2); color: var(--text-faint); margin-left: 6px;
+}
+.solo-start-btn { margin-top: 6px; }
+
+/* セッション中 */
+.solo-live-top { text-align: center; margin-bottom: 14px; }
+.solo-ring-wrap { position: relative; width: 150px; height: 150px; margin: 0 auto 8px; }
+.solo-ring { width: 100%; height: 100%; transform: rotate(-90deg); }
+.solo-ring-track { fill: none; stroke: var(--surface2); stroke-width: 9; }
+.solo-ring-bar {
+  fill: none; stroke: var(--accent); stroke-width: 9; stroke-linecap: round;
+  transition: stroke-dashoffset 0.3s linear, stroke 0.4s ease;
+}
+.solo-ring-ending { stroke: var(--gold); }
+.solo-ring-time {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-family: var(--font-display); font-size: 28px; font-weight: 700;
+  font-variant-numeric: tabular-nums; color: var(--text);
+}
+.solo-mic-chip {
+  display: inline-block; font-size: 12px; font-weight: 700;
+  padding: 5px 13px; border-radius: 20px;
+  background: var(--surface2); color: var(--text-muted);
+}
+.solo-mic-ok   { background: var(--success-light); color: var(--secondary-on-white-text); }
+.solo-mic-warn { background: var(--warn-light);    color: var(--warn-text); }
+.solo-mic-bad  { background: var(--danger-light);  color: var(--danger-on-white-text); }
+.solo-resume-btn { margin-bottom: 14px; }
+
+.solo-prompt-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 1.5rem 1.2rem;
+  box-shadow: var(--shadow); text-align: center; margin-bottom: 14px;
+  position: relative;
+}
+.solo-prompt-card .mascot-inline { margin: 0 auto 8px; }
+.solo-prompt-en { font-size: 19px; font-weight: 700; line-height: 1.6; margin-bottom: 6px; }
+.solo-prompt-jp { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; }
+.solo-starters { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 12px; }
+.solo-starter {
+  font-size: 12px; padding: 4px 11px; border-radius: 20px;
+  background: var(--accent-light); color: var(--accent-dark);
+}
+.solo-prompt-flip { animation: solo-flip 0.4s ease; }
+@keyframes solo-flip {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+.solo-counters { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px; }
+.solo-transcript {
+  min-height: 72px; max-height: 140px; overflow-y: auto;
+  background: var(--surface2); border-radius: var(--radius-sm);
+  padding: 11px 13px; font-size: 14px; line-height: 1.8; text-align: left;
+  color: var(--text); margin-bottom: 12px;
+}
+.solo-line-interim { color: var(--text-faint); font-style: italic; }
+.solo-typing { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.solo-live-actions { justify-content: center; }
+
+.solo-processing-text { font-size: 15px; color: var(--text-muted); margin-bottom: 14px; }
+
+/* レポート */
+.solo-report-hero { text-align: center; margin-bottom: 1.2rem; }
+.solo-report-hero .mascot-hero { width: 120px; height: 120px; margin: 0 auto 8px; }
+.solo-report-headline {
+  font-family: var(--font-display); font-size: 20px; font-weight: 700; margin-bottom: 10px;
+}
+.solo-summary { font-size: 14px; line-height: 1.8; color: var(--text-muted); margin-bottom: 1.2rem; }
+.solo-meter { margin-bottom: 10px; }
+.solo-meter-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 13px; color: var(--text-muted); margin-bottom: 4px;
+}
+.solo-meter-row strong { font-size: 15px; color: var(--text); font-variant-numeric: tabular-nums; }
+.solo-disclaimer {
+  font-size: 12px; line-height: 1.7; color: var(--warn-text);
+  background: var(--warn-light); border-radius: var(--radius-sm);
+  padding: 9px 12px; margin: 14px 0;
+}
+.solo-block { margin-bottom: 1.3rem; }
+.solo-good-item {
+  background: var(--success-light); border-radius: var(--radius-sm);
+  padding: 10px 12px; margin-top: 8px;
+}
+.solo-good-text { font-size: 15px; line-height: 1.6; margin-bottom: 3px; }
+.solo-good-why { font-size: 12px; color: var(--text-muted); }
+.solo-maybe { margin-top: 10px; }
+.solo-maybe summary { font-size: 13px; color: var(--text-muted); cursor: pointer; }
+.solo-upgrade-item {
+  background: var(--surface2); border-radius: var(--radius-sm);
+  padding: 10px 12px; margin-top: 8px;
+}
+.solo-upgrade-said { font-size: 14px; color: var(--text-muted); text-decoration: line-through; margin-bottom: 4px; }
+.solo-upgrade-native { font-size: 15px; font-weight: 600; color: var(--text); }
+.solo-vocab-chips { display: flex; flex-wrap: wrap; gap: 7px; margin: 10px 0; }
+.solo-vocab-chip {
+  display: flex; flex-direction: column; gap: 1px;
+  background: var(--accent-light); border-radius: var(--radius-sm);
+  padding: 6px 12px; font-size: 14px; font-weight: 700; color: var(--accent-dark);
+}
+.solo-vocab-chip small { font-size: 11px; font-weight: 500; color: var(--text-muted); }
+.solo-next { font-size: 14px; line-height: 1.8; color: var(--text); }
+.solo-transcript-full { margin-top: 1.2rem; }
+.solo-transcript-full summary { font-size: 13px; color: var(--text-muted); cursor: pointer; }
+.solo-transcript-text {
+  font-size: 14px; line-height: 1.9; color: var(--text-muted);
+  background: var(--surface2); border-radius: var(--radius-sm);
+  padding: 11px 13px; margin-top: 8px; white-space: pre-wrap;
+}
+.solo-too-short { text-align: center; padding: 2rem 1rem; color: var(--text-muted); }
+
+/* ── 履歴: スピーキング一覧 ── */
+.solo-list-card {
+  appearance: none; font: inherit; cursor: pointer; width: 100%; text-align: left;
+  display: flex; flex-direction: column; gap: 4px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 14px;
+  margin-bottom: 8px; box-shadow: var(--shadow);
+}
+.solo-list-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.solo-list-date { font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--text); }
+.solo-list-min {
+  font-size: 13px; font-weight: 700; color: var(--accent-dark);
+  background: var(--accent-light); border-radius: 20px; padding: 3px 11px; flex-shrink: 0;
+}
+.solo-list-sub { font-size: 12px; color: var(--text-muted); }
+.solo-list-failed { color: var(--warn-text); }
+
+/* カレンダー: 日記の日と話した日を別のドットで見分ける */
+.cal-dots { display: flex; gap: 2px; justify-content: center; }
+.cal-dot-solo { background: var(--secondary); }
+/* 話しただけの日。日記が無いのでタップしても開くものが無く、cursorは変えない */
+.cal-cell.cal-has-solo {
+  background: var(--secondary-light); color: var(--secondary-on-white-text); font-weight: 700;
 }

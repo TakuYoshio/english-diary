@@ -1,0 +1,182 @@
+// CI用のSupabaseスタブ。ネットワークに出ずにUI全体を通すためのもの。
+// 本番のindex.htmlはCDNから supabase-js を読むが、テストではこのファイルに差し替える。
+(function () {
+  const now = Date.now();
+  const iso = d => new Date(d).toISOString();
+  const day = 86400000;
+
+  const DB = {
+    entries: [
+      // 日記クイズは corrected の文を出題元にするので、5〜12語の文を持たせておく
+      { id: 2, user_id: 'u1', created_at: iso(now - 2 * day), date: new Date(now - 2 * day).toLocaleDateString('sv-SE'),
+        jp: '締め切り前で気が進まなかった', en1: 'I am reluctant', en2: 'I felt reluctant before the deadline',
+        corrected: 'I felt reluctant before the deadline. My commute was long today.',
+        feedback: null, pronunciation_first_attempt: { score: 64, scoredAt: iso(now - 2 * day) } },
+      { id: 1, user_id: 'u1', created_at: iso(now - day), date: new Date(now - day).toLocaleDateString('sv-SE'),
+        jp: 'カフェに行った', en1: 'I go to cafe', en2: 'I went to a cafe',
+        corrected: 'I went to a café yesterday.',
+        feedback: { good_points: ['過去形が使えています'], categories: [
+          { category: 'grammar', summary: '冠詞に注意', corrections: [
+            { before: 'I go to cafe', after: 'I went to a café', explanation: '過去の話なので過去形に' } ] } ],
+          vocab_usage: '' },
+        pronunciation_first_attempt: { score: 85, scoredAt: iso(now - day) } },
+    ],
+    vocab: [
+      // srs_stage は Word Garden の 🌱🌿🌷🌸 を一通り出すために散らしてある
+      { id: 1, user_id: 'u1', created_at: iso(now - day), en: 'café', jp: 'カフェ', note: '',
+        correct: 3, wrong: 1, srs_stage: 2, next_review_at: iso(now - 1000), last_reviewed_at: iso(now - day), image_url: null, image_credit: null },
+      { id: 2, user_id: 'u1', created_at: iso(now - day), en: 'commute', jp: '通勤する', note: '',
+        correct: 0, wrong: 0, srs_stage: 0, next_review_at: iso(now - 1000), last_reviewed_at: null, image_url: null, image_credit: null },
+      { id: 3, user_id: 'u1', created_at: iso(now - day), en: 'grateful', jp: '感謝している', note: '',
+        correct: 5, wrong: 0, srs_stage: 4, next_review_at: iso(now + 5 * day), last_reviewed_at: iso(now - day), image_url: null, image_credit: null },
+      { id: 4, user_id: 'u1', created_at: iso(now - day), en: 'overwhelmed', jp: '圧倒された', note: '',
+        correct: 6, wrong: 0, srs_stage: 6, next_review_at: iso(now + 80 * day), last_reviewed_at: iso(now - day), image_url: null, image_credit: null },
+      // 苦手単語（wrong>=2 かつ 正答率<60%）。苦手トグルのテスト用。
+      { id: 5, user_id: 'u1', created_at: iso(now - day), en: 'reluctant', jp: '気が進まない', note: '',
+        correct: 1, wrong: 4, srs_stage: 0, next_review_at: iso(now - 1000), last_reviewed_at: iso(now - day), image_url: null, image_credit: null },
+      { id: 6, user_id: 'u1', created_at: iso(now - day), en: 'deadline', jp: '締め切り', note: '',
+        correct: 0, wrong: 3, srs_stage: 0, next_review_at: iso(now - 1000), last_reviewed_at: iso(now - day), image_url: null, image_credit: null },
+    ],
+    solo_sessions: [
+      { id: 1, user_id: 'u1', created_at: iso(now - 2 * day), date: new Date(now - 2 * day).toLocaleDateString('sv-SE'),
+        mode: 'solo', topic_pack: 'today', planned_minutes: 10, spoken_seconds: 600, word_count: 820,
+        input_method: 'speech', prompts_used: ['What did you do first thing this morning?'],
+        transcript: 'I went to a cafe near my office this morning and it was surprisingly quiet',
+        report_status: 'ready',
+        report: {
+          summary_jp: 'カフェの話を落ち着いたペースで話せていました。',
+          stats: { fluency_score: 72, variety_score: 64, accuracy_score: 81, used_vocab: ['café'] },
+          good_expressions: [{ text: 'it was surprisingly quiet', why_jp: '副詞が効いています' }],
+          corrections: [{ before: 'I go to cafe', after: 'I went to a cafe', explanation_jp: '過去形に', category: 'grammar', confidence: 'high' }],
+          upgrade_suggestions: [{ you_said: 'very good', native_way: 'really solid' }],
+          suggested_vocab: [{ en: 'atmosphere', jp: '雰囲気', note: '' }],
+          next_time_focus_jp: '過去形を意識してみよう',
+        } },
+      // レポート生成に失敗したケース（記録だけ残る）
+      { id: 2, user_id: 'u1', created_at: iso(now - 5 * day), date: new Date(now - 5 * day).toLocaleDateString('sv-SE'),
+        mode: 'solo', topic_pack: 'mixed', planned_minutes: 5, spoken_seconds: 300, word_count: 410,
+        input_method: 'mixed', prompts_used: [], transcript: 'short session text',
+        report: null, report_status: 'failed' },
+    ],
+    profiles: [
+      { user_id: 'u1', onboarding_completed: true, skill_focus: ['grammar'],
+        shadowing_level: 'easy', auto_vocab_lookup: false },
+    ],
+  };
+
+  const session = { access_token: 'stub-token', user: { id: 'u1', email: 'test@example.com' } };
+
+  // 各テーブルに存在する列。本番のDBは知らない列を送られると挿入を丸ごと拒否するが、
+  // 以前のスタブは列を一切見ていなかったので、本番で失敗する書き込みがテストでは通っていた。
+  // （image_url 列が未作成の環境で単語が保存できなくなった不具合を検出できなかった原因）
+  const COLUMNS = {
+    entries: ['id', 'user_id', 'created_at', 'date', 'jp', 'en1', 'en2', 'corrected',
+      'feedback', 'pronunciation_first_attempt'],
+    vocab: ['id', 'user_id', 'created_at', 'en', 'jp', 'note', 'correct', 'wrong',
+      'image_url', 'image_credit', 'srs_stage', 'next_review_at', 'last_reviewed_at'],
+    profiles: ['user_id', 'onboarding_completed', 'skill_focus', 'shadowing_level',
+      'auto_vocab_lookup', 'created_at', 'updated_at'],
+    solo_sessions: ['id', 'user_id', 'created_at', 'date', 'mode', 'topic_pack',
+      'planned_minutes', 'spoken_seconds', 'word_count', 'input_method', 'prompts_used',
+      'transcript', 'report', 'report_status'],
+  };
+
+  // update(...).eq(...) で実際に書き込まれたパッチの記録。
+  // 「写真が保存されたか」をテストから確かめるために残す。
+  const patchLog = [];
+  window.__stubPatches = () => patchLog.map(x => ({ ...x }));
+  window.__stubClearPatches = () => { patchLog.length = 0; };
+
+  // テストから列を落として「マイグレーション未適用の環境」を再現できるようにする。
+  // 例: window.__stubDropColumn('vocab', 'image_url')
+  window.__stubDropColumn = (table, col) => {
+    COLUMNS[table] = COLUMNS[table].filter(c => c !== col);
+  };
+  window.__stubRestoreColumns = () => {
+    COLUMNS.vocab = ['id', 'user_id', 'created_at', 'en', 'jp', 'note', 'correct', 'wrong',
+      'image_url', 'image_credit', 'srs_stage', 'next_review_at', 'last_reviewed_at'];
+  };
+
+  // PostgREST がスキーマキャッシュに無い列を渡されたときと同じ形のエラーを返す
+  function unknownColumn(table, payload) {
+    const known = COLUMNS[table];
+    if (!known) return null;
+    for (const item of (Array.isArray(payload) ? payload : [payload])) {
+      for (const col of Object.keys(item || {})) {
+        if (!known.includes(col)) {
+          return {
+            code: 'PGRST204',
+            message: `Could not find the '${col}' column of '${table}' in the schema cache`,
+            details: null, hint: null,
+          };
+        }
+      }
+    }
+    return null;
+  }
+
+  function builder(table) {
+    let rows = DB[table].slice();
+    const res = () => Promise.resolve({ data: rows, count: rows.length, error: null });
+    const api = {
+      select(_cols, opts) { this._count = opts && opts.count; return this; },
+      eq(col, val) {
+        // update(...).eq(...) の形では eq が終端になるので、ここでエラーを返す
+        if (this._patchError) return Promise.resolve({ data: null, error: this._patchError });
+        rows = rows.filter(r => String(r[col]) === String(val));
+        // 本番は update(...).eq(...) で行が実際に書き換わる。適用しないスタブだと
+        // 「保存できたか」を見るテストが書けないので、ここで当てる。
+        if (this._patch) {
+          rows.forEach(r => Object.assign(r, this._patch));
+          patchLog.push({ table, patch: this._patch, matched: rows.length });
+          return Promise.resolve({ data: rows, error: null });
+        }
+        return this;
+      },
+      not(col, op, val) {
+        if (op === 'is' && val === null) rows = rows.filter(r => r[col] != null);
+        return this;
+      },
+      gte(col, val) { rows = rows.filter(r => String(r[col]) >= String(val)); return this; },
+      lte(col, val) { rows = rows.filter(r => String(r[col]) <= String(val)); return this; },
+      order() { return this; },
+      or() { return this; },
+      limit(n) { rows = rows.slice(0, n); return this; },
+      range(from, to) { rows = rows.slice(from, to + 1); return this; },
+      maybeSingle() { return Promise.resolve({ data: rows[0] || null, error: null }); },
+      single() { return Promise.resolve({ data: rows[0] || null, error: null }); },
+      insert(payload) {
+        const bad = unknownColumn(table, payload);
+        if (bad) return Promise.resolve({ data: null, error: bad });
+        const items = Array.isArray(payload) ? payload : [payload];
+        items.forEach(it => DB[table].push({ id: DB[table].length + 100, ...it }));
+        return Promise.resolve({ data: items, error: null });
+      },
+      update(patch) {
+        this._patch = patch;
+        this._patchError = unknownColumn(table, patch);
+        return this;
+      },
+      upsert() { return Promise.resolve({ data: null, error: null }); },
+      delete() { this._delete = true; return this; },
+      then(onOk, onErr) { return res().then(onOk, onErr); },
+    };
+    return api;
+  }
+
+  window.supabase = {
+    createClient() {
+      return {
+        from: builder,
+        auth: {
+          getSession: () => Promise.resolve({ data: { session }, error: null }),
+          onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
+          signInWithPassword: () => Promise.resolve({ data: { session }, error: null }),
+          signOut: () => Promise.resolve({ error: null }),
+          resetPasswordForEmail: () => Promise.resolve({ error: null }),
+          updateUser: () => Promise.resolve({ error: null }),
+        },
+      };
+    },
+  };
+})();

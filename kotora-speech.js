@@ -58,6 +58,38 @@ const KOTORA_LINES = {
     'save-streak': ['ストリーク更新🔥この調子で続けよう！'],
     'save-levelup': ['レベルアップ🎉どんどん成長してるにゃ！'],
     'save-badge': ['新しいバッジをゲット🏅おめでとう！'],
+    'solo-intro': [
+      '英語だけの時間、つくってみようにゃ🎙',
+      '今日はどれくらい話す？無理のない長さでいいよ😺',
+    ],
+    'solo-start': ['はじめよう！まちがえてもぜんぜんOK🐾', 'いってみよう！聞いてるにゃ👂'],
+    'solo-prompt-next': ['次のお題だにゃ！', 'つぎはこれ、どう？'],
+    'solo-milestone': ['{n}分経過！いい調子にゃ🔥', 'もう{n}分も話してる！すごい✨'],
+    'solo-silence': [
+      '止まっちゃった？お題を変えてもいいよ🐾',
+      'なんでもいいから声に出してみよう😺',
+      'ゆっくりでいいにゃ。思いついたことから！',
+    ],
+    'weak-graduate': [
+      '「{word}」ついに覚えたにゃ🎉',
+      '苦手だった「{word}」を克服！えらい✨',
+    ],
+    'weekly-ready': [
+      '先週のレポートができたよ📮 見てみる？',
+      '先週のがんばり、まとめておいたにゃ📮',
+    ],
+    'weekly-great': [
+      '先週は最高だったにゃ🔥 この調子！',
+      'よくがんばったにゃ！自分をほめていいよ✨',
+    ],
+    'weekly-good': [
+      'いい感じだったにゃ😊 今週も少しずつ！',
+      '着実に進んでるにゃ🌱',
+    ],
+    'weekly-comeback': [
+      '今週はまた書いてみようにゃ🐾 1日1行でもOK！',
+      'ゆっくりでいいよ。また一緒にやろうにゃ😺',
+    ],
   },
   en: {
     'greet-morning': [
@@ -94,6 +126,38 @@ const KOTORA_LINES = {
     'save-streak': ['Streak extended 🔥 Keep it going!'],
     'save-levelup': ["Level up 🎉 You're growing fast!"],
     'save-badge': ['New badge earned 🏅 Congrats!'],
+    'solo-intro': [
+      "Let's make some English-only time 🎙",
+      'How long shall we go today? Any length is fine 😺',
+    ],
+    'solo-start': ["Here we go! Mistakes are totally fine 🐾", "I'm listening! 👂"],
+    'solo-prompt-next': ['Next prompt!', 'How about this one?'],
+    'solo-milestone': ['{n} minutes in! Going strong 🔥', "You've been talking for {n} minutes! ✨"],
+    'solo-silence': [
+      'Stuck? You can switch the prompt 🐾',
+      'Just say anything out loud 😺',
+      'Take your time. Start with whatever comes to mind!',
+    ],
+    'weak-graduate': [
+      'You finally got "{word}"! 🎉',
+      '"{word}" used to trip you up — not anymore ✨',
+    ],
+    'weekly-ready': [
+      'Last week\'s report is ready 📮 Want to see it?',
+      'I wrapped up last week for you 📮',
+    ],
+    'weekly-great': [
+      'Last week was brilliant 🔥 Keep it going!',
+      'You did great — give yourself credit ✨',
+    ],
+    'weekly-good': [
+      'Solid week 😊 Let\'s keep chipping away!',
+      'Steady progress 🌱',
+    ],
+    'weekly-comeback': [
+      'Let\'s write again this week 🐾 Even one line counts!',
+      'No rush. I\'m here whenever you\'re ready 😺',
+    ],
   },
 };
 
@@ -187,11 +251,19 @@ function _ktPositionBubble(slot, bubble) {
   }
 }
 
-// 表示中の吹き出しはリサイズ時に追従させる（表示直後のレイアウト変動対策も兼ねる）
+// 表示中の吹き出しはリサイズ時に追従させる（表示直後のレイアウト変動対策も兼ねる）。
+// _ktPositionBubble は getComputedStyle / getBoundingClientRect を読むため
+// レイアウトを強制する。モバイルではURLバーの出し入れでresizeが連続発火するので
+// requestAnimationFrame で1フレーム1回にまとめる。
+let _ktResizeFrame = null;
 window.addEventListener('resize', () => {
-  document.querySelectorAll('.kt-bubble.kt-bubble-in').forEach(bubble => {
-    const slot = document.getElementById(bubble.getAttribute('data-kt-bubble-for'));
-    if (slot) _ktPositionBubble(slot, bubble);
+  if (_ktResizeFrame) return;
+  _ktResizeFrame = requestAnimationFrame(() => {
+    _ktResizeFrame = null;
+    document.querySelectorAll('.kt-bubble.kt-bubble-in').forEach(bubble => {
+      const slot = document.getElementById(bubble.getAttribute('data-kt-bubble-for'));
+      if (slot) _ktPositionBubble(slot, bubble);
+    });
   });
 });
 

@@ -3,9 +3,31 @@ main = "src/index.js"
 compatibility_date = "2026-07-01"
 
 [vars]
+# 複数指定する場合はカンマ区切り（例: 本番URLとローカル開発用の http://127.0.0.1:8931）
 ALLOWED_ORIGIN = "https://takuyoshio.github.io"
 SUPABASE_URL = "https://swbbslowwklhptqsaixn.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3YmJzbG93d2tsaHB0cXNhaXhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMTcwNjcsImV4cCI6MjA5Nzc5MzA2N30.T_7VD3emSP6DbwCpYkhIjO6yRmueuNeXUkldpaGGp3c"
 
-# Secrets (set via CLI, not stored in this file):
+# ユーザーごとのAI利用回数を数えるKV。これが無いと1アカウントで
+# Geminiの無料枠を使い切れてしまう。
+# 単語カードの写真の語ごとキャッシュ（ph:<語>、30日）も同じKVを使う。
+# 未設定だと同じ語で毎回Unsplashを叩くので、50リクエスト/時にすぐ当たる。
+#
+# 作成方法:
+#   npx wrangler kv namespace create RATE_LIMIT
+# 出力された id を下に貼る。
+#
+# ⚠ 未設定のあいだは、ブロックごとコメントアウトしておくこと。
+#   id = "" と書くと wrangler 4 が「空のidは不正」として設定の解析で止まり、
+#   deploy だけでなく login や kv namespace create まで実行できなくなる。
+#   （実際にこれで詰まった。空文字をプレースホルダに使わない）
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "b5f08b01fd4b4e5399b476fd5afe3f97"
+
+# Secrets（このファイルには置かず、CLIで登録する）:
 #   npx wrangler secret put GEMINI_API_KEY
+#   npx wrangler secret put UNSPLASH_ACCESS_KEY
+# UNSPLASH_ACCESS_KEY は未設定でも動く（写真が付かないだけ）。
+# キーの取得: https://unsplash.com/oauth/applications で新規アプリを作り、
+# Access Key を登録する。Demoモードは50リクエスト/時なのでKVのキャッシュが効く前提。
