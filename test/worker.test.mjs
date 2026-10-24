@@ -5,28 +5,35 @@ import worker from '../worker/src/index.js';
 
 const ORIGIN = 'https://takuyoshio.github.io';
 let geminiCalls = [];
-let searchCalls = [];
-let downloadCalls = [];
-let unsplashStatus = 200;
+let iconCalls = [];
+let iconStatus = 200;
+let geminiReply = '{}';
 let authOk = true;
 
-// Unsplashの応答（余計なキーも混ぜて、Worker側が落とすことを確かめる）
-const unsplashBody = () => ({
-  total: 3,
-  results: [
-    { id: 'aaa', likes: 12,
-      urls: { thumb: 'https://images.unsplash.com/1?w=200', small: 'https://images.unsplash.com/1?w=400', raw: 'https://images.unsplash.com/1' },
-      links: { html: 'https://unsplash.com/photos/aaa', download_location: 'https://api.unsplash.com/photos/aaa/download?ixid=xyz' },
-      user: { name: 'Jane Doe', username: 'jane', links: { html: 'https://unsplash.com/@jane' } } },
-    { id: 'bbb',
-      urls: { thumb: 'https://images.unsplash.com/2?w=200', small: 'https://images.unsplash.com/2?w=400' },
-      links: { html: 'https://unsplash.com/photos/bbb', download_location: 'https://evil.example/steal' },
-      user: { username: 'roe', links: { html: 'http://unsplash.com/@roe' } } },
-    // urlsが足りない候補は落とされるべき
-    { id: 'ccc', urls: {}, links: {}, user: { name: 'Broken' } },
-  ],
-});
+// Iconifyの応答。実物と同じ形にしてある（実機で確認済み）。
+// 素の検索は同じ絵の変種を大量に返すので、Worker側で絞れることを確かめる。
+const COLLECTIONS = {
+  ph:                 { name: 'Phosphor',          palette: false, license: { title: 'MIT', spdx: 'MIT', url: 'https://github.com/phosphor-icons/core/blob/main/LICENSE' } },
+  'material-symbols': { name: 'Material Symbols',  palette: false, license: { title: 'Apache 2.0', spdx: 'Apache-2.0', url: 'https://example.com/apache' } },
+  tabler:             { name: 'Tabler Icons',      palette: false, license: { title: 'MIT', spdx: 'MIT', url: 'https://example.com/tabler' } },
+  'icon-park':        { name: 'IconPark',          palette: true,  license: { title: 'Apache 2.0', spdx: 'Apache-2.0', url: 'https://example.com/iconpark' } },
+  iconmind:           { name: 'IconMind',          palette: false, license: { title: 'Proprietary', spdx: 'LicenseRef-Commercial', url: 'https://example.com/iconmind' } },
+};
 
+let iconResults = {};   // query -> ["prefix:name", ...]
+
+function iconBody(query) {
+  const icons = iconResults[query] || [];
+  const collections = {};
+  for (const full of icons) {
+    const prefix = full.slice(0, full.indexOf(':'));
+    if (COLLECTIONS[prefix]) collections[prefix] = COLLECTIONS[prefix];
+  }
+  return { icons, total: icons.length, limit: 64, start: 0, collections, request: { query } };
+}
+
+// fetchのスタブ。Supabaseの認証・Gemini・Iconify だけを受け止め、
+// それ以外は本物に通す（テストでは外には出ない）。
 const realFetch = globalThis.fetch;
 globalThis.fetch = async (url, init) => {
   const u = String(url);
@@ -35,17 +42,14 @@ globalThis.fetch = async (url, init) => {
       ? new Response(JSON.stringify({ id: 'user-1', email: 'a@b.c' }), { status: 200 })
       : new Response('no', { status: 401 });
   }
-  if (u.includes('api.unsplash.com/search/photos')) {
-    searchCalls.push(u);
-    return new Response(JSON.stringify(unsplashBody()), { status: unsplashStatus });
-  }
-  if (u.includes('api.unsplash.com') && u.includes('/download')) {
-    downloadCalls.push(u);
-    return new Response('{}', { status: 200 });
+  if (u.includes('api.iconify.design/search')) {
+    const q = decodeURIComponent(new URL(u).searchParams.get('query') || '');
+    iconCalls.push(q);
+    return new Response(JSON.stringify(iconBody(q)), { status: iconStatus });
   }
   if (u.includes('generativelanguage')) {
     geminiCalls.push(JSON.parse(init.body));
-    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{}' }] } }] }), { status: 200 });
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: geminiReply }] } }] }), { status: 200 });
   }
   return realFetch(url, init);
 };
@@ -64,7 +68,6 @@ const baseEnv = () => ({
   SUPABASE_URL: 'https://sb.example.com',
   SUPABASE_ANON_KEY: 'anon',
   GEMINI_API_KEY: 'key',
-  UNSPLASH_ACCESS_KEY: 'unsplash-key',
   RATE_LIMIT: makeKV(),
 });
 
@@ -176,162 +179,162 @@ test('KV未バインドでも動く（制限なしで素通し）', async () => 
   assert.equal(res.status, 200);
 });
 
-// ── 写真検索（Unsplash中継） ──────────────────────────────────────────────
+// ── アイコン検索（Iconify中継） ────────────────────────────────────────────
 
-test('写真検索は表示とクレジットに必要なものだけ返す', async () => {
-  searchCalls = [];
-  const res = await post({ action: 'photo', words: ['grateful'] });
+function resetIcons() {
+  iconCalls = [];
+  iconStatus = 200;
+  iconResults = {
+    // 実機の commute と同じ形: 同じ絵の変種だらけ
+    commute: [
+      'material-symbols:commute', 'material-symbols:commute-outline',
+      'material-symbols:commute-rounded', 'tabler:commute', 'ph:commute',
+      'icon-park:commute-color', 'iconmind:commute-duotone-bold',
+    ],
+    // 名前の一致度の検証用: 完全一致が後ろに置いてある
+    deadline: ['iconmind:enrol-deadline-duotone-bold', 'tabler:deadline-sort', 'ph:deadline'],
+    hesitate: ['ph:hand-palm', 'tabler:hesitate'],
+    grateful: [],
+    reluctant: [],
+  };
+}
+
+test('アイコン検索は表示とライセンス表示に必要なものだけ返す', async () => {
+  resetIcons();
+  const res = await post({ action: 'photo', words: ['commute'] });
   assert.equal(res.status, 200);
   const { photos } = await res.json();
-  assert.equal(photos.grateful.length, 2, 'urlsが足りない候補は落とす');
-  assert.deepEqual(Object.keys(photos.grateful[0]).sort(),
-    ['download', 'large', 'name', 'page', 'small', 'source']);
-  assert.equal(photos.grateful[0].name, 'Jane Doe');
-  assert.equal(photos.grateful[0].small, 'https://images.unsplash.com/1?w=200');
-  assert.equal(photos.grateful[0].large, 'https://images.unsplash.com/1?w=400');
-  assert.equal(photos.grateful[0].source, 'unsplash');
+  assert.deepEqual(Object.keys(photos.commute[0]).sort(),
+    ['icon', 'license', 'page', 'set', 'source']);
+  assert.equal(photos.commute[0].source, 'iconify');
 });
 
-test('撮影者リンクにUTMが付く（Unsplashの規約）', async () => {
-  const res = await post({ action: 'photo', words: ['grateful'] });
+test('セットの優先順位で見た目を揃える（Phosphorが先頭）', async () => {
+  resetIcons();
+  const res = await post({ action: 'photo', words: ['commute'] });
   const { photos } = await res.json();
-  assert.equal(photos.grateful[0].page,
-    'https://unsplash.com/@jane?utm_source=english-diary&utm_medium=referral');
+  assert.equal(photos.commute[0].icon, 'ph:commute', JSON.stringify(photos.commute));
+  assert.equal(photos.commute[0].set, 'Phosphor');
 });
 
-test('撮影者名が無ければユーザー名で代替する', async () => {
-  const res = await post({ action: 'photo', words: ['grateful'] });
+test('カラーのセットは捨てる（1色に揃えられないため）', async () => {
+  resetIcons();
+  const res = await post({ action: 'photo', words: ['commute'] });
   const { photos } = await res.json();
-  assert.equal(photos.grateful[1].name, 'roe');
+  assert.ok(!photos.commute.some(c => c.icon.startsWith('icon-park:')),
+    'palette=true のセットを通してはいけない');
 });
 
-test('httpsでないプロフィールURLは空にする', async () => {
-  const res = await post({ action: 'photo', words: ['grateful'] });
+test('ライセンスが分からないセットは捨てる', async () => {
+  resetIcons();
+  const res = await post({ action: 'photo', words: ['commute'] });
   const { photos } = await res.json();
-  assert.equal(photos.grateful[1].page, '', 'http:// のリンクを通してはいけない');
+  assert.ok(!photos.commute.some(c => c.icon.startsWith('iconmind:')));
 });
 
-test('api.unsplash.com 以外のdownload_locationは捨てる', async () => {
-  const res = await post({ action: 'photo', words: ['grateful'] });
+test('候補は同じセットを重ねない（別のアイコンにするで違う絵が出る）', async () => {
+  resetIcons();
+  const res = await post({ action: 'photo', words: ['commute'] });
   const { photos } = await res.json();
-  assert.equal(photos.grateful[1].download, '', '外部URLを使用通知先にしてはいけない');
-  assert.equal(photos.grateful[0].download, 'https://api.unsplash.com/photos/aaa/download?ixid=xyz');
+  const prefixes = photos.commute.map(c => c.icon.split(':')[0]);
+  assert.equal(new Set(prefixes).size, prefixes.length, JSON.stringify(prefixes));
 });
 
-test('検索リクエストにClient-IDとsquarishが乗る', async () => {
-  searchCalls = [];
-  await post({ action: 'photo', words: ['grateful'] });
-  assert.match(searchCalls[0], /query=grateful/);
-  assert.match(searchCalls[0], /orientation=squarish/);
-  assert.match(searchCalls[0], /per_page=5/);
+test('名前が完全一致する候補を優先する', async () => {
+  resetIcons();
+  const res = await post({ action: 'photo', words: ['deadline'] });
+  const { photos } = await res.json();
+  assert.equal(photos.deadline[0].icon, 'ph:deadline', JSON.stringify(photos.deadline));
 });
 
-// ── 写真の使用通知（Unsplashの規約） ──────────────────────────────────────
+test('0件の語はAIに言い換えてもらってから引き直す', async () => {
+  resetIcons();
+  geminiCalls = [];
+  geminiReply = JSON.stringify({ keywords: ['hesitate'] });
+  const res = await post({ action: 'photo', words: ['reluctant'] });
+  const { photos } = await res.json();
+  assert.equal(geminiCalls.length, 1, 'AIに言い換えを頼んでいない');
+  assert.deepEqual(iconCalls, ['reluctant', 'hesitate']);
+  assert.equal(photos.reluctant[0].icon, 'ph:hand-palm', JSON.stringify(photos.reluctant));
+  geminiReply = '{}';
+});
 
-test('使用通知はdownload_locationを叩く', async () => {
-  downloadCalls = [];
-  const res = await post({ action: 'photo_used',
-    downloads: ['https://api.unsplash.com/photos/aaa/download?ixid=xyz'] });
+test('素の検索で当たる語にはAIを使わない', async () => {
+  resetIcons();
+  geminiCalls = [];
+  await post({ action: 'photo', words: ['commute'] });
+  assert.equal(geminiCalls.length, 0);
+});
+
+test('言い換えても見つからなければ空で返す（落ちない）', async () => {
+  resetIcons();
+  geminiReply = JSON.stringify({ keywords: ['nothingmatches'] });
+  const res = await post({ action: 'photo', words: ['grateful'] });
   assert.equal(res.status, 200);
-  assert.equal((await res.json()).notified, 1);
-  assert.equal(downloadCalls.length, 1);
+  assert.deepEqual((await res.json()).photos, { grateful: [] });
+  geminiReply = '{}';
 });
 
-test('使用通知はapi.unsplash.com以外を叩かない（SSRFの防止）', async () => {
-  downloadCalls = [];
-  const res = await post({ action: 'photo_used', downloads: [
-    'https://evil.example/photos/x/download',
-    'http://api.unsplash.com/photos/x/download',
-    'https://api.unsplash.com/photos/x/download/../../admin',
-    'https://api.unsplash.com/users/x',
-    'not a url',
-  ] });
-  assert.equal(res.status, 200);
-  assert.equal((await res.json()).notified, 0);
-  assert.equal(downloadCalls.length, 0);
-});
-
-test('使用通知もAIの1日80回を消費しない', async () => {
+test('アイコン検索はAIの1日80回を消費しない', async () => {
+  resetIcons();
   const env = baseEnv();
   const today = new Date().toISOString().slice(0, 10);
-  await post({ action: 'photo_used', downloads: ['https://api.unsplash.com/photos/aaa/download'] }, { env });
-  assert.equal(env.RATE_LIMIT.store.get(`rl:user-1:${today}`), undefined);
-  assert.equal(env.RATE_LIMIT.store.get(`rlp:user-1:${today}`), '1');
-});
-
-test('使用通知の件数が多すぎると400', async () => {
-  const res = await post({ action: 'photo_used',
-    downloads: Array.from({ length: 21 }, (_, i) => `https://api.unsplash.com/photos/p${i}/download`) });
-  assert.equal(res.status, 400);
-});
-
-test('キー未設定なら使用通知は外に出ない', async () => {
-  const env = baseEnv();
-  delete env.UNSPLASH_ACCESS_KEY;
-  downloadCalls = [];
-  const res = await post({ action: 'photo_used', downloads: ['https://api.unsplash.com/photos/aaa/download'] }, { env });
-  assert.equal(res.status, 200);
-  assert.equal(downloadCalls.length, 0);
-});
-
-test('写真検索はAIの1日80回を消費しない', async () => {
-  const env = baseEnv();
-  const today = new Date().toISOString().slice(0, 10);
-  await post({ action: 'photo', words: ['grateful'] }, { env });
+  await post({ action: 'photo', words: ['commute'] }, { env });
   assert.equal(env.RATE_LIMIT.store.get(`rl:user-1:${today}`), undefined,
     'AI用のカウンタ(rl:)が増えている');
   assert.equal(env.RATE_LIMIT.store.get(`rlp:user-1:${today}`), '1');
 });
 
-test('AIの1日上限に達していても写真は引ける', async () => {
+test('AIの1日上限に達していてもアイコンは引ける', async () => {
+  resetIcons();
   const env = baseEnv();
   const today = new Date().toISOString().slice(0, 10);
   env.RATE_LIMIT.store.set(`rl:user-1:${today}`, '80');
-  const res = await post({ action: 'photo', words: ['grateful'] }, { env });
-  assert.equal(res.status, 200);
+  assert.equal((await post({ action: 'photo', words: ['commute'] }, { env })).status, 200);
 });
 
-test('写真にも専用の1日上限がある', async () => {
+test('アイコンにも専用の1日上限がある', async () => {
+  resetIcons();
   const env = baseEnv();
   const today = new Date().toISOString().slice(0, 10);
   env.RATE_LIMIT.store.set(`rlp:user-1:${today}`, '200');
-  const res = await post({ action: 'photo', words: ['grateful'] }, { env });
+  const res = await post({ action: 'photo', words: ['commute'] }, { env });
   assert.equal(res.status, 403);
   assert.equal((await res.json()).error.code, 'DAILY_LIMIT');
 });
 
-test('2回目はKVから返りUnsplashを叩かない', async () => {
+test('2回目はKVから返りIconifyを叩かない', async () => {
+  resetIcons();
   const env = baseEnv();
-  searchCalls = [];
-  await post({ action: 'photo', words: ['grateful'] }, { env });
-  assert.equal(searchCalls.length, 1);
-  await post({ action: 'photo', words: ['grateful'] }, { env });
-  assert.equal(searchCalls.length, 1, '同じ語で2回目もUnsplashを叩いている');
+  await post({ action: 'photo', words: ['commute'] }, { env });
+  assert.equal(iconCalls.length, 1);
+  await post({ action: 'photo', words: ['commute'] }, { env });
+  assert.equal(iconCalls.length, 1, '同じ語で2回目もIconifyを叩いている');
 });
 
-test('0件だった語はKVの空配列から返し、Unsplashを叩き直さない', async () => {
+test('0件だった語もKVに覚えてAIを呼び直さない', async () => {
+  resetIcons();
   const env = baseEnv();
-  await env.RATE_LIMIT.put('ph:nosuchword', '[]');
-  searchCalls = [];
-  const res = await post({ action: 'photo', words: ['nosuchword'] }, { env });
-  const { photos } = await res.json();
-  assert.deepEqual(photos.nosuchword, []);
-  assert.equal(searchCalls.length, 0);
+  await env.RATE_LIMIT.put('ph:grateful', '[]');
+  geminiCalls = [];
+  const res = await post({ action: 'photo', words: ['grateful'] }, { env });
+  assert.deepEqual((await res.json()).photos.grateful, []);
+  assert.equal(iconCalls.length, 0);
+  assert.equal(geminiCalls.length, 0);
 });
 
 test('英単語以外の語は捨てる（検索プロキシにしない）', async () => {
-  searchCalls = [];
-  const res = await post({ action: 'photo', words: ['感謝', 'https://evil.example/x', '', 'a'.repeat(41), 'grateful'] });
+  resetIcons();
+  const res = await post({ action: 'photo', words: ['感謝', 'https://evil.example/x', '', 'a'.repeat(41), 'commute'] });
   const { photos } = await res.json();
-  assert.deepEqual(Object.keys(photos), ['grateful']);
-  assert.equal(searchCalls.length, 1);
+  assert.deepEqual(Object.keys(photos), ['commute']);
+  assert.equal(iconCalls.length, 1);
 });
 
 test('同じ語を重ねても1回しか引かない', async () => {
-  const env = baseEnv();
-  searchCalls = [];
-  await post({ action: 'photo', words: ['grateful', 'Grateful', ' grateful '] }, { env });
-  assert.equal(searchCalls.length, 1);
+  resetIcons();
+  await post({ action: 'photo', words: ['commute', 'Commute', ' commute '] }, { env: baseEnv() });
+  assert.equal(iconCalls.length, 1);
 });
 
 test('語数が多すぎると400', async () => {
@@ -339,26 +342,20 @@ test('語数が多すぎると400', async () => {
   assert.equal(res.status, 400);
 });
 
-test('UNSPLASH_ACCESS_KEY未設定でも200で空を返す', async () => {
+test('Iconifyが失敗してもその語を落とすだけで200（キャッシュもしない）', async () => {
+  resetIcons();
   const env = baseEnv();
-  delete env.UNSPLASH_ACCESS_KEY;
-  const res = await post({ action: 'photo', words: ['grateful'] }, { env });
+  iconStatus = 500;
+  const res = await post({ action: 'photo', words: ['commute'] }, { env });
+  iconStatus = 200;
   assert.equal(res.status, 200);
   assert.deepEqual((await res.json()).photos, {});
+  assert.equal(env.RATE_LIMIT.store.get('ph:commute'), undefined, '失敗をキャッシュしてはいけない');
 });
 
-test('Unsplashが失敗してもその語を落とすだけで200', async () => {
-  const env = baseEnv();
-  unsplashStatus = 500;
-  const res = await post({ action: 'photo', words: ['grateful'] }, { env });
-  unsplashStatus = 200;
-  assert.equal(res.status, 200);
-  assert.deepEqual((await res.json()).photos, {});
-});
-
-test('写真検索も未認証なら401', async () => {
+test('アイコン検索も未認証なら401', async () => {
   authOk = false;
-  const res = await post({ action: 'photo', words: ['grateful'] });
+  const res = await post({ action: 'photo', words: ['commute'] });
   authOk = true;
   assert.equal(res.status, 401);
 });

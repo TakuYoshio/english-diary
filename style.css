@@ -720,7 +720,7 @@ body {
   margin-bottom: 8px; flex-wrap: wrap;
   box-shadow: var(--shadow);
 }
-/* サムネイル自体がタップ先（写真の選び直し）。
+/* サムネイル自体がタップ先（アイコンの選び直し）。
    .vocab-row はモバイルで既に7要素あり、ボタンを足す余裕が無い。 */
 .v-thumb-btn {
   appearance: none; -webkit-appearance: none;
@@ -730,13 +730,16 @@ body {
   width: 52px; height: 52px; border-radius: 14px;
 }
 .v-thumb-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* アイコンは透過SVG。淡いコーラルのタイルに余白を取って乗せる。 */
 .v-thumb {
   position: absolute; inset: 0;
   width: 52px; height: 52px; border-radius: 14px;
-  object-fit: cover;
-  background: var(--surface2);
+  object-fit: contain; padding: 9px;
+  background: var(--accent-light);
 }
-/* 写真が無い／読めなかったときの頭文字タイル。外部へのリクエストは出ない。 */
+/* アイコンが無い／読めなかったときの頭文字タイル。外部へのリクエストは出ない。
+   アイコンは上に重なるが透過なので、読み込めたときは下の文字が見えないよう
+   .v-thumb 側に背景を敷いている。 */
 .v-thumb-fallback {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
@@ -764,7 +767,7 @@ body {
 .rate-ok { background: var(--success-light); color: var(--success); }
 .rate-ng { background: var(--danger-light); color: var(--danger); }
 
-/* 写真の選び直しモーダル。Unsplashの規約で撮影者名とUnsplashへのリンクが必要。 */
+/* アイコンの選び直しモーダル。セット名とライセンスの表示をここで出す。 */
 .vocab-photo-card { max-width: 340px; text-align: center; }
 .vocab-photo-word {
   font-family: var(--font-display); font-size: 20px;
@@ -775,7 +778,11 @@ body {
   border-radius: var(--radius); overflow: hidden;
   background: var(--surface2);
 }
-.vocab-photo-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vocab-photo-img {
+  width: 100%; height: 100%; display: block;
+  object-fit: contain; padding: 18%;
+  background: var(--accent-light);
+}
 .vocab-photo-empty {
   width: 100%; height: 100%;
   display: flex; align-items: center; justify-content: center;

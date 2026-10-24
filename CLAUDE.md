@@ -55,21 +55,21 @@ npm test         # Workerのユニットテスト + 実ブラウザのスモー�
 - **運用費ゼロ。** すべて無料枠で動かす。ローカル計算で済むものにAIを使わない。
 - **一覧の行ごとに外部へ重い要求を出さない。** 単語帳は最大2000行あり、
   遅延読み込みでも行の数だけリクエストが出る。以前、行ごとに画像生成を
-  頼んでいて遅く、無料サービスに負荷もかけていた（いまはUnsplashの検索結果を
+  頼んでいて遅く、無料サービスに負荷もかけていた（いまはIconifyの検索結果を
   `image_url` に保存して、CDNの既存画像を読むだけにしている）。
 - **日付は `todayISO()` を使う。** `toISOString()` はUTCに変換するため、
   JSTでは朝9時前の日記が前日になる。
 - **HTMLに差し込む値は `escapeHtml()` を通す。** 属性値も同様。
 - **Supabaseの `{ data, error }` の `error` を捨てない。** 握り潰すと
   読み込み失敗が「データが空」として表示される。
-- **飾りのための列で、本体の記録を落とさない。** 単語の写真用の列
+- **飾りのための列で、本体の記録を落とさない。** 単語のアイコン用の列
   （`image_url` / `image_credit`）は列が無ければ外して保存を通す（`writeVocab`）。
   実際に、この列の未適用で単語の追加と日記の保存が両方できなくなったことがある。
-  いまは写真を保存後の別便で当てているので、単語の挿入自体がこの列を使わない。
-- **写真の規約を守る。** Unsplashは撮影者とUnsplashへのリンク（UTM付き）の表示と、
-  写真を実際に使うときの `download_location` への通知を求めている。
-  通知は `action: 'photo_used'` でまとめて出す（`notifyPhotosUsed`）。
-  クレジットの出し先は `PHOTO_SOURCES` から引くので、提供元を増やしても壊れない。
+  いまはアイコンを保存後の別便で当てているので、単語の挿入自体がこの列を使わない。
+- **アイコンは単色のセットだけ使う。** `?color=` が効くのは `palette=false` の
+  セットだけで、カラーのセットを混ぜるとコーラルで揃えられない。
+  ライセンスが分かるセットだけに絞り、セット名とライセンスをモーダルに出す。
+  出所の表示は `PHOTO_SOURCES` から引くので、提供元を増やしても壊れない。
 - **テストのスタブは本番と同じ厳しさで。** `test/supabase-stub.js` は
   テーブルごとの列を持っていて、知らない列を送ると PostgREST と同じ
   `PGRST204` を返す。緩いスタブは本番で落ちる書き込みを通してしまう。
@@ -106,15 +106,13 @@ npm test         # Workerのユニットテスト + 実ブラウザのスモー�
 - Worker のデプロイ: `cd worker && npx wrangler deploy`
 - KVネームスペースの作成: `npx wrangler kv namespace create RATE_LIMIT`
   （IDを `worker/wrangler.toml` に貼り、`[[kv_namespaces]]` のコメントを外す。
-  未設定だとレート制限と写真のキャッシュが無効）
+  未設定だとレート制限とアイコンのキャッシュが無効）
 - **`wrangler.toml` に空の値をプレースホルダとして書かない。** `id = ""` は
   wrangler 4 が設定の解析で弾くため、`deploy` だけでなく `login` や
   `kv namespace create` まで実行できなくなる。未設定はブロックごと
   コメントアウトで表す（`scripts/check-wrangler.mjs` が検査する）
 - `npx wrangler secret put GEMINI_API_KEY`
-- `npx wrangler secret put UNSPLASH_ACCESS_KEY`（単語カードの写真検索。
-  未設定でも単語の追加は通り、写真が付かないだけ。
-  キーは https://unsplash.com/oauth/applications で取得）
+- 単語カードのアイコン（Iconify）はAPIキー不要。設定するものは無い
 
 ## 今後の計画
 

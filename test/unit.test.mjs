@@ -52,8 +52,8 @@ const {
   splitSentences, buildDiaryQuizPool,
   // 週報
   weekStartOf, previousWeekStart, weekDates, computeWeeklyReport,
-  // 単語カードの写真
-  photoQuery, photoCandidate, photoPatch, needsVocabPhoto, vocabRow, isMissingImageColumn,
+  // 単語カードのアイコン
+  photoQuery, photoCandidate, photoPatch, needsVocabPhoto, vocabRow, isMissingImageColumn, iconUrl,
 } = sandbox;
 const DQ_STOPWORDS = get('DQ_STOPWORDS');
 
@@ -321,46 +321,75 @@ test('検索語は英単語だけを通す（Workerを検索プロキシにし�
   assert.equal(photoQuery(null), '');
 });
 
-const CAND = {
-  name: 'Jane Doe', page: 'https://unsplash.com/@jane?utm_source=english-diary&utm_medium=referral',
-  small: 'https://images.unsplash.com/1?w=200', large: 'https://images.unsplash.com/1?w=400',
-  download: 'https://api.unsplash.com/photos/aaa/download', source: 'unsplash',
+// Workerが返す1候補の形
+const RAW = {
+  icon: 'ph:coffee', set: 'Phosphor', license: 'MIT',
+  page: 'https://github.com/phosphor-icons/core', source: 'iconify',
 };
 
-test('候補は表示とクレジットに使うものだけ残す', () => {
-  eq(photoCandidate({ ...CAND, extra: 'ignored', id: 7, likes: 99 }), CAND);
+test('アイコンのURLを組み立てる（色と高さを入れる）', () => {
+  assert.equal(iconUrl('ph:coffee', 64),
+    'https://api.iconify.design/ph/coffee.svg?color=%23DB3A00&height=64');
+  assert.equal(iconUrl('material-symbols-light:commute-outline', 220),
+    'https://api.iconify.design/material-symbols-light/commute-outline.svg?color=%23DB3A00&height=220');
 });
 
-test('httpsでないURLの候補は捨てる', () => {
-  assert.equal(photoCandidate({ ...CAND, small: 'http://img/t.jpg' }), null);
-  assert.equal(photoCandidate({ ...CAND, small: 'javascript:alert(1)' }), null);
-  assert.equal(photoCandidate({ ...CAND, large: undefined }), null, 'largeが無い候補');
+test('アイコン名に使えない文字が入っていたら空を返す（URLを作らせない）', () => {
+  assert.equal(iconUrl('ph:coffee/../../evil', 64), '');
+  assert.equal(iconUrl('ph:coffee?x=1', 64), '');
+  assert.equal(iconUrl('../etc/passwd', 64), '');
+  assert.equal(iconUrl('PH:Coffee', 64), '', '大文字は想定外なので通さない');
+  assert.equal(iconUrl('', 64), '');
+  assert.equal(iconUrl(null, 64), '');
+});
+
+test('候補は表示とライセンス表示に使うものだけ残す', () => {
+  const c = photoCandidate({ ...RAW, extra: 'ignored', total: 99 });
+  eq(Object.keys(c).sort(), ['icon', 'large', 'license', 'name', 'page', 'small', 'source']);
+  assert.equal(c.name, 'Phosphor');
+  assert.equal(c.license, 'MIT');
+  assert.equal(c.small, 'https://api.iconify.design/ph/coffee.svg?color=%23DB3A00&height=64');
+  assert.equal(c.large, 'https://api.iconify.design/ph/coffee.svg?color=%23DB3A00&height=220');
+});
+
+test('アイコン名が不正な候補は捨てる', () => {
+  assert.equal(photoCandidate({ ...RAW, icon: 'ph:coffee/../evil' }), null);
+  assert.equal(photoCandidate({ ...RAW, icon: undefined }), null);
   assert.equal(photoCandidate(null), null);
 });
 
 test('知らない出所の候補は捨てる（クレジットの出し先が決まらない）', () => {
-  assert.equal(photoCandidate({ ...CAND, source: 'somewhere-else' }), null);
-  assert.equal(photoCandidate({ ...CAND, source: undefined }), null);
+  assert.equal(photoCandidate({ ...RAW, source: 'somewhere-else' }), null);
+  assert.equal(photoCandidate({ ...RAW, source: undefined }), null);
 });
 
 test('候補のpageがhttpsでなければ空にする（リンク先に任意のURLを入れさせない）', () => {
-  assert.equal(photoCandidate({ ...CAND, page: 'javascript:alert(1)' }).page, '');
-  assert.equal(photoCandidate({ ...CAND, download: 'javascript:alert(1)' }).download, '');
+  assert.equal(photoCandidate({ ...RAW, page: 'javascript:alert(1)' }).page, '');
 });
 
 test('image_url の3状態: nullだけが自動取得の対象', () => {
   assert.equal(needsVocabPhoto({ image_url: null }), true, 'まだ探していない');
   assert.equal(needsVocabPhoto({}), true, '列がまだ無い行もnull扱い');
   assert.equal(needsVocabPhoto({ image_url: '' }), false, '利用者が外した語を探し直してはいけない');
-  assert.equal(needsVocabPhoto({ image_url: 'https://img/t.jpg' }), false);
+  assert.equal(needsVocabPhoto({ image_url: 'https://i/x.svg', image_credit: { source: 'iconify' } }), false);
 });
 
-test('写真のパッチは2つの列だけを書き、使用通知URLは保存しない', () => {
-  const patch = photoPatch(CAND);
+test('写真時代に保存された行は作り直す（見た目が混ざらないように）', () => {
+  assert.equal(needsVocabPhoto({ image_url: 'https://images.unsplash.com/1', image_credit: { source: 'unsplash' } }),
+    true, '提供元を変えたら古い行は入れ替える');
+  assert.equal(needsVocabPhoto({ image_url: '', image_credit: { source: 'unsplash' } }),
+    false, '外した語は提供元が変わっても探し直さない');
+});
+
+test('アイコンのパッチは2つの列だけを書く', () => {
+  const c = photoCandidate(RAW);
+  const patch = photoPatch(c);
   eq(Object.keys(patch).sort(), ['image_credit', 'image_url']);
-  assert.equal(patch.image_url, CAND.small);
-  eq(patch.image_credit, { name: CAND.name, page: CAND.page, large: CAND.large, source: 'unsplash' });
-  assert.equal('download' in patch.image_credit, false, 'download を保存する必要は無い');
+  assert.equal(patch.image_url, c.small);
+  eq(patch.image_credit, {
+    name: 'Phosphor', page: RAW.page, large: c.large,
+    source: 'iconify', icon: 'ph:coffee', license: 'MIT',
+  });
 });
 
 test('単語の挿入は画像の列を一切送らない（保存が画像に依存しない）', () => {

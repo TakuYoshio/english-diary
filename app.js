@@ -75,21 +75,21 @@ const TRANSLATIONS = {
     'btn-edit': '編集', 'btn-save': '保存',
     'aria-entries-page-size': '1ページの表示件数',
     'aria-vocab-en': '英語の単語',
-    'aria-vocab-photo': '写真を選び直す:',
-    'btn-photo-next': '別の写真にする',
-    'btn-photo-clear': '写真を外す',
-    'photo-credit': '撮影:',
-    'photo-loading': '写真を探しています…',
-    'photo-none': 'この単語に合う写真が見つかりませんでした',
-    'photo-off': '設定で写真の表示をオフにしています',
-    'toast-photo-cleared': '写真を外しました',
+    'aria-vocab-photo': 'アイコンを選び直す:',
+    'btn-photo-next': '別のアイコンにする',
+    'btn-photo-clear': 'アイコンを外す',
+    'photo-credit': 'アイコン:',
+    'photo-loading': 'アイコンを探しています…',
+    'photo-none': 'この単語に合うアイコンが見つかりませんでした',
+    'photo-off': '設定でアイコンの表示をオフにしています',
+    'toast-photo-cleared': 'アイコンを外しました',
     'aria-vocab-search': '単語帳を検索',
     'aria-situational-answer': '英文で答える',
     'aria-streak': '連続記録とレベルを見る',
     'page-size-10': '10件', 'page-size-20': '20件', 'page-size-50': '50件',
     'toast-update-ready': '新しいバージョンがあります。次回起動時に更新されます',
-    'pref-vocab-images-label': '単語帳に写真を表示する',
-    'pref-vocab-images-hint': 'オンにすると、登録した英単語が写真検索（Unsplash）に送られます。中継は自前のサーバーが行うので、Unsplashに端末の情報は渡りません。',
+    'pref-vocab-images-label': '単語帳にアイコンを表示する',
+    'pref-vocab-images-hint': 'オンにすると、登録した英単語がアイコン検索（Iconify）に送られます。中継は自前のサーバーが行います。',
     'error-ai-quota': '今日のAI利用が上限に達しました。また明日どうぞ',
     'error-tts': '音声を再生できませんでした',
     'error-srs': '学習記録を保存できませんでした: ',
@@ -213,7 +213,7 @@ const TRANSLATIONS = {
     'solo-used-vocab': '単語帳の語が会話で使えていました: {words}',
     'solo-next-title': '次回のテーマ', 'solo-show-transcript': '全文を見る',
     'solo-report-close': 'ホームへ',
-    'warn-vocab-no-image-column': '写真用の列が未作成のため、写真なしで保存しました（単語は記録されています）',
+    'warn-vocab-no-image-column': 'アイコン用の列が未作成のため、アイコンなしで保存しました（単語は記録されています）',
     'solo-list-empty': 'まだひとりごとの記録がありません',
     'solo-list-sessions': '回数', 'solo-list-total': '合計',
     'solo-list-no-report': 'レポートなし',
@@ -331,21 +331,21 @@ const TRANSLATIONS = {
     'btn-edit': 'Edit', 'btn-save': 'Save',
     'aria-entries-page-size': 'Entries per page',
     'aria-vocab-en': 'Word in English',
-    'aria-vocab-photo': 'Change the photo for',
-    'btn-photo-next': 'Try another photo',
-    'btn-photo-clear': 'Remove photo',
-    'photo-credit': 'Photo by',
-    'photo-loading': 'Looking for a photo…',
-    'photo-none': 'No matching photo was found for this word',
-    'photo-off': 'Photos are turned off in settings',
-    'toast-photo-cleared': 'Photo removed',
+    'aria-vocab-photo': 'Change the icon for',
+    'btn-photo-next': 'Try another icon',
+    'btn-photo-clear': 'Remove icon',
+    'photo-credit': 'Icon:',
+    'photo-loading': 'Looking for an icon…',
+    'photo-none': 'No matching icon was found for this word',
+    'photo-off': 'Icons are turned off in settings',
+    'toast-photo-cleared': 'Icon removed',
     'aria-vocab-search': 'Search your word list',
     'aria-situational-answer': 'Answer in English',
     'aria-streak': 'View your streak and level',
     'page-size-10': '10', 'page-size-20': '20', 'page-size-50': '50',
     'toast-update-ready': 'A new version is ready. It will apply next time you open the app',
-    'pref-vocab-images-label': 'Show photos in the word list',
-    'pref-vocab-images-hint': 'When on, the English words you save are sent to a photo search (Unsplash). Our own server relays the request, so Unsplash never sees your device.',
+    'pref-vocab-images-label': 'Show icons in the word list',
+    'pref-vocab-images-hint': 'When on, the English words you save are sent to an icon search (Iconify). Our own server relays the request.',
     'error-ai-quota': "You've reached today's AI limit. See you tomorrow!",
     'error-tts': "Couldn't play the audio",
     'error-srs': "Couldn't save your progress: ",
@@ -469,7 +469,7 @@ const TRANSLATIONS = {
     'solo-used-vocab': 'You used these words from your list: {words}',
     'solo-next-title': 'Focus for next time', 'solo-show-transcript': 'Show full transcript',
     'solo-report-close': 'Home',
-    'warn-vocab-no-image-column': 'The photo column is missing, so the word was saved without one',
+    'warn-vocab-no-image-column': 'The icon column is missing, so the word was saved without one',
     'solo-list-empty': 'No solo sessions yet',
     'solo-list-sessions': 'Sessions', 'solo-list-total': 'Total',
     'solo-list-no-report': 'no report',
@@ -1953,39 +1953,59 @@ async function saveEntryEdit() {
 }
 
 // ── Vocab ─────────────────────────────────────────────────────────────────
-// 単語カードの写真は Unsplash の検索結果を使う。APIキーをブラウザに置けないので
-// Worker が中継し、語ごとに KV へキャッシュする（worker/src/index.js）。
+// 単語カードの絵は Iconify のピクトグラムを使う。Worker が中継し、
+// 語ごとに KV へキャッシュする（worker/src/index.js）。
 //
-// 以前は生成AI（Pollinations）に1枚ずつ描かせていた。やめた理由は2つ。
-//   1. grateful や reluctant のような抽象語が絵にならなかった。抽象語ほど
-//      ストックフォトが人の表情や場面でタグ付けして持っているので検索が強い
-//   2. 行ごとに「1枚描いてくれ」を投げていた。単語帳は最大2000行あるので、
-//      スクロールするたびに無料の生成サービスへ生成要求が飛んでいた
+// 生成AI → ストックフォト → ピクトグラム と変えてきた経緯:
+//   1. 生成AIは grateful のような抽象語で絵にならず、行ごとに生成を頼むので遅かった
+//   2. 写真は「きれいに見えること」が目的なので、deadline を引くと
+//      締め切りっぽい雰囲気の机が返ってきて、狙った語を指さない
+//   3. ピクトグラムは「一つの概念を伝えること」だけが目的で、52pxでも潰れない。
+//      SVGなので色を指定でき、コーラルのパレットに揃えられる
 //
 // 表示するかどうかは端末ごとの設定としてlocalStorageに持つ（既定はオン）。
 // profilesテーブルに列を足すと手動マイグレーションが必要になるため。
 function vocabImagesEnabled() { return LS.get('vocabImages') !== '0'; }
 function setVocabImagesEnabled(on) { LS.set('vocabImages', on ? '1' : '0'); }
 
-// image_url は3つの状態を持つ。列を増やさずに「意図的に写真なし」を表すため。
+// image_url は3つの状態を持つ。列を増やさずに「意図的に絵なし」を表すため。
 //   null … まだ探していない（自動で探す対象）
-//   ''   … 利用者が「写真を外す」を選んだ（探し直さない）
-//   URL  … 選ばれた写真。image_credit に撮影者クレジットが入る
-function needsVocabPhoto(v) { return !!v && v.image_url == null; }
+//   ''   … 利用者が「アイコンを外す」を選んだ（探し直さない）
+//   URL  … 選ばれたアイコン。image_credit に出所が入る
+// 写真時代に保存された行は作り直す（アイコンと写真が混在すると見た目が割れる）。
+function needsVocabPhoto(v) {
+  if (!v) return false;
+  if (v.image_url == null) return true;
+  const src = v.image_credit && v.image_credit.source;
+  return !!v.image_url && src !== undefined && !PHOTO_SOURCES[src];
+}
 
 const PHOTO_WORDS_PER_REQUEST = 20;   // Worker側の MAX_PHOTO_WORDS と揃える
 
-// 写真の出所。規約でサービス名へのリンクを出す必要があるので、
+// アイコンの出所。ライセンス表示のためにセット名とリンクを出す。
 // 保存済みの行が指す出所から表示を決める（将来ほかを足しても壊れない）。
 const PHOTO_SOURCES = {
-  unsplash: { label: 'Unsplash', home: 'https://unsplash.com/?utm_source=english-diary&utm_medium=referral' },
+  iconify: { label: 'Iconify', home: 'https://iconify.design/' },
 };
+
+// アイコンの色。style.css の --accent-on-white-text と同じ値にすること。
+// SVGのURLに直接入れる必要があるのでここだけ値を複製している。
+// ズレは scripts/check-contrast.mjs が検出する。
+const ICON_COLOR = '#DB3A00';
+
+// "ph:coffee" → https://api.iconify.design/ph/coffee.svg?color=...&height=...
+function iconUrl(icon, height) {
+  if (!/^[a-z0-9-]+:[a-z0-9-]+$/.test(String(icon || ''))) return '';
+  const [prefix, name] = icon.split(':');
+  return `https://api.iconify.design/${prefix}/${name}.svg`
+    + `?color=${encodeURIComponent(ICON_COLOR)}&height=${height}`;
+}
 
 // この語はもう探した、という記録。見つからなかった語を描画ごとに
 // 探し直して無限に往復するのを防ぐ（リロードすればまた探す）。
 const _photoTried = new Set();
 
-// Workerへ渡す検索語。英単語そのままで引く（AIは使わない）。
+// Workerへ渡す検索語。英単語そのまま引き、0件のときだけWorker側でAIが言い換える。
 // Worker側でも同じ条件で弾くが、無駄な往復を減らすため手前でも揃えておく。
 function photoQuery(en) {
   const w = String(en || '').trim().toLowerCase();
@@ -1997,36 +2017,32 @@ function photoQuery(en) {
 function photoCandidate(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const https = v => (typeof v === 'string' && v.startsWith('https://') ? v : '');
-  const small = https(raw.small), large = https(raw.large);
   const source = PHOTO_SOURCES[raw.source] ? raw.source : '';
+  const small = iconUrl(raw.icon, 64);    // 一覧の52pxサムネイル
+  const large = iconUrl(raw.icon, 220);   // モーダルの大きい表示
   if (!small || !large || !source) return null;
   return {
-    name: String(raw.name || '').slice(0, 80),
+    icon: String(raw.icon),
+    name: String(raw.set || '').slice(0, 60),
+    license: String(raw.license || '').slice(0, 60),
     page: https(raw.page),
     small, large, source,
-    // 「写真を使った」通知のURL。保存はせず、使った瞬間にWorkerへ渡すだけ。
-    download: https(raw.download),
   };
 }
 
-// 保存するのはクレジットの表示に必要なものだけ。download は持ち越さない。
+// 保存するのは表示とライセンス表示に必要なものだけ。
+// icon も残しておくと、配色を変えたくなったときURLを作り直せる。
 function photoPatch(c) {
   return {
     image_url: c.small,
-    image_credit: { name: c.name, page: c.page, large: c.large, source: c.source },
+    image_credit: {
+      name: c.name, page: c.page, large: c.large,
+      source: c.source, icon: c.icon, license: c.license,
+    },
   };
 }
 
-// Unsplashの規約で、写真を実際に使うときは「使った」通知を出す必要がある。
-// 通知の失敗でアプリを止める理由は無いので、待たずに投げて捨てる。
-function notifyPhotosUsed(downloads) {
-  const list = [...new Set((downloads || []).filter(Boolean))].slice(0, PHOTO_WORDS_PER_REQUEST);
-  if (!list.length) return;
-  _postWorker({ action: 'photo_used', downloads: list }, 8000)
-    .catch(e => console.warn('写真の使用通知に失敗しました', e));
-}
-
-// 写真は飾りなので、失敗しても例外を投げずに空で返す。
+// アイコンは飾りなので、失敗しても例外を投げずに空で返す。
 // 呼び出し側（単語の保存）を巻き添えにしない。
 async function fetchVocabPhotos(words) {
   const out = new Map();
@@ -2058,7 +2074,6 @@ async function attachVocabPhotos(rows) {
   if (!photos.size) return 0;
 
   let updated = 0;
-  const used = [];
   for (const row of targets) {
     const candidates = photos.get(photoQuery(row.en));
     if (!candidates) continue;
@@ -2070,11 +2085,8 @@ async function attachVocabPhotos(rows) {
       console.warn('写真の保存に失敗しました', error);
       break;
     }
-    used.push(candidates[0].download);
     updated++;
   }
-  // 1語ずつ通知するとバースト上限に当たるので、まとめて1回で出す
-  notifyPhotosUsed(used);
   return updated;
 }
 
@@ -2324,17 +2336,20 @@ function vocabThumb(v, imgSrc) {
   if (!vocabImagesEnabled()) return '';
   const label = `${t('aria-vocab-photo')} ${v.en}`;
   const initial = String(v.en || '?').trim().slice(0, 1).toUpperCase();
-  const img = imgSrc
-    ? `<img class="v-thumb" src="${escapeHtml(imgSrc)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'" />`
-    : '';
+  // アイコンは透過SVGなので、頭文字と重ねると下の文字が透けて読めなくなる。
+  // 写真のときのように重ねず、どちらか一方だけを描く。
+  // 読み込みに失敗したらアイコンを消して、下の頭文字が出るようにする。
+  const inner = imgSrc
+    ? `<span class="v-thumb-fallback v-thumb-under" aria-hidden="true">${escapeHtml(initial)}</span>`
+      + `<img class="v-thumb" src="${escapeHtml(imgSrc)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()" />`
+    : `<span class="v-thumb-fallback" aria-hidden="true">${escapeHtml(initial)}</span>`;
   return `<button class="v-thumb-btn" onclick="openVocabPhoto(${v.id})" `
-    + `title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">`
-    + `<span class="v-thumb-fallback" aria-hidden="true">${escapeHtml(initial)}</span>${img}</button>`;
+    + `title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">${inner}</button>`;
 }
 
 // ── 写真の選び直し ────────────────────────────────────────────────────────
-// Unsplashの規約で撮影者名とUnsplashへのリンクの表示が必要なので、
-// 一覧の52pxサムネイルではなくこのモーダルでクレジットを出す。
+// アイコンセットのライセンス表示のため、一覧の52pxサムネイルではなく
+// このモーダルでセット名・ライセンス・リンクを出す。
 let _photoPick = null;   // { id, en, candidates, index }
 
 async function openVocabPhoto(id) {
@@ -2361,10 +2376,8 @@ async function cycleVocabPhoto() {
   const p = _photoPick;
   if (!p || !p.candidates.length) return;
   p.index = (p.index + 1) % p.candidates.length;
-  const chosen = p.candidates[p.index];
-  const patch = photoPatch(chosen);
+  const patch = photoPatch(p.candidates[p.index]);
   if (!await savePhotoPatch(p.id, patch)) return;
-  notifyPhotosUsed([chosen.download]);
   renderVocabPhotoModal({ row: { en: p.en, ...patch } });
   await renderVocab();
 }
@@ -2395,11 +2408,13 @@ function renderVocabPhotoModal({ row = null, loading = false, message = '' } = {
   if (loading) {
     creditEl.textContent = t('photo-loading');
   } else if (credit && credit.name) {
-    // 撮影者名は提供元由来の外部文字列。属性にも本文にもエスケープして入れる。
-    const src = PHOTO_SOURCES[credit.source] || PHOTO_SOURCES.unsplash;
+    // セット名とライセンスは提供元由来の外部文字列。属性にも本文にもエスケープして入れる。
+    const src = PHOTO_SOURCES[credit.source] || PHOTO_SOURCES.iconify;
     const page = credit.page || src.home;
+    const lic = credit.license ? `（${credit.license}）` : '';
     creditEl.innerHTML = `${escapeHtml(t('photo-credit'))} `
       + `<a href="${escapeHtml(page)}" target="_blank" rel="noopener noreferrer">${escapeHtml(credit.name)}</a>`
+      + escapeHtml(lic)
       + ` / <a href="${escapeHtml(src.home)}" target="_blank" rel="noopener noreferrer">${escapeHtml(src.label)}</a>`;
   } else {
     creditEl.textContent = message;

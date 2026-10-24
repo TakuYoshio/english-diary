@@ -134,8 +134,9 @@ npm run verify    # 結線チェック → コントラスト → lint → テ�
 |---|---|---|
 | Supabase | 日記・単語帳・学習設定 | 保存（Row Level Securityで自分のデータのみアクセス可） |
 | Cloudflare Worker → Gemini | 日記本文・英訳・調べた単語・発音の認識結果 | AI添削・発音アドバイス |
-| Cloudflare Worker → Unsplash | 単語帳に登録した**英単語**のみ | 単語カードの写真検索。ブラウザが話す相手はWorkerだけなので、Unsplashに端末の情報（IP・リファラ）は渡らない |
-| Unsplash の画像CDN | 選ばれた写真の読み込み（`referrerpolicy="no-referrer"`） | 単語カードのサムネイル表示 |
+| Cloudflare Worker → Iconify | 単語帳に登録した**英単語**のみ | 単語カードのアイコン検索。ブラウザが話す相手はWorkerだけなので、Iconifyに端末の情報（IP・リファラ）は渡らない |
+| Cloudflare Worker → Gemini | 素の検索で0件だった**英単語**のみ | アイコンになりそうな具体語への言い換え（`grateful` → `thank-you` など）。語ごとにKVへキャッシュするので1回だけ |
+| Iconify の画像CDN | 選ばれたアイコンのSVG読み込み（`referrerpolicy="no-referrer"`） | 単語カードのサムネイル表示 |
 | ブラウザの音声認識 | マイク音声 | 発音チェック（Chrome/Safariの実装に依存し、サーバー処理の場合がある） |
 
 ---
@@ -148,5 +149,5 @@ npm run verify    # 結線チェック → コントラスト → lint → テ�
 | Supabase | 無料（500MB） |
 | Cloudflare Workers | 無料（1日10万リクエスト、KV 1日1000書き込み） |
 | Gemini API | 無料枠 |
-| Unsplash API | 無料枠（Demoモードは50リクエスト/時。語ごとにWorkerのKVへ30日キャッシュするので、同じ語で外に出るのは1回だけ） |
+| Iconify API | 無料・APIキー不要（語ごとにWorkerのKVへ30日キャッシュするので、同じ語で外に出るのは1回だけ） |
 | **合計** | **¥0** |
