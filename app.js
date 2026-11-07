@@ -40,6 +40,8 @@ const TRANSLATIONS = {
     'entries-empty': 'まだ日記がありません', 'entries-no-results': '検索結果がありません',
     'btn-back-entries': '← 履歴に戻る', 'btn-back-step': '← 戻る',
     'ph-v-jp': '日本語', 'ph-v-note': 'メモ（任意）', 'btn-vocab-add': '追加',
+    'btn-vocab-add-open': '＋ 単語を追加', 'btn-vocab-add-close': '✕ 閉じる',
+    'vocab-count-label': '{n}語',
     'vocab-empty-text': '単語帳が空です<br>日記を書いて追加しよう',
     'quiz-empty': '単語帳に単語を追加してからテストしよう',
     'stat-ok': '正解', 'stat-ng': '不正解', 'stat-left': '残り', 'stat-streak': '連続',
@@ -185,6 +187,14 @@ const TRANSLATIONS = {
     'solo-mic-listening': '🎙 聞いています', 'solo-mic-reconnecting': '⚠️ 再接続中…',
     'solo-mic-needs-tap': '⚠️ タップして再開', 'solo-mic-paused': '⏸ 一時停止中',
     'solo-mic-dead': '🚫 マイクが使えません', 'solo-mic-typing': '⌨️ タイピング',
+    'solo-help-title': 'マイクで続けられません',
+    'solo-help-no-api': 'このブラウザは音声認識に対応していません。iPhoneならSafari、パソコンならChromeをお試しください。',
+    'solo-help-not-allowed-ios': 'Safariでマイクが許可されていません。アドレスバー左の「ぁあ」→「Webサイトの設定」→「マイク」→「許可」を選んでから、もう一度はじめてください。',
+    'solo-help-not-allowed': 'ブラウザでマイクが許可されていません。アドレスバーのマイクのアイコンから許可し、もう一度はじめてください。',
+    'solo-help-service-ios': 'iPhoneの音声入力がオフになっている可能性があります。設定 → 一般 → キーボード → 「音声入力」をオンにしてから、もう一度はじめてください。',
+    'solo-help-service': '音声認識のサービスに接続できませんでした。通信状況を確かめて、もう一度はじめてください。',
+    'solo-help-unknown': 'マイクを開始できませんでした。ページを再読み込みしてから、もう一度お試しください。',
+    'solo-help-typing': 'このまま下のタイピング欄で続けられます。記録もレポートも同じように作られます。',
     'solo-tap-resume': '🎙 タップして続ける',
     'solo-another-prompt': '🔀 別のお題',
     'solo-count-words': '語数', 'solo-count-filler': 'filler',
@@ -296,6 +306,8 @@ const TRANSLATIONS = {
     'entries-empty': 'No diary entries yet', 'entries-no-results': 'No matching entries',
     'btn-back-entries': '← Back to history', 'btn-back-step': '← Back',
     'ph-v-jp': 'Translation', 'ph-v-note': 'Note (optional)', 'btn-vocab-add': 'Add',
+    'btn-vocab-add-open': '+ Add a word', 'btn-vocab-add-close': '✕ Close',
+    'vocab-count-label': '{n} words',
     'vocab-empty-text': 'Your vocabulary is empty<br>Write a diary to add words',
     'quiz-empty': 'Add words to your vocabulary first',
     'stat-ok': 'Correct', 'stat-ng': 'Wrong', 'stat-left': 'Left', 'stat-streak': 'Streak',
@@ -441,6 +453,14 @@ const TRANSLATIONS = {
     'solo-mic-listening': '🎙 Listening', 'solo-mic-reconnecting': '⚠️ Reconnecting…',
     'solo-mic-needs-tap': '⚠️ Tap to resume', 'solo-mic-paused': '⏸ Paused',
     'solo-mic-dead': '🚫 Mic unavailable', 'solo-mic-typing': '⌨️ Typing',
+    'solo-help-title': 'Can\'t continue with the mic',
+    'solo-help-no-api': 'This browser does not support speech recognition. Try Safari on iPhone, or Chrome on a computer.',
+    'solo-help-not-allowed-ios': 'Safari does not have microphone access. Tap "ぁあ" in the address bar → Website Settings → Microphone → Allow, then start again.',
+    'solo-help-not-allowed': 'The browser does not have microphone access. Allow it from the microphone icon in the address bar, then start again.',
+    'solo-help-service-ios': 'Dictation may be turned off on your iPhone. Go to Settings → General → Keyboard → Dictation and turn it on, then start again.',
+    'solo-help-service': 'Could not reach the speech recognition service. Check your connection and start again.',
+    'solo-help-unknown': 'The microphone could not start. Reload the page and try again.',
+    'solo-help-typing': 'You can keep going with the typing box below. The session and report work the same way.',
     'solo-tap-resume': '🎙 Tap to continue',
     'solo-another-prompt': '🔀 Another prompt',
     'solo-count-words': 'words', 'solo-count-filler': 'filler',
@@ -2166,6 +2186,20 @@ async function savePhotoPatch(id, patch) {
   return false;
 }
 
+// 単語帳の主な用途は「見る・復習する」なので、追加フォームは畳んでおく。
+// 以前は3入力＋ボタンが常時トップを占有し、6語しかなくても
+// 1語目からスクロールが必要だった。
+function toggleVocabAdd(force) {
+  const box = document.getElementById('vocab-add');
+  const btn = document.getElementById('vocab-add-toggle');
+  if (!box || !btn) return;
+  const open = force === undefined ? box.style.display === 'none' : !!force;
+  box.style.display = open ? 'flex' : 'none';
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  btn.textContent = open ? t('btn-vocab-add-close') : t('btn-vocab-add-open');
+  if (open) document.getElementById('v-en').focus();
+}
+
 async function addVocab() {
   const en   = document.getElementById('v-en').value.trim();
   const jp   = document.getElementById('v-jp').value.trim();
@@ -2297,7 +2331,7 @@ function filterAndRenderVocab() {
     return;
   }
   empty.style.display = 'none';
-  count.textContent   = `${vocab.length}`;
+  count.textContent   = t('vocab-count-label').replace('{n}', vocab.length);
   list.innerHTML = vocab.map(v => {
     if (editingVocabId === v.id) {
       return `<div class="vocab-row vocab-row-editing">
@@ -2316,15 +2350,25 @@ function filterAndRenderVocab() {
     // 記憶の育ち具合。.vocab-rowはflex-wrapで、伸びるのは3つのテキストセルだけなので
     // flex-shrink:0 の要素を足しても既存レイアウトは潰れない。
     const stageTitle = `${t('stage-' + srsStageKey(v.srs_stage))} ・ ${t('review-next-label')} ${nextReviewLabel(v)}`;
+    // 以前は8要素を横一列に並べていたが、iPhone幅では入りきらず2段に折り返して
+    // 1語が縦に間延びしていた。英語に幅を譲るため、育ち具合と正答率は
+    // 日本語と同じ行に置き、右端には操作ボタンだけを残す。
+    // メモは中身があるときだけ出す（空のdivで高さを使わない）。
     return `<div class="vocab-row${isWeakWord(v) ? ' vocab-row-weak' : ''}">
       ${vocabThumb(v, imgSrc)}
-      <div class="v-en">${escapeHtml(v.en)}</div>
-      <div class="v-jp">${escapeHtml(v.jp)}</div>
-      <div class="v-note">${escapeHtml(v.note||'')}</div>
-      <span class="v-stage" title="${escapeHtml(stageTitle)}" aria-label="${escapeHtml(stageTitle)}">${srsStageIcon(v.srs_stage)}</span>
-      <span class="v-rate ${cls}">${rate===null ? t('vocab-untested') : rate+'%'}</span>
-      <button class="icon-btn" onclick="startEditVocab(${v.id})" title="${escapeHtml(t('btn-edit'))}" aria-label="${escapeHtml(t('btn-edit'))} ${escapeHtml(v.en)}">✏️</button>
-      <button class="icon-btn red" onclick="deleteVocab(${v.id})" title="${escapeHtml(t('btn-delete'))}" aria-label="${escapeHtml(t('btn-delete'))} ${escapeHtml(v.en)}">✕</button>
+      <div class="v-main">
+        <div class="v-en">${escapeHtml(v.en)}</div>
+        <div class="v-sub">
+          <span class="v-jp">${escapeHtml(v.jp)}</span>
+          <span class="v-stage" title="${escapeHtml(stageTitle)}" aria-label="${escapeHtml(stageTitle)}">${srsStageIcon(v.srs_stage)}</span>
+          <span class="v-rate ${cls}">${rate===null ? t('vocab-untested') : rate+'%'}</span>
+        </div>
+        ${v.note ? `<div class="v-note">${escapeHtml(v.note)}</div>` : ''}
+      </div>
+      <div class="v-meta">
+        <button class="icon-btn" onclick="startEditVocab(${v.id})" title="${escapeHtml(t('btn-edit'))}" aria-label="${escapeHtml(t('btn-edit'))} ${escapeHtml(v.en)}">✏️</button>
+        <button class="icon-btn red" onclick="deleteVocab(${v.id})" title="${escapeHtml(t('btn-delete'))}" aria-label="${escapeHtml(t('btn-delete'))} ${escapeHtml(v.en)}">✕</button>
+      </div>
     </div>`;
   }).join('');
 }

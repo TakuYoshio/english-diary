@@ -60,7 +60,10 @@ const plain = (v) => JSON.parse(JSON.stringify(v));
 const eq = (a, b, m) => assert.deepEqual(plain(a), b, m);
 
 const createSoloMic = sandbox.createSoloMic;
-const { soloCountWords, soloCountFillers, soloWpm, soloJoinSegments, soloTruncateTranscript } = sandbox;
+const { soloCountWords, soloCountFillers, soloWpm, soloJoinSegments, soloTruncateTranscript,
+  soloMicHelpKey } = sandbox;
+// soloIsIOS は navigator.userAgent を見るので、テスト中だけ差し替える
+const asIOS = (on) => { sandbox.navigator.userAgent = on ? 'iPhone' : 'node'; };
 const SOLO_DEAD_AFTER_FAILURES = get('SOLO_DEAD_AFTER_FAILURES');
 
 // 溜まったタイマーを全部発火させる（バックオフを進める）
@@ -271,6 +274,56 @@ test('soloJoinSegments が空や空白だけの断片を落とす', () => {
   assert.equal(soloJoinSegments([{ text: 'a' }, { text: '  ' }, { text: 'b' }]), 'a b');
   assert.equal(soloJoinSegments([]), '');
   assert.equal(soloJoinSegments(null), '');
+});
+
+// ── マイクが使えないときの案内 ────────────────────────────────────────────
+// 「マイクが使えません」とだけ出しても利用者は何もできない。
+// 原因ごとに、実際に打てる手を出し分けられること。
+
+test('止まった理由を覚えている', () => {
+  FakeRecognition.reset();
+  const mic = createSoloMic({});
+  mic.start();
+  latest().fail('service-not-allowed');
+  assert.equal(mic.state, 'dead');
+  assert.equal(mic.lastError, 'service-not-allowed');
+});
+
+test('音声認識APIが無い端末では no-api を覚える', () => {
+  const saved = sandbox.SpeechRecognition;
+  sandbox.SpeechRecognition = undefined;
+  sandbox.webkitSpeechRecognition = undefined;
+  const mic = createSoloMic({});
+  assert.equal(mic.start(), false);
+  assert.equal(mic.state, 'dead');
+  assert.equal(mic.lastError, 'no-api');
+  sandbox.SpeechRecognition = saved;
+});
+
+test('iPhoneでは本体の音声入力の設定を案内する', () => {
+  asIOS(true);
+  // ダイアログも出ずに落ちる一番多い詰まり方
+  assert.equal(soloMicHelpKey('service-not-allowed'), 'solo-help-service-ios');
+  assert.equal(soloMicHelpKey('not-allowed'), 'solo-help-not-allowed-ios');
+  asIOS(false);
+});
+
+test('iPhone以外ではブラウザの許可を案内する', () => {
+  asIOS(false);
+  assert.equal(soloMicHelpKey('not-allowed'), 'solo-help-not-allowed');
+  assert.equal(soloMicHelpKey('service-not-allowed'), 'solo-help-service');
+});
+
+test('対応していないブラウザは原因ごと案内を分ける', () => {
+  assert.equal(soloMicHelpKey('no-api'), 'solo-help-no-api');
+});
+
+test('理由が分からないときも案内を出す（無言で詰ませない）', () => {
+  asIOS(false);
+  assert.equal(soloMicHelpKey(''), 'solo-help-unknown');
+  asIOS(true);
+  assert.equal(soloMicHelpKey(''), 'solo-help-service-ios');
+  asIOS(false);
 });
 
 // ── 実行 ──────────────────────────────────────────────────────────────────

@@ -431,6 +431,7 @@ photoReply = null;
 const photoFailAdd = await page.evaluate(async () => {
   switchTab('vocab');
   await new Promise(r => setTimeout(r, 200));
+  toggleVocabAdd(true);
   document.getElementById('v-en').value = 'resilient';
   document.getElementById('v-jp').value = 'しぶとい';
   document.getElementById('v-note').value = '';
@@ -574,7 +575,8 @@ for (const col of ['image_url', 'image_credit']) {
     _vocabImageColumnMissing = false;
     warnMissingImageColumn._warned = false;
 
-    document.getElementById('v-en').value = `word-${dropped}`;
+    toggleVocabAdd(true);
+  document.getElementById('v-en').value = `word-${dropped}`;
     document.getElementById('v-jp').value = 'てすと';
     document.getElementById('v-note').value = '';
     await addVocab();
@@ -605,12 +607,59 @@ const stopsBackfill = await page.evaluate(async () => {
 check('画像の列が無い環境では穴埋めをしない', stopsBackfill && workerCalls.length === 0,
   `${workerCalls.length} 回`);
 
+// ── 一覧性: 1語が1行に収まること ──────────────────────────────────────────
+// 以前は8要素を横一列に並べていて、iPhone幅では折り返して1語が縦に伸びていた。
+const density = await page.evaluate(async () => {
+  switchTab('vocab');
+  await new Promise(r => setTimeout(r, 300));
+  const rows = [...document.querySelectorAll('.vocab-row:not(.vocab-row-editing)')];
+  const heights = rows.map(r => Math.round(r.getBoundingClientRect().height));
+  const row = rows[0];
+  const thumb = row.querySelector('.v-thumb-btn').getBoundingClientRect();
+  const main = row.querySelector('.v-main').getBoundingClientRect();
+  const meta = row.querySelector('.v-meta').getBoundingClientRect();
+  return {
+    heights,
+    // 3つの固まりが横に並んでいる（折り返していない）こと
+    sideBySide: thumb.right <= main.left + 1 && main.right <= meta.left + 1,
+    // 開閉できること。前段のテストで開いているので、閉じる→開くで見る
+    closed: (toggleVocabAdd(false), document.getElementById('vocab-add').style.display === 'none'),
+    closedLabel: document.getElementById('vocab-add-toggle').textContent.trim(),
+    reopened: (toggleVocabAdd(), document.getElementById('vocab-add').style.display !== 'none'),
+    focused: document.activeElement === document.getElementById('v-en'),
+    countLabel: document.getElementById('vocab-count').textContent.trim(),
+    emptyNotes: [...document.querySelectorAll('.vocab-row .v-note')].filter(n => !n.textContent.trim()).length,
+  };
+});
+check('単語の行が横1列に並ぶ（折り返さない）', density.sideBySide, JSON.stringify(density.heights));
+check('1語あたりの高さが抑えられている',
+  density.heights.every(h => h <= 92), JSON.stringify(density.heights));
+check('追加フォームを畳める', density.closed);
+check('畳むとボタンの文言が「追加」に戻る', /追加|Add/.test(density.closedLabel), density.closedLabel);
+check('もう一度押すと開く', density.reopened);
+check('開いたら英語欄にフォーカスが入る', density.focused);
+check('件数が裸の数字でない', /語|words/.test(density.countLabel), density.countLabel);
+check('メモが空の行に空のメモ欄を描かない', density.emptyNotes === 0, String(density.emptyNotes));
+
+// ── マイクが使えないときの案内 ────────────────────────────────────────────
+const micHelp = await page.evaluate(() => ({
+  ios: soloMicHelpKey('service-not-allowed'),
+  notAllowed: soloMicHelpKey('not-allowed'),
+  noApi: soloMicHelpKey('no-api'),
+  hasPanel: !!document.getElementById('solo-mic-help'),
+}));
+check('マイクの案内パネルがHTMLにある', micHelp.hasPanel);
+check('原因ごとに案内を出し分ける',
+  micHelp.noApi === 'solo-help-no-api' && micHelp.notAllowed.startsWith('solo-help-not-allowed'),
+  `${micHelp.noApi} / ${micHelp.notAllowed}`);
+
 // ── メモの改行 ────────────────────────────────────────────────────────────
 // 日記Step3のメモは元から textarea だったので、改行入りのメモは保存されていたが、
 // 単語帳では1行に潰れて表示されていた。入力側と表示側の両方を直している。
 const noteMultiline = await page.evaluate(async () => {
   const el = document.getElementById('v-note');
   const tag = el.tagName;
+  toggleVocabAdd(true);
   document.getElementById('v-en').value = 'multiline';
   document.getElementById('v-jp').value = 'かいぎょう';
   el.value = '一行目\n二行目';

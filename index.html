@@ -478,7 +478,9 @@
 
     <!-- ── VOCAB TAB ── -->
     <section id="tab-vocab" class="tab">
-      <div class="vocab-add-row">
+      <button class="btn btn-sm vocab-add-toggle" id="vocab-add-toggle" aria-expanded="false"
+        aria-controls="vocab-add" onclick="toggleVocabAdd()" data-i18n="btn-vocab-add-open">＋ 単語を追加</button>
+      <div class="vocab-add-row" id="vocab-add" style="display:none">
         <input type="text" id="v-en" data-i18n-aria="aria-vocab-en" class="input" placeholder="English" />
         <input type="text" id="v-jp" data-i18n-aria="ph-v-jp" class="input" data-i18n-placeholder="ph-v-jp" placeholder="日本語" />
         <textarea id="v-note" rows="2" data-i18n-aria="ph-v-note" class="input" data-i18n-placeholder="ph-v-note" placeholder="メモ（任意）"></textarea>
@@ -706,6 +708,7 @@
             <div class="solo-ring-time" id="solo-time" aria-live="off">00:00</div>
           </div>
           <div class="solo-mic-chip" id="solo-mic-chip" aria-live="polite"></div>
+          <div class="solo-mic-help" id="solo-mic-help" style="display:none" role="status"></div>
         </div>
 
         <!-- 認識が落ちたときだけ出る。タイマーは止めない。 -->

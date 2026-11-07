@@ -92,6 +92,9 @@ function createSoloMic({ onSegment, onInterim, onStateChange, lang = 'en-US' } =
   let gotResultSinceStart = false;
   let backoffTimer = null;
   let startedAt = 0;
+  // 止まった理由。「マイクが使えません」とだけ出しても利用者は何もできないので、
+  // 原因別の案内を出すために残しておく。
+  let lastError = '';
 
   const segments = [];
   let interim = '';
@@ -140,6 +143,7 @@ function createSoloMic({ onSegment, onInterim, onStateChange, lang = 'en-US' } =
 
     r.onerror = (e) => {
       const err = (e && e.error) || '';
+      if (err) lastError = err;
       if (SOLO_FATAL_ERRORS.has(err)) {
         // マイク権限が無い／ブロックされた。再開しても無意味なので終了する。
         stopRecognition();
@@ -204,9 +208,10 @@ function createSoloMic({ onSegment, onInterim, onStateChange, lang = 'en-US' } =
     get segments() { return segments; },
     get interim() { return interim; },
     get supported() { return !!SR; },
+    get lastError() { return lastError; },
 
     start() {
-      if (!SR) { setState('dead'); return false; }
+      if (!SR) { lastError = 'no-api'; setState('dead'); return false; }
       startedAt = startedAt || Date.now();
       failures = 0;
       startRecognition();
@@ -436,6 +441,9 @@ function soloSaveDraft() {
 
 // ── セッション開始 ────────────────────────────────────────────────────────
 async function soloStartSession(typingOnly = false) {
+  // 自分でタイピングを選んだのか、音声が使えずに回されたのかを区別する。
+  // 後者のときだけ理由を出す（自分で選んだ人に警告を出さない）。
+  soloSession.choseTyping = !!typingOnly;
   soloSession.typingOnly = !!typingOnly || !soloSpeechSupported();
   soloSession.active = true;
   soloSession.startedAt = Date.now();
@@ -521,6 +529,29 @@ function soloTick() {
   if (remaining <= 0) soloFinishSession();
 }
 
+// 止まった理由から、利用者が実際に打てる手を選ぶ。
+// iOSは「音声入力」が本体設定でオフだと、許可を聞かれる前に
+// service-not-allowed で落ちる。これが一番多い詰まり方。
+function soloMicHelpKey(err) {
+  const ios = soloIsIOS();
+  if (err === 'no-api') return 'solo-help-no-api';
+  if (err === 'not-allowed') return ios ? 'solo-help-not-allowed-ios' : 'solo-help-not-allowed';
+  if (err === 'service-not-allowed') return ios ? 'solo-help-service-ios' : 'solo-help-service';
+  return ios ? 'solo-help-service-ios' : 'solo-help-unknown';
+}
+
+function renderSoloMicHelp(state) {
+  const el = document.getElementById('solo-mic-help');
+  if (!el) return;
+  const forced = soloSession.typingOnly && !soloSession.choseTyping;
+  if (state !== 'dead' && !forced) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  const err = forced ? 'no-api' : ((soloSession.mic && soloSession.mic.lastError) || '');
+  el.innerHTML = `<p class="solo-help-title">${escapeHtml(t('solo-help-title'))}</p>`
+    + `<p class="solo-help-body">${escapeHtml(t(soloMicHelpKey(err)))}</p>`
+    + `<p class="solo-help-body">${escapeHtml(t('solo-help-typing'))}</p>`;
+  el.style.display = 'block';
+}
+
 function renderSoloMicChip() {
   const chip = document.getElementById('solo-mic-chip');
   const tapBtn = document.getElementById('solo-tap-resume');
@@ -543,6 +574,7 @@ function renderSoloMicChip() {
   if (tapBtn) tapBtn.style.display = (st === 'needs-tap' || st === 'dead') ? 'block' : 'none';
   // 認識が死んだらタイピングに逃がす
   if (st === 'dead') document.getElementById('solo-typing').style.display = 'block';
+  renderSoloMicHelp(st);
 }
 
 function soloTapResume() {
