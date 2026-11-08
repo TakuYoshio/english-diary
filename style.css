@@ -599,6 +599,35 @@ body {
 
 /* 首輪ティア（画像を囲むリンググロー） */
 .kotora-wrap { border-radius: 50%; transition: box-shadow 0.3s ease; }
+/* キャラごとの毛色。SVGは --mascot-* を参照して描いているので、
+   ここを上書きするだけで同じ絵の仕組みのまま別の子になる。 */
+.kotora-wrap[data-mascot="hachi"] {
+  --mascot-fur: #E8B06A;       --mascot-fur-light: #FFF6E6;  --mascot-fur-dark: #B9763A;
+  --mascot-ear-inner: #F6C9B4; --mascot-eye: #6B4322;
+}
+.kotora-wrap[data-mascot="moko"] {
+  --mascot-fur: #C8A98E;       --mascot-fur-light: #F6EADF;  --mascot-fur-dark: #8C6B50;
+  --mascot-ear-inner: #EBC3B6; --mascot-eye: #4E3524;
+}
+
+/* 相棒の選択 */
+.mascot-picker-title {
+  font-size: 12px; font-weight: 700; color: var(--text-faint);
+  text-align: center; margin-top: 14px;
+}
+.mascot-picker { display: flex; gap: 8px; justify-content: center; margin: 14px 0 4px; }
+.mascot-pick {
+  appearance: none; font: inherit; cursor: pointer;
+  flex: 1; max-width: 96px; padding: 8px 4px 6px;
+  background: var(--surface); border: 2px solid var(--border);
+  border-radius: var(--radius); color: var(--text);
+}
+.mascot-pick[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-light); }
+.mascot-pick[disabled] { cursor: default; opacity: 0.55; }
+.mascot-pick-face { font-size: 26px; line-height: 1.1; }
+.mascot-pick-name { display: block; font-size: 12px; font-weight: 700; margin-top: 2px; }
+.mascot-pick-lock { display: block; font-size: 10px; color: var(--text-faint); margin-top: 1px; }
+
 .kotora-wrap[data-tier="silver"]  { box-shadow: 0 0 0 3px var(--mascot-collar-silver) inset; }
 .kotora-wrap[data-tier="gold"]    { box-shadow: 0 0 0 3px var(--mascot-collar-gold) inset, 0 0 14px rgba(232,185,58,0.55); }
 .kotora-wrap[data-tier="diamond"] { box-shadow: 0 0 0 3px var(--mascot-collar-diamond) inset, 0 0 16px rgba(126,200,227,0.6); }

@@ -13,15 +13,34 @@ function mascotCollarTier(level) {
   return level >= 10 ? 'diamond' : level >= 7 ? 'gold' : level >= 4 ? 'silver' : 'bronze';
 }
 
-function kotoraImg(mood = 'idle', tier = 'bronze', stage = 'kitten') {
-  // kotora-svg.js が読み込まれていればパーツアニメーション可能なSVG、なければ旧PNG
-  const body = (typeof kotoraSvg === 'function')
-    ? kotoraSvg()
-    : '<img class="kotora-img" src="character/kotora.png" alt="コトラ" />';
+// 相棒はレベルで解放され、選んだ子がすべてのスロットに出る。
+// 表情・首輪・成長段階はどのキャラでも同じ kt-* クラスで動くので、
+// ここで中身を差し替えるだけで全部そのまま効く（mascots.js）。
+function kotoraImg(mood = 'idle', tier = 'bronze', stage = 'kitten', key) {
+  const chosen = key || (typeof currentMascotKey === 'function'
+    ? currentMascotKey(mascotLevel()) : 'kotora');
+  let body;
+  if (typeof mascotSvgFor === 'function') body = mascotSvgFor(chosen);
+  else if (typeof kotoraSvg === 'function') body = kotoraSvg();
+  else body = '<img class="kotora-img" src="character/kotora.png" alt="コトラ" />';
   return `
-  <div class="kotora-wrap" data-mood="${mood}" data-tier="${tier}" data-stage="${stage}">
+  <div class="kotora-wrap" data-mascot="${chosen}" data-mood="${mood}" data-tier="${tier}" data-stage="${stage}">
     ${body}
   </div>`;
+}
+
+// 相棒を変える。SVGそのものが変わるので、描画済みのものは中身を作り直す。
+// 入れ物のidを頼りにすると、idの無いところに描かれた子が古いまま残る
+// （マスコットモーダルの中がまさにそれだった）。.kotora-wrap を直接見る。
+function chooseMascot(key) {
+  if (typeof setMascotKey !== 'function' || typeof mascotSvgFor !== 'function') return;
+  setMascotKey(key);
+  document.querySelectorAll('.kotora-wrap').forEach(w => {
+    w.dataset.mascot = key;
+    w.innerHTML = mascotSvgFor(key);
+  });
+  if (document.getElementById('mascot-modal').style.display !== 'none') openMascotModal();
+  showToast(t('toast-mascot-changed').replace('{name}', t('mascot-name-' + key)), 'success');
 }
 
 // ── スロットの状態更新 ────────────────────────────────────────────────────
@@ -32,7 +51,10 @@ function mascotApply(slotId, mood, tier, stage) {
   const slot = document.getElementById(slotId);
   if (!slot) return;
   const wrap = slot.querySelector('.kotora-wrap');
-  if (!wrap) {
+  // 相棒が変わっていたらSVGごと作り直す
+  const want = (typeof currentMascotKey === 'function') ? currentMascotKey(mascotLevel()) : 'kotora';
+  if (wrap && wrap.dataset.mascot !== want) wrap.remove();
+  if (!slot.querySelector('.kotora-wrap')) {
     const level = mascotLevel();
     slot.innerHTML = kotoraImg(mood, tier || mascotCollarTier(level), stage || mascotGrowthStage(level));
     return;
@@ -152,6 +174,31 @@ function mascotShowDiaryStep(n) {
 }
 
 // ── マスコットモーダル（成長段階＋XPバー＋バッジ一覧） ───────────────────────
+// 相棒の選択。レベルで解放され、まだの子は何レベルで来るかを見せる
+// （「続けたら何が増えるか」が見えないと、続ける理由にならない）。
+function mascotPickerHtml(level) {
+  if (typeof MASCOT_ORDER === 'undefined') return '';
+  const current = currentMascotKey(level);
+  const cards = MASCOT_ORDER.map(key => {
+    const m = MASCOTS[key];
+    const open = mascotUnlocked(key, level);
+    const name = t('mascot-name-' + key);
+    const label = open ? escapeHtml(name) : escapeHtml(t('mascot-locked').replace('{n}', m.unlock));
+    return `<button class="mascot-pick" type="button"
+      aria-pressed="${key === current ? 'true' : 'false'}"
+      ${open ? `onclick="chooseMascot('${key}')"` : 'disabled'}
+      aria-label="${escapeHtml(name)}${open ? '' : ' — ' + escapeHtml(t('mascot-locked').replace('{n}', m.unlock))}">
+      <span class="mascot-pick-face" aria-hidden="true">${open ? MASCOT_FACES[key] : '🔒'}</span>
+      <span class="mascot-pick-name">${open ? escapeHtml(name) : '???'}</span>
+      ${open ? '' : `<span class="mascot-pick-lock">${label}</span>`}
+    </button>`;
+  }).join('');
+  return `<div class="mascot-picker-title">${escapeHtml(t('mascot-picker-title'))}</div>
+    <div class="mascot-picker">${cards}</div>`;
+}
+
+const MASCOT_FACES = { kotora: '🐱', hachi: '🐶', moko: '🐻' };
+
 function openMascotModal() {
   const stats = computeProgressStats();
   const stage = mascotGrowthStage(stats.level);
@@ -164,6 +211,7 @@ function openMascotModal() {
 
   document.getElementById('mascot-modal-body').innerHTML = `
     <div class="mascot-modal-display">${kotoraImg('idle', tier, stage)}</div>
+    ${mascotPickerHtml(stats.level)}
     <div class="mascot-stage-label">${escapeHtml(stageLabel)}</div>
     <div class="mascot-xp-track"><div class="mascot-xp-fill" style="width:${pct}%"></div></div>
     <div class="mascot-xp-caption">${escapeHtml(t('mascot-next-level').replace('{xp}', stats.xpForNextLevel - stats.xpIntoLevel))}</div>

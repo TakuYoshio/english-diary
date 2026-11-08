@@ -641,6 +641,50 @@ check('開いたら英語欄にフォーカスが入る', density.focused);
 check('件数が裸の数字でない', /語|words/.test(density.countLabel), density.countLabel);
 check('メモが空の行に空のメモ欄を描かない', density.emptyNotes === 0, String(density.emptyNotes));
 
+// ── 仲間の選択 ────────────────────────────────────────────────────────────
+const buddy = await page.evaluate(async () => {
+  openMascotModal();
+  await new Promise(r => setTimeout(r, 200));
+  const picks = [...document.querySelectorAll('.mascot-pick')];
+  const before = document.querySelector('#mascot-modal-body .kotora-wrap').dataset.mascot;
+  // 未解放の子は押せないこと（テスト環境はLv2前後）
+  const locked = picks.filter(b => b.disabled).length;
+  return {
+    count: picks.length,
+    locked,
+    before,
+    // 解放済みの子だけ aria-pressed を持つ
+    pressed: picks.filter(b => b.getAttribute('aria-pressed') === 'true').length,
+    lockedLabel: picks.find(b => b.disabled)?.textContent.replace(/\s+/g, ' ').trim() || '',
+  };
+});
+check('仲間が3人ぶん並ぶ', buddy.count === 3, String(buddy.count));
+check('未解放の子は押せない', buddy.locked >= 1, `${buddy.locked}人が未解放`);
+check('いま選んでいる子が1人だけ印になる', buddy.pressed === 1, String(buddy.pressed));
+check('未解放の子は解放レベルを見せる', /Lv\.|Lv/.test(buddy.lockedLabel), buddy.lockedLabel);
+
+// 解放済みの子に切り替えると、全スロットのSVGが入れ替わること
+const switched = await page.evaluate(async () => {
+  // レベルに依らず検証したいので、解放判定を一時的に通す
+  const orig = window.mascotUnlocked;
+  window.mascotUnlocked = () => true;
+  openMascotModal();
+  await new Promise(r => setTimeout(r, 100));
+  chooseMascot('moko');
+  await new Promise(r => setTimeout(r, 200));
+  const wraps = [...document.querySelectorAll('.kotora-wrap')];
+  const out = {
+    all: wraps.length > 0 && wraps.every(w => w.dataset.mascot === 'moko'),
+    hasEyes: !!document.querySelector('.kotora-wrap[data-mascot="moko"] .kt-eyes-happy'),
+  };
+  chooseMascot('kotora');
+  window.mascotUnlocked = orig;
+  closeModal('mascot-modal');
+  return out;
+});
+check('相棒を変えると全スロットが入れ替わる', switched.all);
+check('入れ替えた相棒にも表情のパーツが揃っている', switched.hasEyes);
+
 // ── マイクが使えないときの案内 ────────────────────────────────────────────
 const micHelp = await page.evaluate(() => ({
   ios: soloMicHelpKey('service-not-allowed'),

@@ -32,7 +32,7 @@ const sandbox = {
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
 
-for (const file of ['app.js', 'progress.js']) {
+for (const file of ['app.js', 'progress.js', 'kotora-svg.js', 'mascots.js']) {
   vm.runInContext(readFileSync(root + file, 'utf8'), sandbox, { filename: file });
 }
 
@@ -405,6 +405,79 @@ test('列が無いエラーは image_url / image_credit の両方で拾う', () 
   assert.equal(isMissingImageColumn(e('srs_stage')), false, '無関係な列の欠落を握り潰さない');
   assert.equal(isMissingImageColumn({ code: '23505', message: 'duplicate key' }), false);
   assert.equal(isMissingImageColumn(null), false);
+});
+
+// ── 仲間たち（マスコット） ────────────────────────────────────────────────
+// 表情・首輪・成長段階は style.css が kt-* クラスを display で切り替えて出す。
+// つまりSVGにそのクラスが無いと、エラーも出ないまま「笑わないキャラ」が生まれる。
+// 新しい子を足したときに静かに壊れないよう、契約を機械的に確かめる。
+const MOOD_CRITICAL = [
+  'kt-eyes-open', 'kt-eyes-happy', 'kt-eyes-sad', 'kt-eyes-star',
+  'kt-eye', 'kt-pupil',
+  'kt-mouth-smile', 'kt-mouth-open', 'kt-mouth-frown',
+  'kt-brow-l', 'kt-brow-r', 'kt-cheek-l', 'kt-cheek-r',
+  'kt-head', 'kt-ear-l', 'kt-ear-r', 'kt-tail', 'kt-body',
+  'kt-collar', 'kt-collar-charm',
+];
+
+// MASCOTS / MASCOT_ORDER は const なのでグローバルに乗らない（冒頭の注記のとおり）
+const MASCOT_ORDER = get('MASCOT_ORDER');
+const MASCOTS = get('MASCOTS');
+const { mascotUnlocked, mascotSvgFor } = sandbox;
+
+for (const key of MASCOT_ORDER) {
+  test(`${key}: 表情に必要なクラスが全部ある`, () => {
+    const svg = mascotSvgFor(key);
+    const missing = MOOD_CRITICAL.filter(c => !svg.includes(`class="${c}"`) && !svg.includes(`${c}"`) && !svg.includes(`${c} `));
+    assert.deepEqual(missing, [], `${key} に足りない: ${missing.join(', ')}`);
+  });
+
+  test(`${key}: 既定で出ている表情は1種類だけ`, () => {
+    const svg = mascotSvgFor(key);
+    // happy/sad/star と open口/frown口 は display="none" で隠れていること。
+    // 隠し忘れると目が二重に描かれる。
+    for (const c of ['kt-eyes-happy', 'kt-eyes-sad', 'kt-eyes-star', 'kt-mouth-open', 'kt-mouth-frown', 'kt-brow-l', 'kt-brow-r']) {
+      const at = svg.indexOf(c);
+      assert.ok(at > -1, `${c} が無い`);
+      const tagEnd = svg.indexOf('>', at);
+      assert.ok(svg.slice(at, tagEnd).includes('display="none"'), `${key}: ${c} が既定で表示されている`);
+    }
+  });
+
+  test(`${key}: 同じ viewBox で描かれている`, () => {
+    assert.ok(mascotSvgFor(key).includes('viewBox="0 0 320 480"'));
+  });
+}
+
+test('解放はレベルで決まる', () => {
+  assert.equal(mascotUnlocked('kotora', 1), true, 'コトラは最初から');
+  assert.equal(mascotUnlocked('hachi', 4), false);
+  assert.equal(mascotUnlocked('hachi', 5), true);
+  assert.equal(mascotUnlocked('moko', 8), false);
+  assert.equal(mascotUnlocked('moko', 9), true);
+  assert.equal(mascotUnlocked('nobody', 99), false, '知らないキーは解放しない');
+});
+
+test('解放されていない相棒を保存してあっても既定に戻す', () => {
+  const { currentMascotKey, setMascotKey } = sandbox;
+  setMascotKey('moko');
+  assert.equal(currentMascotKey(9), 'moko', '解放済みなら選べる');
+  assert.equal(currentMascotKey(3), 'kotora', 'レベルが下がる環境でも破綻しない');
+  setMascotKey('kotora');
+});
+
+test('知らないキーを渡されても既定の絵を返す', () => {
+  assert.ok(mascotSvgFor('nobody').includes('viewBox'));
+});
+
+test('解放レベルは既存の節目とぶつからない', () => {
+  // Lv4 シルバー/young、Lv7 ゴールド、Lv8 adult、Lv10 ダイヤ
+  const taken = new Set([4, 7, 8, 10]);
+  for (const key of MASCOT_ORDER) {
+    const lv = MASCOTS[key].unlock;
+    if (lv === 1) continue;
+    assert.ok(!taken.has(lv), `${key} の解放Lv${lv}が既存のご褒美と重なっている`);
+  }
 });
 
 // ── 実行 ──────────────────────────────────────────────────────────────────
