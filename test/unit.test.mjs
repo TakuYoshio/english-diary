@@ -421,6 +421,7 @@ const MOOD_CRITICAL = [
 ];
 
 // MASCOTS / MASCOT_ORDER は const なのでグローバルに乗らない（冒頭の注記のとおり）
+// mascots.js は LS（app.js のlocalStorageラッパー）を参照する
 const MASCOT_ORDER = get('MASCOT_ORDER');
 const MASCOTS = get('MASCOTS');
 const { mascotUnlocked, mascotSvgFor } = sandbox;
@@ -450,20 +451,76 @@ for (const key of MASCOT_ORDER) {
 }
 
 test('解放はレベルで決まる', () => {
-  assert.equal(mascotUnlocked('kotora', 1), true, 'コトラは最初から');
-  assert.equal(mascotUnlocked('hachi', 4), false);
-  assert.equal(mascotUnlocked('hachi', 5), true);
-  assert.equal(mascotUnlocked('moko', 8), false);
-  assert.equal(mascotUnlocked('moko', 9), true);
+  assert.equal(mascotUnlocked('neko', 1), true, 'ネコは最初から');
+  assert.equal(mascotUnlocked('akita', 4), false);
+  assert.equal(mascotUnlocked('akita', 5), true);
+  assert.equal(mascotUnlocked('kuma', 8), false);
+  assert.equal(mascotUnlocked('kuma', 9), true);
   assert.equal(mascotUnlocked('nobody', 99), false, '知らないキーは解放しない');
+});
+
+test('前のキー名で保存されていても読み替える', () => {
+  const { currentMascotKey, setMascotKey } = sandbox;
+  // 名前を変える前に選んでいた人の相棒が黙って既定に戻らないこと。
+  // LS は const なので get() で取る（setMascotKey は旧キーを弾くため直接書く）
+  const LS = get('LS');
+  LS.set('mascot', 'moko');
+  assert.equal(currentMascotKey(9), 'kuma');
+  LS.set('mascot', 'hachi');
+  assert.equal(currentMascotKey(5), 'akita');
+  setMascotKey('neko');
 });
 
 test('解放されていない相棒を保存してあっても既定に戻す', () => {
   const { currentMascotKey, setMascotKey } = sandbox;
-  setMascotKey('moko');
-  assert.equal(currentMascotKey(9), 'moko', '解放済みなら選べる');
-  assert.equal(currentMascotKey(3), 'kotora', 'レベルが下がる環境でも破綻しない');
-  setMascotKey('kotora');
+  setMascotKey('kuma');
+  assert.equal(currentMascotKey(9), 'kuma', '解放済みなら選べる');
+  assert.equal(currentMascotKey(3), 'neko', 'レベルが下がる環境でも破綻しない');
+  setMascotKey('neko');
+});
+
+// ── 採用イラストへの差し替え ──────────────────────────────────────────────
+test('素材が無いあいだはSVGで描く', () => {
+  const { mascotBodyHtml } = sandbox;
+  for (const key of MASCOT_ORDER) {
+    assert.equal(MASCOTS[key].art, false, `${key}: 素材が未設置なら art:false のはず`);
+    assert.ok(mascotBodyHtml(key, 'idle').includes('<svg'), `${key}: SVGで描かれていない`);
+  }
+});
+
+test('素材があるときは表情の画像で描く', () => {
+  const { mascotBodyHtml } = sandbox;
+  MASCOTS.neko.art = true;
+  const html = mascotBodyHtml('neko', 'delighted');
+  assert.ok(html.includes('character/neko/sparkle.webp'), html.slice(0, 120));
+  assert.ok(html.includes('data-motion="jump"'), '喜びはジャンプで表す');
+  assert.ok(html.includes('onerror='), '読み込み失敗の逃げ道が無い');
+  MASCOT_ORDER.forEach(k => { MASCOTS[k].art = false; });
+});
+
+test('idle はまばたき用の画像も指している', () => {
+  const { mascotBodyHtml } = sandbox;
+  MASCOTS.neko.art = true;
+  assert.ok(mascotBodyHtml('neko', 'idle').includes('data-blink="character/neko/blink.webp"'));
+  MASCOTS.neko.art = false;
+});
+
+test('既存のmood8種すべてに表情と動きが割り当ててある', () => {
+  const MOODS = get('MASCOT_MOODS');
+  const FACES = get('MASCOT_FACES_ART');
+  // CSSが使っている8種。割り当てが無いとidleに落ちて無反応になる
+  for (const mood of ['idle', 'excited', 'delighted', 'happy', 'sad', 'angry', 'levelup', 'badge']) {
+    assert.ok(MOODS[mood], `${mood} の割り当てが無い`);
+    assert.ok(FACES.includes(MOODS[mood].face),
+      `${mood} が未定義の表情 ${MOODS[mood].face} を指している`);
+  }
+});
+
+test('要望された8アニメーションがすべて表現できる', () => {
+  const MOODS = get('MASCOT_MOODS');
+  // idle / happy / correct / incorrect / thinking / wave / celebrate / sleeping
+  const wanted = ['idle', 'happy', 'delighted', 'sad', 'thinking', 'wave', 'levelup', 'sleeping'];
+  for (const m of wanted) assert.ok(MOODS[m], `${m} が割り当てられていない`);
 });
 
 test('知らないキーを渡されても既定の絵を返す', () => {

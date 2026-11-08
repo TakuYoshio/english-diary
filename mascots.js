@@ -83,12 +83,12 @@ function mascotCollar() {
   </g>`;
 }
 
-// ── ハチ（いぬ）───────────────────────────────────────────────────────────
+// ── Akita（秋田犬）───────────────────────────────────────────────────────────
 // 柴犬寄り。垂れ気味の耳とくるんと巻いたしっぽで、猫との違いを出す。
-function hachiSvg() {
+function akitaSvg() {
   return `
 <svg class="kotora-img" viewBox="0 0 320 480" xmlns="http://www.w3.org/2000/svg"
-     role="img" aria-label="ハチ" preserveAspectRatio="xMidYMax meet">
+     role="img" aria-label="秋田犬" preserveAspectRatio="xMidYMax meet">
 
   <!-- しっぽ（くるんと巻く） -->
   <g class="kt-tail">
@@ -155,12 +155,12 @@ function hachiSvg() {
 </svg>`;
 }
 
-// ── モコ（くま）───────────────────────────────────────────────────────────
+// ── Kuma（くま）───────────────────────────────────────────────────────────
 // 丸い小さな耳と短いマズル。角を徹底して丸くし、どっしり優しい印象にする。
-function mokoSvg() {
+function kumaSvg() {
   return `
 <svg class="kotora-img" viewBox="0 0 320 480" xmlns="http://www.w3.org/2000/svg"
-     role="img" aria-label="モコ" preserveAspectRatio="xMidYMax meet">
+     role="img" aria-label="くま" preserveAspectRatio="xMidYMax meet">
 
   <!-- しっぽ（小さく丸い） -->
   <g class="kt-tail">
@@ -216,13 +216,43 @@ function mokoSvg() {
 // unlock はレベル。XPは L2:100 から ×1.35 で増えるので、既存の節目
 // （Lv4 シルバー/young、Lv7 ゴールド、Lv8 adult、Lv10 ダイヤ）と
 // ぶつからない 5 と 9 に置いて、続けるご褒美が途切れないようにする。
+// art: 採用したイラスト（character/<key>/*.webp）が揃っているか。
+// 素材を置いたらここを true にする。scripts/check-mascot-art.mjs が
+// フラグと実ファイルの食い違いを検出するので、片方だけ直すと落ちる。
+// 素材が無い／読み込めないあいだはSVGで描く（無表情で固まらせない）。
 const MASCOTS = {
-  kotora: { key: 'kotora', unlock: 1, svg: () => kotoraSvg() },
-  hachi:  { key: 'hachi',  unlock: 5, svg: () => hachiSvg() },
-  moko:   { key: 'moko',   unlock: 9, svg: () => mokoSvg() },
+  neko:  { key: 'neko',  unlock: 1, art: false, svg: () => kotoraSvg() },
+  akita: { key: 'akita', unlock: 5, art: false, svg: () => akitaSvg() },
+  kuma:  { key: 'kuma',  unlock: 9, art: false, svg: () => kumaSvg() },
 };
-const MASCOT_ORDER = ['kotora', 'hachi', 'moko'];
-const MASCOT_DEFAULT = 'kotora';
+const MASCOT_ORDER = ['neko', 'akita', 'kuma'];
+const MASCOT_DEFAULT = 'neko';
+
+// 表情の画像。idle のまばたき用に blink も持つ。
+const MASCOT_FACES_ART = [
+  'normal', 'blink', 'smile', 'happy', 'sparkle',
+  'thinking', 'troubled', 'sleepy', 'wave',
+];
+
+// 既存の mood（CSSが使う8種）を「どの表情画像で、どう動かすか」に対応させる。
+// 呼び出し側（mascotApply('quiz-mascot','delighted') など6箇所）は変更不要。
+const MASCOT_MOODS = {
+  idle:      { face: 'normal',   motion: 'breathe', blink: true },
+  excited:   { face: 'happy',    motion: 'bounce' },
+  delighted: { face: 'sparkle',  motion: 'jump'   },
+  happy:     { face: 'smile',    motion: 'bounce' },
+  sad:       { face: 'troubled', motion: 'tilt'   },
+  angry:     { face: 'troubled', motion: 'shake'  },
+  levelup:   { face: 'sparkle',  motion: 'jump'   },
+  badge:     { face: 'happy',    motion: 'jump'   },
+  thinking:  { face: 'thinking', motion: 'tilt'   },
+  sleeping:  { face: 'sleepy',   motion: 'breathe-slow' },
+  wave:      { face: 'wave',     motion: 'sway'   },
+};
+
+function mascotFaceSrc(key, face) {
+  return `character/${key}/${face}.webp`;
+}
 
 function mascotUnlocked(key, level) {
   const m = MASCOTS[key];
@@ -231,8 +261,13 @@ function mascotUnlocked(key, level) {
 
 // 相棒は端末ごとの設定としてlocalStorageに持つ。
 // profilesに列を足すと手動マイグレーションが必要になるため（vocabImagesと同じ理由）。
+// デザインシートの正式名に合わせてキーを変えたので、前の名前も読み替える。
+// 読み替えないと、選んでいた相棒が黙って既定に戻る。
+const MASCOT_RENAMED = { kotora: 'neko', hachi: 'akita', moko: 'kuma' };
+
 function currentMascotKey(level) {
-  const saved = (typeof LS !== 'undefined' && LS.get) ? LS.get('mascot') : null;
+  const raw = (typeof LS !== 'undefined' && LS.get) ? LS.get('mascot') : null;
+  const saved = MASCOT_RENAMED[raw] || raw;
   // 保存されていても、まだ解放されていなければ既定に戻す
   if (saved && MASCOTS[saved] && mascotUnlocked(saved, level)) return saved;
   return MASCOT_DEFAULT;
@@ -245,4 +280,30 @@ function setMascotKey(key) {
 function mascotSvgFor(key) {
   const m = MASCOTS[key] || MASCOTS[MASCOT_DEFAULT];
   return m.svg();
+}
+
+// 採用イラストで描く。表情は画像、動きはCSS（.kt-art[data-motion]）。
+function mascotArtHtml(key, mood) {
+  const conf = MASCOT_MOODS[mood] || MASCOT_MOODS.idle;
+  const blink = conf.blink ? ` data-blink="${mascotFaceSrc(key, 'blink')}"` : '';
+  return `<div class="kt-art" data-motion="${conf.motion}"${blink}>`
+    + `<img class="kt-art-img" src="${mascotFaceSrc(key, conf.face)}" alt=""`
+    + ` draggable="false" onerror="mascotArtFailed(this)" /></div>`;
+}
+
+// 素材が揃っていればイラスト、無ければSVG。
+function mascotBodyHtml(key, mood) {
+  const m = MASCOTS[key] || MASCOTS[MASCOT_DEFAULT];
+  return m.art ? mascotArtHtml(m.key, mood) : m.svg();
+}
+
+// 画像が読めなかったときの逃げ道。1枚でも落ちたらそのキャラはSVGに戻す
+// （一部だけ欠けた見た目にしない）。
+function mascotArtFailed(img) {
+  const art = img.closest('.kt-art');
+  const wrap = art && art.closest('.kotora-wrap');
+  if (!wrap) return;
+  const key = wrap.dataset.mascot;
+  if (MASCOTS[key]) MASCOTS[key].art = false;
+  wrap.innerHTML = mascotSvgFor(key);
 }

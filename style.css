@@ -599,6 +599,37 @@ body {
 
 /* 首輪ティア（画像を囲むリンググロー） */
 .kotora-wrap { border-radius: 50%; transition: box-shadow 0.3s ease; }
+/* 採用イラストで描くとき。表情は画像を差し替え、動きはここで付ける。
+   画像は全枚数で同じキャンバス・同じ足元位置である前提
+   （ズレていると差し替えのたびに飛び跳ねる。check-mascot-art.mjs が検査）。 */
+.kt-art { position: relative; width: 100%; height: 100%; }
+.kt-art-img {
+  width: 100%; height: 100%; display: block;
+  object-fit: contain; object-position: center bottom;
+  user-select: none; -webkit-user-drag: none;
+}
+.kt-art[data-motion="breathe"]      .kt-art-img { animation: kt-breathe 3s ease-in-out infinite; }
+.kt-art[data-motion="breathe-slow"] .kt-art-img { animation: kt-breathe 5.5s ease-in-out infinite; }
+.kt-art[data-motion="bounce"]       .kt-art-img { animation: kt-bounce 0.9s ease-in-out infinite; }
+.kt-art[data-motion="jump"]         .kt-art-img { animation: kt-jump 0.7s cubic-bezier(.3,1.6,.5,1) 1; }
+.kt-art[data-motion="tilt"]         .kt-art-img { animation: kt-tilt 2.2s ease-in-out infinite; }
+.kt-art[data-motion="shake"]        .kt-art-img { animation: kt-shake 0.4s ease-in-out infinite; }
+.kt-art[data-motion="sway"]         .kt-art-img { animation: kt-sway 1.2s ease-in-out infinite; }
+
+/* 足元を軸にすると、伸び縮みしても地面から浮かない */
+@keyframes kt-breathe { 0%,100% { transform: scaleY(1) } 50% { transform: scaleY(1.025) scaleX(0.99) } }
+@keyframes kt-bounce  { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-5%) } }
+@keyframes kt-jump {
+  0%   { transform: translateY(0) scaleY(0.94) scaleX(1.05); }
+  35%  { transform: translateY(-22%) scaleY(1.05) scaleX(0.97); }
+  70%  { transform: translateY(0) scaleY(0.96) scaleX(1.03); }
+  100% { transform: translateY(0) scaleY(1) scaleX(1); }
+}
+@keyframes kt-tilt  { 0%,100% { transform: rotate(0) } 50% { transform: rotate(-7deg) } }
+@keyframes kt-shake { 0%,100% { transform: translateX(0) } 25% { transform: translateX(-3%) } 75% { transform: translateX(3%) } }
+@keyframes kt-sway  { 0%,100% { transform: rotate(-2deg) } 50% { transform: rotate(2deg) } }
+.kt-art-img { transform-origin: center bottom; }
+
 /* キャラごとの毛色。SVGは --mascot-* を参照して描いているので、
    ここを上書きするだけで同じ絵の仕組みのまま別の子になる。 */
 .kotora-wrap[data-mascot="hachi"] {
@@ -1472,6 +1503,9 @@ svg.kotora-img * { transform-box: fill-box; }
 @media (prefers-reduced-motion: reduce) {
   .kt-eye, .kt-tail, .kotora-wrap.kt-talking .kt-mouth-open,
   .kotora-wrap[data-mood="levelup"] .kotora-img { animation: none !important; }
+  /* イラストの動きも止める。表情の差し替えは残るので、
+     何が起きたかは伝わったままになる。まばたきも止める。 */
+  .kt-art-img { animation: none !important; transform: none !important; }
 }
 
 @media (max-width: 520px) {

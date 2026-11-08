@@ -44,6 +44,24 @@ for (const m of html.matchAll(/on(?:click|change|input|keydown|blur|error)="([^"
   }
 }
 
+// ── 2.5 Service Worker のキャッシュ漏れ ───────────────────────────────────
+// 新しいスクリプトの追加先は check-wiring の jsFiles・eslint の APP_SCRIPTS・
+// sw.js の APP_SHELL の3箇所ある。sw.js だけ忘れると、オンラインでは動くのに
+// オフラインだけ壊れるという気づきにくい形になる（実際に solo.js と
+// mascots.js が抜けていた）。
+const swText = readFileSync('sw.js', 'utf8');
+const shell = new Set(
+  [...swText.matchAll(/'\.\/([^']+)'/g)].map(m => m[1])
+);
+const loaded = [...html.matchAll(/<script src="([^"]+\.js)"><\/script>/g)]
+  .map(m => m[1])
+  .filter(src => !/^https?:/.test(src));
+for (const src of loaded) {
+  if (!shell.has(src)) {
+    errors.push(`sw.js の APP_SHELL に '${src}' がありません（オフラインで壊れます）`);
+  }
+}
+
 // ── 3. i18n keys ─────────────────────────────────────────────────────────
 const app = readFileSync('app.js', 'utf8');
 const block = app.slice(app.indexOf('const TRANSLATIONS'), app.indexOf('\nfunction escapeHtml'));

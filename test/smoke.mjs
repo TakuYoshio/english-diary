@@ -670,14 +670,14 @@ const switched = await page.evaluate(async () => {
   window.mascotUnlocked = () => true;
   openMascotModal();
   await new Promise(r => setTimeout(r, 100));
-  chooseMascot('moko');
+  chooseMascot('kuma');
   await new Promise(r => setTimeout(r, 200));
   const wraps = [...document.querySelectorAll('.kotora-wrap')];
   const out = {
-    all: wraps.length > 0 && wraps.every(w => w.dataset.mascot === 'moko'),
-    hasEyes: !!document.querySelector('.kotora-wrap[data-mascot="moko"] .kt-eyes-happy'),
+    all: wraps.length > 0 && wraps.every(w => w.dataset.mascot === 'kuma'),
+    hasEyes: !!document.querySelector('.kotora-wrap[data-mascot="kuma"] .kt-eyes-happy'),
   };
-  chooseMascot('kotora');
+  chooseMascot('neko');
   window.mascotUnlocked = orig;
   closeModal('mascot-modal');
   return out;

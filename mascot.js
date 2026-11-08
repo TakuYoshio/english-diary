@@ -20,7 +20,8 @@ function kotoraImg(mood = 'idle', tier = 'bronze', stage = 'kitten', key) {
   const chosen = key || (typeof currentMascotKey === 'function'
     ? currentMascotKey(mascotLevel()) : 'kotora');
   let body;
-  if (typeof mascotSvgFor === 'function') body = mascotSvgFor(chosen);
+  if (typeof mascotBodyHtml === 'function') body = mascotBodyHtml(chosen, mood);
+  else if (typeof mascotSvgFor === 'function') body = mascotSvgFor(chosen);
   else if (typeof kotoraSvg === 'function') body = kotoraSvg();
   else body = '<img class="kotora-img" src="character/kotora.png" alt="コトラ" />';
   return `
@@ -37,7 +38,8 @@ function chooseMascot(key) {
   setMascotKey(key);
   document.querySelectorAll('.kotora-wrap').forEach(w => {
     w.dataset.mascot = key;
-    w.innerHTML = mascotSvgFor(key);
+    w.innerHTML = (typeof mascotBodyHtml === 'function')
+      ? mascotBodyHtml(key, w.dataset.mood || 'idle') : mascotSvgFor(key);
   });
   if (document.getElementById('mascot-modal').style.display !== 'none') openMascotModal();
   showToast(t('toast-mascot-changed').replace('{name}', t('mascot-name-' + key)), 'success');
@@ -65,6 +67,11 @@ function mascotApply(slotId, mood, tier, stage) {
     void wrap.offsetWidth;
   }
   wrap.dataset.mood = mood;
+  // イラストは表情が画像なので、moodが変わったら中身も描き直す
+  // （SVGはCSSのdisplay切替で済むが、画像はそうはいかない）
+  if (wrap.querySelector('.kt-art') && typeof mascotBodyHtml === 'function') {
+    wrap.innerHTML = mascotBodyHtml(wrap.dataset.mascot, mood);
+  }
   if (tier)  wrap.dataset.tier  = tier;
   if (stage) wrap.dataset.stage = stage;
 }
@@ -197,7 +204,7 @@ function mascotPickerHtml(level) {
     <div class="mascot-picker">${cards}</div>`;
 }
 
-const MASCOT_FACES = { kotora: '🐱', hachi: '🐶', moko: '🐻' };
+const MASCOT_FACES = { neko: '🐱', akita: '🐶', kuma: '🐻' };
 
 function openMascotModal() {
   const stats = computeProgressStats();

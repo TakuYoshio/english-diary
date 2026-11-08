@@ -4,7 +4,7 @@
 // SupabaseとCloudflare Workerへの通信は必ずネットワークに行かせる（学習データと
 // AI応答をキャッシュすると古い内容が出たり、他ユーザーのデータが混ざる危険がある）。
 // CACHE_VERSION を上げると古いキャッシュは activate 時に削除される。
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_NAME = `english-diary-${CACHE_VERSION}`;
 
 const APP_SHELL = [
@@ -14,10 +14,12 @@ const APP_SHELL = [
   './style.css',
   './fx.js',
   './kotora-svg.js',
+  './mascots.js',
   './app.js',
   './progress.js',
   './mascot.js',
   './kotora-speech.js',
+  './solo.js',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
