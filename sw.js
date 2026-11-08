@@ -4,7 +4,7 @@
 // SupabaseとCloudflare Workerへの通信は必ずネットワークに行かせる（学習データと
 // AI応答をキャッシュすると古い内容が出たり、他ユーザーのデータが混ざる危険がある）。
 // CACHE_VERSION を上げると古いキャッシュは activate 時に削除される。
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE_NAME = `english-diary-${CACHE_VERSION}`;
 
 const APP_SHELL = [
@@ -26,6 +26,18 @@ const APP_SHELL = [
   './icons/apple-touch-icon.png',
   './icons/favicon-32.png',
   './character/kotora.png',
+  // 採用イラスト（Neko）。オフラインでも相棒が出るようにキャッシュする。
+  // 9枚で約175KB。素材を足したら scripts/check-mascot-art.mjs が
+  // mascots.js との食い違いを検出するが、ここへの追加は手で行う。
+  './character/neko/normal.webp',
+  './character/neko/blink.webp',
+  './character/neko/smile.webp',
+  './character/neko/happy.webp',
+  './character/neko/sparkle.webp',
+  './character/neko/thinking.webp',
+  './character/neko/troubled.webp',
+  './character/neko/sleepy.webp',
+  './character/neko/wave.webp',
 ];
 
 self.addEventListener('install', event => {

@@ -6,6 +6,7 @@
 // さらに、差し替えて使う前提なので「全枚数が同じ寸法」であることも要る。
 // 寸法が揃っていないと、表情が変わるたびにキャラが飛び跳ねる。
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { decodePng, blobs } from './png-lib.mjs';
 
 const src = readFileSync('mascots.js', 'utf8');
 
@@ -21,6 +22,9 @@ if (!keys.length || !faces.length) {
 
 const errors = [];
 let withArt = 0;
+
+// これより小さい塊は、線の端のアンチエイリアスなどの誤差として無視する
+const STRAY_MIN_PX = 50;
 
 // WebP/PNG のヘッダから寸法を読む（依存を増やさないため最小限の解析）
 function imageSize(file) {
@@ -66,6 +70,31 @@ for (const key of keys) {
   if (sizes.size > 1) {
     const detail = [...sizes.entries()].map(([s, fs]) => `${s}: ${fs.join(',')}`).join(' / ');
     errors.push(`${key}: 画像の寸法が揃っていません（差し替えでキャラが飛び跳ねます）→ ${detail}`);
+  }
+
+  // 本体から切り離された塊が無いか（背景を抜いたときの消し残し）。
+  // 実際に納品された9枚のうち4枚に、しっぽや耳のかけらが浮いていた。
+  // 寸法と枚数の検査では通ってしまい、アプリに出して初めて気づく類の欠陥。
+  //
+  // 頭の上（上半分）の塊は ✨ ? zZ !! といった効果線なので許す。
+  // 下半分にある離れた塊だけを消し残しとみなす。
+  // 元データ（Task/art-source/<key>/*.png）があればそちらを見る。
+  // WebPは自前でデコードできないので、検査は変換前のPNGに対して行う。
+  const srcDir = `Task/art-source/${key}`;
+  if (existsSync(srcDir)) {
+    for (const f of present) {
+      const png = `${srcDir}/${f}.png`;
+      if (!existsSync(png)) continue;
+      let img;
+      try { img = decodePng(readFileSync(png)); } catch { continue; }
+      const found = blobs(img).filter(b => b.size >= STRAY_MIN_PX);
+      const strays = found.slice(1).filter(b => b.miny >= img.h / 2);
+      for (const b of strays) {
+        errors.push(`${png}: 本体から切り離された塊 ${b.size}px`
+          + ` (x${b.minx}-${b.maxx}, y${b.miny}-${b.maxy})。`
+          + '背景を抜いたときの消し残しの可能性があります');
+      }
+    }
   }
 
   // 想定外のファイルが混ざっていないか

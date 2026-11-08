@@ -480,29 +480,43 @@ test('解放されていない相棒を保存してあっても既定に戻す',
 });
 
 // ── 採用イラストへの差し替え ──────────────────────────────────────────────
-test('素材が無いあいだはSVGで描く', () => {
+test('素材の有無で描き方が切り替わる', () => {
   const { mascotBodyHtml } = sandbox;
   for (const key of MASCOT_ORDER) {
-    assert.equal(MASCOTS[key].art, false, `${key}: 素材が未設置なら art:false のはず`);
-    assert.ok(mascotBodyHtml(key, 'idle').includes('<svg'), `${key}: SVGで描かれていない`);
+    const html = mascotBodyHtml(key, 'idle');
+    if (MASCOTS[key].art) {
+      assert.ok(html.includes(`character/${key}/`), `${key}: 素材があるのに画像で描いていない`);
+    } else {
+      assert.ok(html.includes('<svg'), `${key}: 素材が無いのにSVGで描いていない`);
+    }
   }
+});
+
+test('素材が未設置のキャラはSVGに落ちる', () => {
+  const { mascotBodyHtml } = sandbox;
+  const was = MASCOTS.neko.art;
+  MASCOTS.neko.art = false;
+  assert.ok(mascotBodyHtml('neko', 'idle').includes('<svg'));
+  MASCOTS.neko.art = was;
 });
 
 test('素材があるときは表情の画像で描く', () => {
   const { mascotBodyHtml } = sandbox;
+  const was = MASCOTS.neko.art;
   MASCOTS.neko.art = true;
   const html = mascotBodyHtml('neko', 'delighted');
   assert.ok(html.includes('character/neko/sparkle.webp'), html.slice(0, 120));
   assert.ok(html.includes('data-motion="jump"'), '喜びはジャンプで表す');
   assert.ok(html.includes('onerror='), '読み込み失敗の逃げ道が無い');
-  MASCOT_ORDER.forEach(k => { MASCOTS[k].art = false; });
+  MASCOTS.neko.art = was;
 });
 
 test('idle はまばたき用の画像も指している', () => {
   const { mascotBodyHtml } = sandbox;
+  const was = MASCOTS.neko.art;
   MASCOTS.neko.art = true;
   assert.ok(mascotBodyHtml('neko', 'idle').includes('data-blink="character/neko/blink.webp"'));
-  MASCOTS.neko.art = false;
+  MASCOTS.neko.art = was;
 });
 
 test('既存のmood8種すべてに表情と動きが割り当ててある', () => {
