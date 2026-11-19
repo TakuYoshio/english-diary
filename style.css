@@ -1387,7 +1387,9 @@ svg.kotora-img * { transform-box: fill-box; }
   font-family: var(--font-display);
   font-size: 14px; font-weight: 700; line-height: 1.5;
   box-shadow: var(--shadow);
-  opacity: 0; pointer-events: none; cursor: pointer;
+  /* 常に pointer-events: none。どこに出ても下のボタンのタップを奪わない。
+     「触れば消える」は kotora-speech.js の document の pointerdown で受ける */
+  opacity: 0; pointer-events: none;
   transition: opacity 0.22s ease, transform 0.22s ease;
   white-space: pre-line; text-align: left;
 }
@@ -1399,10 +1401,22 @@ svg.kotora-img * { transform-box: fill-box; }
   border-right: 2px solid var(--border-strong);
   border-bottom: 2px solid var(--border-strong);
 }
-.kt-bubble-in { opacity: 1; pointer-events: auto; transform: translate(-50%, calc(-100% - 8px)); }
+.kt-bubble-in { opacity: 1; transform: translate(-50%, calc(-100% - 8px)); }
+
+/* 上に余白が無いときは下に出す（_ktPositionBubble が付け外しする）。
+   しっぽも上辺へ回す */
+.kt-bubble-below { transform: translate(-50%, 0); }
+.kt-bubble-below.kt-bubble-in { transform: translate(-50%, 8px); }
+.kt-bubble-below::after {
+  top: -8.5px; bottom: auto;
+  border-right: 0; border-bottom: 0;
+  border-left: 2px solid var(--border-strong);
+  border-top: 2px solid var(--border-strong);
+}
 .quiz-card { position: relative; }
 @media (prefers-reduced-motion: reduce) {
   .kt-bubble { transition: opacity 0.01s linear; transform: translate(-50%, calc(-100% - 8px)); }
+  .kt-bubble-below { transform: translate(-50%, 8px); }
 }
 
 /* ── MICRO-INTERACTIONS（全体リッチ化） ── */

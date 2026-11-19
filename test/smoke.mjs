@@ -735,6 +735,82 @@ const editNote = await page.evaluate(async () => {
 check('インライン編集のメモ欄も textarea', editNote.tag === 'TEXTAREA', editNote.tag);
 check('編集欄に改行がそのまま入る', editNote.value === '一行目\n二行目', JSON.stringify(editNote.value));
 
+// ── 吹き出しが操作を塞がないこと ──────────────────────────────────────────
+// 吹き出しはマスコットの上端から真上へ伸びるため、上に余白が無い画面では
+// 上の要素を覆っていた。独り言では「← ホームへ」を丸ごと覆い、
+// pointer-events でタップまで吸い取って戻れなくなっていた。
+// モバイル幅で (1) 覆ってはいけない要素（data-kt-keepout）と重ならない
+// (2) 戻るボタンが実際にタップできる (3) 画面内に収まる を見る。
+await page.setViewportSize({ width: 390, height: 844 });
+
+const bubbleGeometry = (slotId, lineKey) => page.evaluate(async ({ slotId, lineKey }) => {
+  kotoraDismiss(slotId);
+  // duration を長く取って、測っている間に消えないようにする
+  kotoraSay(slotId, lineKey, { typewriter: false, duration: 60000 });
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  const bubble = document.querySelector(`[data-kt-bubble-for="${slotId}"].kt-bubble-in`);
+  if (!bubble) return { shown: false, hits: [] };
+  const b = bubble.getBoundingClientRect();
+  const hits = [...document.querySelectorAll('[data-kt-keepout]')]
+    .filter(el => el.getClientRects().length > 0)
+    .filter(el => {
+      const k = el.getBoundingClientRect();
+      return b.left < k.right && b.right > k.left && b.top < k.bottom && b.bottom > k.top;
+    })
+    .map(el => el.className || el.tagName);
+  const header = document.querySelector('.header');
+  const headerBottom = header ? header.getBoundingClientRect().bottom : 0;
+  return {
+    shown: true,
+    hits,
+    // 属性ごと消すと「重ならない」が素通りしてしまうので、見えている数も返す
+    keepouts: [...document.querySelectorAll('[data-kt-keepout]')]
+      .filter(el => el.getClientRects().length > 0).length,
+    rect: { top: Math.round(b.top), bottom: Math.round(b.bottom), left: Math.round(b.left), right: Math.round(b.right) },
+    inViewport: b.top >= headerBottom - 0.5 && b.bottom <= window.innerHeight + 0.5
+      && b.left >= -0.5 && b.right <= window.innerWidth + 0.5,
+  };
+}, { slotId, lineKey });
+
+await page.evaluate(() => { switchTab('solo'); soloSetView('solo-setup-view'); });
+await page.waitForTimeout(300);
+const soloBubble = await bubbleGeometry('solo-intro-mascot', 'solo-intro');
+check('独り言で吹き出しが出る', soloBubble.shown);
+check('独り言に data-kt-keepout がある', soloBubble.keepouts >= 1, String(soloBubble.keepouts));
+check('独り言の吹き出しが覆ってはいけない要素に重ならない',
+  soloBubble.shown && soloBubble.hits.length === 0, soloBubble.hits.join(', '));
+check('独り言の吹き出しが画面内に収まる', !!soloBubble.inViewport, JSON.stringify(soloBubble.rect));
+
+const backReachable = await page.evaluate(() => {
+  const btn = document.querySelector('#solo-setup-view .solo-back');
+  const r = btn.getBoundingClientRect();
+  const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+  return { ok: !!el && (el === btn || btn.contains(el)), got: el ? (el.className || el.tagName) : 'null' };
+});
+check('吹き出しが出ていても「← ホームへ」がタップできる', backReachable.ok, backReachable.got);
+
+await page.evaluate(() => { kotoraDismiss('solo-intro-mascot'); switchTab('home'); });
+await page.waitForTimeout(300);
+const homeBubble = await bubbleGeometry('home-kotora', 'greet-morning');
+check('ホームで吹き出しが出る', homeBubble.shown);
+check('ホームに data-kt-keepout がある', homeBubble.keepouts >= 1, String(homeBubble.keepouts));
+check('ホームの吹き出しが挨拶とストリークに重ならない',
+  homeBubble.shown && homeBubble.hits.length === 0, homeBubble.hits.join(', '));
+check('ホームの吹き出しが画面内に収まる', !!homeBubble.inViewport, JSON.stringify(homeBubble.rect));
+
+// 吹き出しはタップを吸わない（位置がどうであれ下のボタンに届く）
+const bubbleClickThrough = await page.evaluate(() => {
+  const bubble = document.querySelector('.kt-bubble.kt-bubble-in');
+  if (!bubble) return { ok: false, got: 'no bubble' };
+  const b = bubble.getBoundingClientRect();
+  const el = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+  return { ok: !!el && !el.classList.contains('kt-bubble'), got: el ? (el.className || el.tagName) : 'null' };
+});
+check('吹き出し自体はタップを吸わない', bubbleClickThrough.ok, bubbleClickThrough.got);
+
+await page.evaluate(() => kotoraDismiss('home-kotora'));
+await page.setViewportSize({ width: 1280, height: 720 });
+
 const ignorable = /favicon|ERR_FAILED|net::ERR|Failed to load resource/i;
 const real = errors.filter(e => !ignorable.test(e));
 check('コンソールエラーが無い', real.length === 0, real.join(' | '));
