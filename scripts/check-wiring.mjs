@@ -5,7 +5,7 @@
 import { readFileSync } from 'node:fs';
 
 const html = readFileSync('index.html', 'utf8');
-const jsFiles = ['app.js', 'progress.js', 'mascot.js', 'fx.js', 'kotora-svg.js', 'kotora-speech.js', 'solo.js'];
+const jsFiles = ['app.js', 'progress.js', 'mascot.js', 'fx.js', 'kotora-svg.js', 'mascots.js', 'kotora-speech.js', 'solo.js'];
 const js = jsFiles.map(f => readFileSync(f, 'utf8')).join('\n');
 
 const errors = [];
@@ -44,6 +44,24 @@ for (const m of html.matchAll(/on(?:click|change|input|keydown|blur|error)="([^"
   }
 }
 
+// ── 2.5 Service Worker のキャッシュ漏れ ───────────────────────────────────
+// 新しいスクリプトの追加先は check-wiring の jsFiles・eslint の APP_SCRIPTS・
+// sw.js の APP_SHELL の3箇所ある。sw.js だけ忘れると、オンラインでは動くのに
+// オフラインだけ壊れるという気づきにくい形になる（実際に solo.js と
+// mascots.js が抜けていた）。
+const swText = readFileSync('sw.js', 'utf8');
+const shell = new Set(
+  [...swText.matchAll(/'\.\/([^']+)'/g)].map(m => m[1])
+);
+const loaded = [...html.matchAll(/<script src="([^"]+\.js)"><\/script>/g)]
+  .map(m => m[1])
+  .filter(src => !/^https?:/.test(src));
+for (const src of loaded) {
+  if (!shell.has(src)) {
+    errors.push(`sw.js の APP_SHELL に '${src}' がありません（オフラインで壊れます）`);
+  }
+}
+
 // ── 3. i18n keys ─────────────────────────────────────────────────────────
 const app = readFileSync('app.js', 'utf8');
 const block = app.slice(app.indexOf('const TRANSLATIONS'), app.indexOf('\nfunction escapeHtml'));
@@ -60,7 +78,7 @@ const used = new Set([
   ...[...js.matchAll(/\bt\(\s*'([^']+)'\s*\)/g)].map(m => m[1]),
 ]);
 for (const k of [...used].sort()) if (!ja.has(k)) errors.push(`i18n: 使われているキー '${k}' が未定義`);
-for (const k of [...ja].sort()) if (!used.has(k) && !/^(cat|badge|type|score|quiz-dir|mascot-stage|home-greeting|fb|entries-(empty|no-results)|vocab-empty|stage-|dq-kind-|weekly-stat-|solo-processing-|solo-score-|solo-pack-|solo-mic-)/.test(k)) warn.push(`i18n: 未使用の可能性 '${k}'`);
+for (const k of [...ja].sort()) if (!used.has(k) && !/^(cat|badge|type|score|quiz-dir|mascot-stage|home-greeting|fb|entries-(empty|no-results)|vocab-empty|stage-|dq-kind-|weekly-stat-|solo-processing-|solo-score-|solo-pack-|solo-mic-|solo-help-|mascot-name-)/.test(k)) warn.push(`i18n: 未使用の可能性 '${k}'`);
 
 if (warn.length) console.log(warn.map(w => 'warn: ' + w).join('\n'));
 if (errors.length) { console.error('\n' + errors.join('\n')); console.error(`\n${errors.length} 件のエラー`); process.exit(1); }

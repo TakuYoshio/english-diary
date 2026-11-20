@@ -149,7 +149,7 @@
     <!-- ── HOME TAB ── -->
     <section id="tab-home" class="tab active">
       <div class="home-hero">
-        <div class="home-hero-top">
+        <div class="home-hero-top" data-kt-keepout>
           <div>
             <div class="home-greeting" id="home-greeting"></div>
             <div class="home-sub" data-i18n="home-sub">今日も英語で書いてみよう</div>
@@ -478,7 +478,9 @@
 
     <!-- ── VOCAB TAB ── -->
     <section id="tab-vocab" class="tab">
-      <div class="vocab-add-row">
+      <button class="btn btn-sm vocab-add-toggle" id="vocab-add-toggle" aria-expanded="false"
+        aria-controls="vocab-add" onclick="toggleVocabAdd()" data-i18n="btn-vocab-add-open">＋ 単語を追加</button>
+      <div class="vocab-add-row" id="vocab-add" style="display:none">
         <input type="text" id="v-en" data-i18n-aria="aria-vocab-en" class="input" placeholder="English" />
         <input type="text" id="v-jp" data-i18n-aria="ph-v-jp" class="input" data-i18n-placeholder="ph-v-jp" placeholder="日本語" />
         <textarea id="v-note" rows="2" data-i18n-aria="ph-v-note" class="input" data-i18n-placeholder="ph-v-note" placeholder="メモ（任意）"></textarea>
@@ -645,7 +647,7 @@
 
       <!-- 1. 設定 -->
       <div id="solo-setup-view">
-        <button class="btn btn-sm solo-back" onclick="switchTab('home')" data-i18n="solo-back">← ホームへ</button>
+        <button class="btn btn-sm solo-back" onclick="switchTab('home')" data-kt-keepout data-i18n="solo-back">← ホームへ</button>
 
         <div class="solo-hero">
           <div id="solo-intro-mascot" class="mascot-hero"></div>
@@ -706,6 +708,7 @@
             <div class="solo-ring-time" id="solo-time" aria-live="off">00:00</div>
           </div>
           <div class="solo-mic-chip" id="solo-mic-chip" aria-live="polite"></div>
+          <div class="solo-mic-help" id="solo-mic-help" style="display:none" role="status"></div>
         </div>
 
         <!-- 認識が落ちたときだけ出る。タイマーは止めない。 -->
@@ -792,8 +795,8 @@
     </div>
     <div class="form-group">
       <label class="pref-check"><input type="checkbox" id="settings-auto-lookup" /> <span data-i18n="pref-auto-lookup-label">単語のAI自動検索をオンにする</span></label>
-      <label class="pref-check"><input type="checkbox" id="settings-vocab-images" /> <span data-i18n="pref-vocab-images-label">単語帳に写真を表示する</span></label>
-      <p class="hint" data-i18n="pref-vocab-images-hint">オンにすると、登録した英単語が写真検索（Unsplash）に送られます。中継は自前のサーバーが行うので、Unsplashに端末の情報は渡りません。</p>
+      <label class="pref-check"><input type="checkbox" id="settings-vocab-images" /> <span data-i18n="pref-vocab-images-label">単語帳にアイコンを表示する</span></label>
+      <p class="hint" data-i18n="pref-vocab-images-hint">オンにすると、登録した英単語がアイコン検索（Iconify）に送られます。中継は自前のサーバーが行います。</p>
     </div>
     <div class="action-row">
       <button class="btn btn-primary" onclick="savePreferences()" data-i18n="btn-settings-save">保存</button>
@@ -821,8 +824,8 @@
     <div id="vocab-photo-frame" class="vocab-photo-frame"></div>
     <p id="vocab-photo-credit" class="vocab-photo-credit"></p>
     <div class="action-row">
-      <button id="vocab-photo-next" class="btn btn-sm btn-primary" onclick="cycleVocabPhoto()" data-i18n="btn-photo-next">別の写真にする</button>
-      <button class="btn btn-sm" onclick="clearVocabPhoto()" data-i18n="btn-photo-clear">写真を外す</button>
+      <button id="vocab-photo-next" class="btn btn-sm btn-primary" onclick="cycleVocabPhoto()" data-i18n="btn-photo-next">別のアイコンにする</button>
+      <button class="btn btn-sm" onclick="clearVocabPhoto()" data-i18n="btn-photo-clear">アイコンを外す</button>
       <button class="btn btn-sm" onclick="closeModal('vocab-photo-modal')" data-i18n="btn-close">閉じる</button>
     </div>
   </div>
@@ -879,8 +882,8 @@
     </div>
     <div class="form-group">
       <label class="pref-check"><input type="checkbox" id="onboarding-auto-lookup" /> <span data-i18n="pref-auto-lookup-label">単語のAI自動検索をオンにする</span></label>
-      <label class="pref-check"><input type="checkbox" id="onboarding-vocab-images" checked /> <span data-i18n="pref-vocab-images-label">単語帳に写真を表示する</span></label>
-      <p class="hint" data-i18n="pref-vocab-images-hint">オンにすると、登録した英単語が写真検索（Unsplash）に送られます。中継は自前のサーバーが行うので、Unsplashに端末の情報は渡りません。</p>
+      <label class="pref-check"><input type="checkbox" id="onboarding-vocab-images" checked /> <span data-i18n="pref-vocab-images-label">単語帳にアイコンを表示する</span></label>
+      <p class="hint" data-i18n="pref-vocab-images-hint">オンにすると、登録した英単語がアイコン検索（Iconify）に送られます。中継は自前のサーバーが行います。</p>
     </div>
     <div class="action-row">
       <button class="btn btn-primary btn-full" onclick="completeOnboarding()" data-i18n="btn-onboarding-start">はじめる →</button>
@@ -893,6 +896,7 @@
 <script src="vendor/supabase-js-2.116.0.js"></script>
 <script src="fx.js"></script>
 <script src="kotora-svg.js"></script>
+<script src="mascots.js"></script>
 <script src="app.js"></script>
 <script src="progress.js"></script>
 <script src="mascot.js"></script>

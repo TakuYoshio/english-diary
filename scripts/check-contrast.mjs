@@ -23,9 +23,26 @@ const cases = [
   ['主ボタン 白 / accent-on-white-text',   '#FFFFFF', tok('accent-on-white-text'), 4.5],
   ['危険ボタン 白 / danger-on-white-text', '#FFFFFF', tok('danger-on-white-text'), 4.5],
   ['警告文 --warn-text / warn-light',  tok('warn-text'), tok('warn-light'), 4.5],
-  // 写真が無い単語カードの頭文字タイル
+  // アイコンが無い単語カードの頭文字タイル
   ['頭文字 --text / accent-light',     tok('text'), tok('accent-light'), 4.5],
+  // 単語カードのピクトグラム。文字ではない図形なのでWCAGの基準は3:1
+  // （1.4.11 Non-text Contrast）。
+  ['アイコン --accent-on-white-text / accent-light', tok('accent-on-white-text'), tok('accent-light'), 3.0],
 ];
+
+// app.js はアイコンのSVGのURLに色を直接入れる必要があり、--accent-on-white-text を
+// 値で複製している。CSSのトークンを変えたときにそこだけ取り残されるのを防ぐ。
+const appJs = readFileSync('app.js', 'utf8');
+const iconColor = appJs.match(/const ICON_COLOR = '(#[0-9A-Fa-f]{6})'/);
+if (!iconColor) {
+  console.error('app.js に ICON_COLOR が見つかりません');
+  process.exit(1);
+}
+if (iconColor[1].toUpperCase() !== tok('accent-on-white-text').toUpperCase()) {
+  console.error(`\napp.js の ICON_COLOR (${iconColor[1]}) が`
+    + ` --accent-on-white-text (${tok('accent-on-white-text')}) と違います`);
+  process.exit(1);
+}
 
 let failed = 0;
 for (const [name, fg, bgc, min] of cases) {

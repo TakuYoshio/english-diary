@@ -599,6 +599,66 @@ body {
 
 /* 首輪ティア（画像を囲むリンググロー） */
 .kotora-wrap { border-radius: 50%; transition: box-shadow 0.3s ease; }
+/* 採用イラストで描くとき。表情は画像を差し替え、動きはここで付ける。
+   画像は全枚数で同じキャンバス・同じ足元位置である前提
+   （ズレていると差し替えのたびに飛び跳ねる。check-mascot-art.mjs が検査）。 */
+.kt-art { position: relative; width: 100%; height: 100%; }
+.kt-art-img {
+  width: 100%; height: 100%; display: block;
+  object-fit: contain; object-position: center bottom;
+  user-select: none; -webkit-user-drag: none;
+}
+.kt-art[data-motion="breathe"]      .kt-art-img { animation: kt-breathe 3s ease-in-out infinite; }
+.kt-art[data-motion="breathe-slow"] .kt-art-img { animation: kt-breathe 5.5s ease-in-out infinite; }
+.kt-art[data-motion="bounce"]       .kt-art-img { animation: kt-bounce 0.9s ease-in-out infinite; }
+.kt-art[data-motion="jump"]         .kt-art-img { animation: kt-jump 0.7s cubic-bezier(.3,1.6,.5,1) 1; }
+.kt-art[data-motion="tilt"]         .kt-art-img { animation: kt-tilt 2.2s ease-in-out infinite; }
+.kt-art[data-motion="shake"]        .kt-art-img { animation: kt-shake 0.4s ease-in-out infinite; }
+.kt-art[data-motion="sway"]         .kt-art-img { animation: kt-sway 1.2s ease-in-out infinite; }
+
+/* 足元を軸にすると、伸び縮みしても地面から浮かない */
+@keyframes kt-breathe { 0%,100% { transform: scaleY(1) } 50% { transform: scaleY(1.025) scaleX(0.99) } }
+@keyframes kt-bounce  { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-5%) } }
+@keyframes kt-jump {
+  0%   { transform: translateY(0) scaleY(0.94) scaleX(1.05); }
+  35%  { transform: translateY(-22%) scaleY(1.05) scaleX(0.97); }
+  70%  { transform: translateY(0) scaleY(0.96) scaleX(1.03); }
+  100% { transform: translateY(0) scaleY(1) scaleX(1); }
+}
+@keyframes kt-tilt  { 0%,100% { transform: rotate(0) } 50% { transform: rotate(-7deg) } }
+@keyframes kt-shake { 0%,100% { transform: translateX(0) } 25% { transform: translateX(-3%) } 75% { transform: translateX(3%) } }
+@keyframes kt-sway  { 0%,100% { transform: rotate(-2deg) } 50% { transform: rotate(2deg) } }
+.kt-art-img { transform-origin: center bottom; }
+
+/* キャラごとの毛色。SVGは --mascot-* を参照して描いているので、
+   ここを上書きするだけで同じ絵の仕組みのまま別の子になる。 */
+.kotora-wrap[data-mascot="hachi"] {
+  --mascot-fur: #E8B06A;       --mascot-fur-light: #FFF6E6;  --mascot-fur-dark: #B9763A;
+  --mascot-ear-inner: #F6C9B4; --mascot-eye: #6B4322;
+}
+.kotora-wrap[data-mascot="moko"] {
+  --mascot-fur: #C8A98E;       --mascot-fur-light: #F6EADF;  --mascot-fur-dark: #8C6B50;
+  --mascot-ear-inner: #EBC3B6; --mascot-eye: #4E3524;
+}
+
+/* 相棒の選択 */
+.mascot-picker-title {
+  font-size: 12px; font-weight: 700; color: var(--text-faint);
+  text-align: center; margin-top: 14px;
+}
+.mascot-picker { display: flex; gap: 8px; justify-content: center; margin: 14px 0 4px; }
+.mascot-pick {
+  appearance: none; font: inherit; cursor: pointer;
+  flex: 1; max-width: 96px; padding: 8px 4px 6px;
+  background: var(--surface); border: 2px solid var(--border);
+  border-radius: var(--radius); color: var(--text);
+}
+.mascot-pick[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-light); }
+.mascot-pick[disabled] { cursor: default; opacity: 0.55; }
+.mascot-pick-face { font-size: 26px; line-height: 1.1; }
+.mascot-pick-name { display: block; font-size: 12px; font-weight: 700; margin-top: 2px; }
+.mascot-pick-lock { display: block; font-size: 10px; color: var(--text-faint); margin-top: 1px; }
+
 .kotora-wrap[data-tier="silver"]  { box-shadow: 0 0 0 3px var(--mascot-collar-silver) inset; }
 .kotora-wrap[data-tier="gold"]    { box-shadow: 0 0 0 3px var(--mascot-collar-gold) inset, 0 0 14px rgba(232,185,58,0.55); }
 .kotora-wrap[data-tier="diamond"] { box-shadow: 0 0 0 3px var(--mascot-collar-diamond) inset, 0 0 16px rgba(126,200,227,0.6); }
@@ -713,14 +773,21 @@ body {
   flex: 1 1 100%; min-height: 46px; resize: vertical;
 }
 .vocab-count { font-size: 12px; color: var(--text-faint); margin-bottom: 10px; }
+.vocab-add-toggle { width: 100%; margin-bottom: 1rem; }
+
+/* 1語1行に収める。以前は8要素を横一列に並べていて、iPhone幅では
+   入りきらず2段に折り返し、1語が縦に間延びしていた。
+   英語と日本語は .v-main に縦に積み、操作系は .v-meta にまとめる。 */
 .vocab-row {
   display: flex; align-items: center; gap: 10px;
   border: 1px solid var(--border); border-radius: var(--radius);
   padding: 11px 14px; background: var(--surface);
-  margin-bottom: 8px; flex-wrap: wrap;
+  margin-bottom: 8px;
   box-shadow: var(--shadow);
 }
-/* サムネイル自体がタップ先（写真の選び直し）。
+.v-main { flex: 1; min-width: 0; }
+.v-meta { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+/* サムネイル自体がタップ先（アイコンの選び直し）。
    .vocab-row はモバイルで既に7要素あり、ボタンを足す余裕が無い。 */
 .v-thumb-btn {
   appearance: none; -webkit-appearance: none;
@@ -730,13 +797,16 @@ body {
   width: 52px; height: 52px; border-radius: 14px;
 }
 .v-thumb-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* アイコンは透過SVG。淡いコーラルのタイルに余白を取って乗せる。 */
 .v-thumb {
   position: absolute; inset: 0;
   width: 52px; height: 52px; border-radius: 14px;
-  object-fit: cover;
-  background: var(--surface2);
+  object-fit: contain; padding: 9px;
+  background: var(--accent-light);
 }
-/* 写真が無い／読めなかったときの頭文字タイル。外部へのリクエストは出ない。 */
+/* アイコンが無い／読めなかったときの頭文字タイル。外部へのリクエストは出ない。
+   アイコンは上に重なるが透過なので、読み込めたときは下の文字が見えないよう
+   .v-thumb 側に背景を敷いている。 */
 .v-thumb-fallback {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
@@ -746,10 +816,19 @@ body {
   font-size: 20px; line-height: 1;
   user-select: none;
 }
-.v-en { font-family: var(--font-display); font-weight: 700; flex: 1.2; font-size: 16px; min-width: 100px; }
-.v-jp { color: var(--text-muted); flex: 1; font-size: 14px; min-width: 80px; }
+.v-en {
+  font-family: var(--font-display); font-weight: 700; font-size: 16px;
+  line-height: 1.3; overflow-wrap: anywhere;
+}
+/* 日本語・育ち具合・正答率を同じ行に置き、英語に幅を譲る。
+   そうしないと overwhelmed のような長い語が途中で改行される。 */
+.v-sub { display: flex; align-items: center; gap: 6px; margin-top: 1px; }
+.v-jp {
+  color: var(--text-muted); font-size: 14px; line-height: 1.4;
+  overflow-wrap: anywhere; min-width: 0; flex: 1;
+}
 .v-note {
-  color: var(--text-faint); flex: 1.5; font-size: 13px; min-width: 80px;
+  color: var(--text-faint); font-size: 12px; margin-top: 2px;
   white-space: pre-wrap; overflow-wrap: anywhere;
 }
 .v-rate {
@@ -758,13 +837,14 @@ body {
 }
 .vocab-row-editing input[id^="ve-en-"] { flex: 1.2; min-width: 100px; }
 .vocab-row-editing input[id^="ve-jp-"] { flex: 1; min-width: 80px; }
-.vocab-row-editing [id^="ve-note-"] { flex: 1.5; min-width: 80px; resize: vertical; }
+.vocab-row-editing { flex-wrap: wrap; }
+.vocab-row-editing [id^="ve-note-"] { flex: 1 1 100%; resize: vertical; }
 .vocab-row-editing .input { width: auto; }
 .rate-new { background: var(--surface2); color: var(--text-faint); }
 .rate-ok { background: var(--success-light); color: var(--success); }
 .rate-ng { background: var(--danger-light); color: var(--danger); }
 
-/* 写真の選び直しモーダル。Unsplashの規約で撮影者名とUnsplashへのリンクが必要。 */
+/* アイコンの選び直しモーダル。セット名とライセンスの表示をここで出す。 */
 .vocab-photo-card { max-width: 340px; text-align: center; }
 .vocab-photo-word {
   font-family: var(--font-display); font-size: 20px;
@@ -775,7 +855,11 @@ body {
   border-radius: var(--radius); overflow: hidden;
   background: var(--surface2);
 }
-.vocab-photo-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vocab-photo-img {
+  width: 100%; height: 100%; display: block;
+  object-fit: contain; padding: 18%;
+  background: var(--accent-light);
+}
 .vocab-photo-empty {
   width: 100%; height: 100%;
   display: flex; align-items: center; justify-content: center;
@@ -1278,6 +1362,20 @@ svg.kotora-img * { transform-box: fill-box; }
   to   { transform: scaleY(1); }
 }
 
+/* マイクが使えないときの案内。「使えません」だけだと利用者が何もできない。 */
+.solo-mic-help {
+  margin: 10px auto 0; max-width: 340px;
+  background: var(--warn-light); border: 1px solid var(--warn);
+  border-radius: var(--radius); padding: 12px 14px; text-align: left;
+}
+.solo-help-title {
+  margin: 0 0 6px; font-weight: 700; font-size: 13px; color: var(--warn-text);
+}
+.solo-help-body {
+  margin: 0 0 6px; font-size: 13px; line-height: 1.6; color: var(--warn-text);
+}
+.solo-help-body:last-child { margin-bottom: 0; }
+
 /* ── 吹き出し（kotora-speech.js） ── */
 .kt-bubble {
   position: absolute; z-index: 20;
@@ -1289,7 +1387,9 @@ svg.kotora-img * { transform-box: fill-box; }
   font-family: var(--font-display);
   font-size: 14px; font-weight: 700; line-height: 1.5;
   box-shadow: var(--shadow);
-  opacity: 0; pointer-events: none; cursor: pointer;
+  /* 常に pointer-events: none。どこに出ても下のボタンのタップを奪わない。
+     「触れば消える」は kotora-speech.js の document の pointerdown で受ける */
+  opacity: 0; pointer-events: none;
   transition: opacity 0.22s ease, transform 0.22s ease;
   white-space: pre-line; text-align: left;
 }
@@ -1301,10 +1401,22 @@ svg.kotora-img * { transform-box: fill-box; }
   border-right: 2px solid var(--border-strong);
   border-bottom: 2px solid var(--border-strong);
 }
-.kt-bubble-in { opacity: 1; pointer-events: auto; transform: translate(-50%, calc(-100% - 8px)); }
+.kt-bubble-in { opacity: 1; transform: translate(-50%, calc(-100% - 8px)); }
+
+/* 上に余白が無いときは下に出す（_ktPositionBubble が付け外しする）。
+   しっぽも上辺へ回す */
+.kt-bubble-below { transform: translate(-50%, 0); }
+.kt-bubble-below.kt-bubble-in { transform: translate(-50%, 8px); }
+.kt-bubble-below::after {
+  top: -8.5px; bottom: auto;
+  border-right: 0; border-bottom: 0;
+  border-left: 2px solid var(--border-strong);
+  border-top: 2px solid var(--border-strong);
+}
 .quiz-card { position: relative; }
 @media (prefers-reduced-motion: reduce) {
   .kt-bubble { transition: opacity 0.01s linear; transform: translate(-50%, calc(-100% - 8px)); }
+  .kt-bubble-below { transform: translate(-50%, 8px); }
 }
 
 /* ── MICRO-INTERACTIONS（全体リッチ化） ── */
@@ -1405,6 +1517,9 @@ svg.kotora-img * { transform-box: fill-box; }
 @media (prefers-reduced-motion: reduce) {
   .kt-eye, .kt-tail, .kotora-wrap.kt-talking .kt-mouth-open,
   .kotora-wrap[data-mood="levelup"] .kotora-img { animation: none !important; }
+  /* イラストの動きも止める。表情の差し替えは残るので、
+     何が起きたかは伝わったままになる。まばたきも止める。 */
+  .kt-art-img { animation: none !important; transform: none !important; }
 }
 
 @media (max-width: 520px) {

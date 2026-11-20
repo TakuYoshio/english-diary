@@ -193,11 +193,8 @@ function kotoraSay(slotId, lineKey, opts = {}) {
     bubble = document.createElement('div');
     bubble.className = 'kt-bubble';
     bubble.setAttribute('data-kt-bubble-for', slotId);
-    bubble.addEventListener('click', () => kotoraDismiss(slotId));
     slot.insertAdjacentElement('afterend', bubble);
   }
-
-  _ktPositionBubble(slot, bubble);
 
   if (_ktTimers[slotId]) {
     clearInterval(_ktTimers[slotId].type);
@@ -208,7 +205,16 @@ function kotoraSay(slotId, lineKey, opts = {}) {
   const reduced = (typeof fxReducedMotion === 'function') && fxReducedMotion();
   const useTypewriter = opts.typewriter !== false && !reduced;
 
-  bubble.textContent = '';
+  // 位置の判定に吹き出しの高さが要るので、先に本文を入れて測る。
+  // タイプライター中に高さが縮まないよう、その高さを確保しておく
+  // （1文字ごとに高さが跳ねるのも防げる）。minHeightは次に喋るときに外す。
+  bubble.style.minHeight = '';
+  bubble.textContent = text;
+  _ktPositionBubble(slot, bubble);
+  if (useTypewriter) {
+    bubble.style.minHeight = bubble.offsetHeight + 'px';
+    bubble.textContent = '';
+  }
   bubble.classList.add('kt-bubble-in');
 
   const finish = () => {
@@ -236,20 +242,64 @@ function kotoraSay(slotId, lineKey, opts = {}) {
   }
 }
 
-// 位置: スロット上端の中央（position:fixed なスロット＝保存ポップアップにも対応）
+const KT_GAP = 8;    // 吹き出しとマスコットの隙間（style.cssのtranslateと対応）
+const KT_EDGE = 4;   // 覆ってはいけない要素・画面端との余白
+
+// 吹き出しより上にある「覆ってはいけないもの」の下端を返す。
+// stickyなヘッダーと、index.html で data-kt-keepout を付けた要素を見る。
+// スロットごとの特例をJSに散らさないため、避ける場所はHTML側で宣言する。
+function _ktTopLimit(slotTop, left, right) {
+  let limit = 0;
+  const header = document.querySelector('.header');
+  if (header && getComputedStyle(header).position === 'sticky') {
+    limit = Math.max(limit, header.getBoundingClientRect().bottom);
+  }
+  document.querySelectorAll('[data-kt-keepout]').forEach(el => {
+    if (!el.getClientRects().length) return;          // 非表示タブのものは無視
+    const k = el.getBoundingClientRect();
+    if (k.bottom > slotTop) return;                   // スロットより下のものは無関係
+    if (k.right <= left || k.left >= right) return;   // 吹き出しの横幅にかからない
+    limit = Math.max(limit, k.bottom);
+  });
+  return limit + KT_EDGE;
+}
+
+// 位置: 基本はスロット上端の中央。上に収まらなければ下に回す（kt-bubble-below）。
+// 判定は画面座標で行い、設置はスロットと同じ座標系で行う
+// （position:fixed なスロット＝保存ポップアップは fixed、それ以外は
+//  吹き出しがスロットの兄弟なので offsetParent が一致する）。
 function _ktPositionBubble(slot, bubble) {
-  if (getComputedStyle(slot).position === 'fixed') {
-    const r = slot.getBoundingClientRect();
+  const fixed = getComputedStyle(slot).position === 'fixed';
+  const r = slot.getBoundingClientRect();
+  const h = bubble.offsetHeight;
+  // translateX(-50%)で中央寄せされるため、幅の半分+余白ぶん内側にクランプする
+  const half = Math.min(bubble.offsetWidth, 280) / 2 + KT_GAP;
+  const centerX = r.left + r.width / 2;
+  const x = Math.min(Math.max(centerX, half), window.innerWidth - half);
+
+  // 上端（スロット上端 + KT_EDGE からCSSで -100% - KT_GAP 持ち上がる）が
+  // 上限ラインより下に収まるなら上、収まらないなら下に出す。
+  const fitsAbove = (r.top - h - KT_EDGE) >= _ktTopLimit(r.top, x - half, x + half);
+  bubble.classList.toggle('kt-bubble-below', !fitsAbove);
+
+  if (fixed) {
     bubble.style.position = 'fixed';
-    // translateX(-50%)で中央寄せされるため、最大幅280pxの半分+余白ぶん内側にクランプ
-    bubble.style.left = Math.min(r.left + r.width / 2, window.innerWidth - 156) + 'px';
-    bubble.style.top = (r.top + 4) + 'px';
+    bubble.style.left = x + 'px';
+    bubble.style.top = (fitsAbove ? r.top + KT_EDGE : r.bottom - KT_EDGE) + 'px';
   } else {
     bubble.style.position = 'absolute';
-    bubble.style.left = (slot.offsetLeft + slot.offsetWidth / 2) + 'px';
-    bubble.style.top = (slot.offsetTop + 8) + 'px';
+    bubble.style.left = (slot.offsetLeft + slot.offsetWidth / 2 + (x - centerX)) + 'px';
+    bubble.style.top = (slot.offsetTop + (fitsAbove ? KT_EDGE : slot.offsetHeight - KT_EDGE)) + 'px';
   }
 }
+
+// 吹き出しは pointer-events: none なので、どこに出ても下のボタンは押せる。
+// 「触れば消える」挙動だけをdocumentで受ける（スクロール開始でも消える）。
+document.addEventListener('pointerdown', () => {
+  const shown = document.querySelectorAll('.kt-bubble.kt-bubble-in');
+  if (!shown.length) return;
+  shown.forEach(b => kotoraDismiss(b.getAttribute('data-kt-bubble-for')));
+}, { passive: true });
 
 // 表示中の吹き出しはリサイズ時に追従させる（表示直後のレイアウト変動対策も兼ねる）。
 // _ktPositionBubble は getComputedStyle / getBoundingClientRect を読むため

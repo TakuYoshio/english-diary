@@ -32,7 +32,7 @@ const sandbox = {
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
 
-for (const file of ['app.js', 'progress.js']) {
+for (const file of ['app.js', 'progress.js', 'kotora-svg.js', 'mascots.js']) {
   vm.runInContext(readFileSync(root + file, 'utf8'), sandbox, { filename: file });
 }
 
@@ -52,8 +52,8 @@ const {
   splitSentences, buildDiaryQuizPool,
   // 週報
   weekStartOf, previousWeekStart, weekDates, computeWeeklyReport,
-  // 単語カードの写真
-  photoQuery, photoCandidate, photoPatch, needsVocabPhoto, vocabRow, isMissingImageColumn,
+  // 単語カードのアイコン
+  photoQuery, photoCandidate, photoPatch, needsVocabPhoto, vocabRow, isMissingImageColumn, iconUrl,
 } = sandbox;
 const DQ_STOPWORDS = get('DQ_STOPWORDS');
 
@@ -321,46 +321,75 @@ test('検索語は英単語だけを通す（Workerを検索プロキシにし�
   assert.equal(photoQuery(null), '');
 });
 
-const CAND = {
-  name: 'Jane Doe', page: 'https://unsplash.com/@jane?utm_source=english-diary&utm_medium=referral',
-  small: 'https://images.unsplash.com/1?w=200', large: 'https://images.unsplash.com/1?w=400',
-  download: 'https://api.unsplash.com/photos/aaa/download', source: 'unsplash',
+// Workerが返す1候補の形
+const RAW = {
+  icon: 'ph:coffee', set: 'Phosphor', license: 'MIT',
+  page: 'https://github.com/phosphor-icons/core', source: 'iconify',
 };
 
-test('候補は表示とクレジットに使うものだけ残す', () => {
-  eq(photoCandidate({ ...CAND, extra: 'ignored', id: 7, likes: 99 }), CAND);
+test('アイコンのURLを組み立てる（色と高さを入れる）', () => {
+  assert.equal(iconUrl('ph:coffee', 64),
+    'https://api.iconify.design/ph/coffee.svg?color=%23DB3A00&height=64');
+  assert.equal(iconUrl('material-symbols-light:commute-outline', 220),
+    'https://api.iconify.design/material-symbols-light/commute-outline.svg?color=%23DB3A00&height=220');
 });
 
-test('httpsでないURLの候補は捨てる', () => {
-  assert.equal(photoCandidate({ ...CAND, small: 'http://img/t.jpg' }), null);
-  assert.equal(photoCandidate({ ...CAND, small: 'javascript:alert(1)' }), null);
-  assert.equal(photoCandidate({ ...CAND, large: undefined }), null, 'largeが無い候補');
+test('アイコン名に使えない文字が入っていたら空を返す（URLを作らせない）', () => {
+  assert.equal(iconUrl('ph:coffee/../../evil', 64), '');
+  assert.equal(iconUrl('ph:coffee?x=1', 64), '');
+  assert.equal(iconUrl('../etc/passwd', 64), '');
+  assert.equal(iconUrl('PH:Coffee', 64), '', '大文字は想定外なので通さない');
+  assert.equal(iconUrl('', 64), '');
+  assert.equal(iconUrl(null, 64), '');
+});
+
+test('候補は表示とライセンス表示に使うものだけ残す', () => {
+  const c = photoCandidate({ ...RAW, extra: 'ignored', total: 99 });
+  eq(Object.keys(c).sort(), ['icon', 'large', 'license', 'name', 'page', 'small', 'source']);
+  assert.equal(c.name, 'Phosphor');
+  assert.equal(c.license, 'MIT');
+  assert.equal(c.small, 'https://api.iconify.design/ph/coffee.svg?color=%23DB3A00&height=64');
+  assert.equal(c.large, 'https://api.iconify.design/ph/coffee.svg?color=%23DB3A00&height=220');
+});
+
+test('アイコン名が不正な候補は捨てる', () => {
+  assert.equal(photoCandidate({ ...RAW, icon: 'ph:coffee/../evil' }), null);
+  assert.equal(photoCandidate({ ...RAW, icon: undefined }), null);
   assert.equal(photoCandidate(null), null);
 });
 
 test('知らない出所の候補は捨てる（クレジットの出し先が決まらない）', () => {
-  assert.equal(photoCandidate({ ...CAND, source: 'somewhere-else' }), null);
-  assert.equal(photoCandidate({ ...CAND, source: undefined }), null);
+  assert.equal(photoCandidate({ ...RAW, source: 'somewhere-else' }), null);
+  assert.equal(photoCandidate({ ...RAW, source: undefined }), null);
 });
 
 test('候補のpageがhttpsでなければ空にする（リンク先に任意のURLを入れさせない）', () => {
-  assert.equal(photoCandidate({ ...CAND, page: 'javascript:alert(1)' }).page, '');
-  assert.equal(photoCandidate({ ...CAND, download: 'javascript:alert(1)' }).download, '');
+  assert.equal(photoCandidate({ ...RAW, page: 'javascript:alert(1)' }).page, '');
 });
 
 test('image_url の3状態: nullだけが自動取得の対象', () => {
   assert.equal(needsVocabPhoto({ image_url: null }), true, 'まだ探していない');
   assert.equal(needsVocabPhoto({}), true, '列がまだ無い行もnull扱い');
   assert.equal(needsVocabPhoto({ image_url: '' }), false, '利用者が外した語を探し直してはいけない');
-  assert.equal(needsVocabPhoto({ image_url: 'https://img/t.jpg' }), false);
+  assert.equal(needsVocabPhoto({ image_url: 'https://i/x.svg', image_credit: { source: 'iconify' } }), false);
 });
 
-test('写真のパッチは2つの列だけを書き、使用通知URLは保存しない', () => {
-  const patch = photoPatch(CAND);
+test('写真時代に保存された行は作り直す（見た目が混ざらないように）', () => {
+  assert.equal(needsVocabPhoto({ image_url: 'https://images.unsplash.com/1', image_credit: { source: 'unsplash' } }),
+    true, '提供元を変えたら古い行は入れ替える');
+  assert.equal(needsVocabPhoto({ image_url: '', image_credit: { source: 'unsplash' } }),
+    false, '外した語は提供元が変わっても探し直さない');
+});
+
+test('アイコンのパッチは2つの列だけを書く', () => {
+  const c = photoCandidate(RAW);
+  const patch = photoPatch(c);
   eq(Object.keys(patch).sort(), ['image_credit', 'image_url']);
-  assert.equal(patch.image_url, CAND.small);
-  eq(patch.image_credit, { name: CAND.name, page: CAND.page, large: CAND.large, source: 'unsplash' });
-  assert.equal('download' in patch.image_credit, false, 'download を保存する必要は無い');
+  assert.equal(patch.image_url, c.small);
+  eq(patch.image_credit, {
+    name: 'Phosphor', page: RAW.page, large: c.large,
+    source: 'iconify', icon: 'ph:coffee', license: 'MIT',
+  });
 });
 
 test('単語の挿入は画像の列を一切送らない（保存が画像に依存しない）', () => {
@@ -376,6 +405,150 @@ test('列が無いエラーは image_url / image_credit の両方で拾う', () 
   assert.equal(isMissingImageColumn(e('srs_stage')), false, '無関係な列の欠落を握り潰さない');
   assert.equal(isMissingImageColumn({ code: '23505', message: 'duplicate key' }), false);
   assert.equal(isMissingImageColumn(null), false);
+});
+
+// ── 仲間たち（マスコット） ────────────────────────────────────────────────
+// 表情・首輪・成長段階は style.css が kt-* クラスを display で切り替えて出す。
+// つまりSVGにそのクラスが無いと、エラーも出ないまま「笑わないキャラ」が生まれる。
+// 新しい子を足したときに静かに壊れないよう、契約を機械的に確かめる。
+const MOOD_CRITICAL = [
+  'kt-eyes-open', 'kt-eyes-happy', 'kt-eyes-sad', 'kt-eyes-star',
+  'kt-eye', 'kt-pupil',
+  'kt-mouth-smile', 'kt-mouth-open', 'kt-mouth-frown',
+  'kt-brow-l', 'kt-brow-r', 'kt-cheek-l', 'kt-cheek-r',
+  'kt-head', 'kt-ear-l', 'kt-ear-r', 'kt-tail', 'kt-body',
+  'kt-collar', 'kt-collar-charm',
+];
+
+// MASCOTS / MASCOT_ORDER は const なのでグローバルに乗らない（冒頭の注記のとおり）
+// mascots.js は LS（app.js のlocalStorageラッパー）を参照する
+const MASCOT_ORDER = get('MASCOT_ORDER');
+const MASCOTS = get('MASCOTS');
+const { mascotUnlocked, mascotSvgFor } = sandbox;
+
+for (const key of MASCOT_ORDER) {
+  test(`${key}: 表情に必要なクラスが全部ある`, () => {
+    const svg = mascotSvgFor(key);
+    const missing = MOOD_CRITICAL.filter(c => !svg.includes(`class="${c}"`) && !svg.includes(`${c}"`) && !svg.includes(`${c} `));
+    assert.deepEqual(missing, [], `${key} に足りない: ${missing.join(', ')}`);
+  });
+
+  test(`${key}: 既定で出ている表情は1種類だけ`, () => {
+    const svg = mascotSvgFor(key);
+    // happy/sad/star と open口/frown口 は display="none" で隠れていること。
+    // 隠し忘れると目が二重に描かれる。
+    for (const c of ['kt-eyes-happy', 'kt-eyes-sad', 'kt-eyes-star', 'kt-mouth-open', 'kt-mouth-frown', 'kt-brow-l', 'kt-brow-r']) {
+      const at = svg.indexOf(c);
+      assert.ok(at > -1, `${c} が無い`);
+      const tagEnd = svg.indexOf('>', at);
+      assert.ok(svg.slice(at, tagEnd).includes('display="none"'), `${key}: ${c} が既定で表示されている`);
+    }
+  });
+
+  test(`${key}: 同じ viewBox で描かれている`, () => {
+    assert.ok(mascotSvgFor(key).includes('viewBox="0 0 320 480"'));
+  });
+}
+
+test('解放はレベルで決まる', () => {
+  assert.equal(mascotUnlocked('neko', 1), true, 'ネコは最初から');
+  assert.equal(mascotUnlocked('akita', 4), false);
+  assert.equal(mascotUnlocked('akita', 5), true);
+  assert.equal(mascotUnlocked('kuma', 8), false);
+  assert.equal(mascotUnlocked('kuma', 9), true);
+  assert.equal(mascotUnlocked('nobody', 99), false, '知らないキーは解放しない');
+});
+
+test('前のキー名で保存されていても読み替える', () => {
+  const { currentMascotKey, setMascotKey } = sandbox;
+  // 名前を変える前に選んでいた人の相棒が黙って既定に戻らないこと。
+  // LS は const なので get() で取る（setMascotKey は旧キーを弾くため直接書く）
+  const LS = get('LS');
+  LS.set('mascot', 'moko');
+  assert.equal(currentMascotKey(9), 'kuma');
+  LS.set('mascot', 'hachi');
+  assert.equal(currentMascotKey(5), 'akita');
+  setMascotKey('neko');
+});
+
+test('解放されていない相棒を保存してあっても既定に戻す', () => {
+  const { currentMascotKey, setMascotKey } = sandbox;
+  setMascotKey('kuma');
+  assert.equal(currentMascotKey(9), 'kuma', '解放済みなら選べる');
+  assert.equal(currentMascotKey(3), 'neko', 'レベルが下がる環境でも破綻しない');
+  setMascotKey('neko');
+});
+
+// ── 採用イラストへの差し替え ──────────────────────────────────────────────
+test('素材の有無で描き方が切り替わる', () => {
+  const { mascotBodyHtml } = sandbox;
+  for (const key of MASCOT_ORDER) {
+    const html = mascotBodyHtml(key, 'idle');
+    if (MASCOTS[key].art) {
+      assert.ok(html.includes(`character/${key}/`), `${key}: 素材があるのに画像で描いていない`);
+    } else {
+      assert.ok(html.includes('<svg'), `${key}: 素材が無いのにSVGで描いていない`);
+    }
+  }
+});
+
+test('素材が未設置のキャラはSVGに落ちる', () => {
+  const { mascotBodyHtml } = sandbox;
+  const was = MASCOTS.neko.art;
+  MASCOTS.neko.art = false;
+  assert.ok(mascotBodyHtml('neko', 'idle').includes('<svg'));
+  MASCOTS.neko.art = was;
+});
+
+test('素材があるときは表情の画像で描く', () => {
+  const { mascotBodyHtml } = sandbox;
+  const was = MASCOTS.neko.art;
+  MASCOTS.neko.art = true;
+  const html = mascotBodyHtml('neko', 'delighted');
+  assert.ok(html.includes('character/neko/sparkle.webp'), html.slice(0, 120));
+  assert.ok(html.includes('data-motion="jump"'), '喜びはジャンプで表す');
+  assert.ok(html.includes('onerror='), '読み込み失敗の逃げ道が無い');
+  MASCOTS.neko.art = was;
+});
+
+test('idle はまばたき用の画像も指している', () => {
+  const { mascotBodyHtml } = sandbox;
+  const was = MASCOTS.neko.art;
+  MASCOTS.neko.art = true;
+  assert.ok(mascotBodyHtml('neko', 'idle').includes('data-blink="character/neko/blink.webp"'));
+  MASCOTS.neko.art = was;
+});
+
+test('既存のmood8種すべてに表情と動きが割り当ててある', () => {
+  const MOODS = get('MASCOT_MOODS');
+  const FACES = get('MASCOT_FACES_ART');
+  // CSSが使っている8種。割り当てが無いとidleに落ちて無反応になる
+  for (const mood of ['idle', 'excited', 'delighted', 'happy', 'sad', 'angry', 'levelup', 'badge']) {
+    assert.ok(MOODS[mood], `${mood} の割り当てが無い`);
+    assert.ok(FACES.includes(MOODS[mood].face),
+      `${mood} が未定義の表情 ${MOODS[mood].face} を指している`);
+  }
+});
+
+test('要望された8アニメーションがすべて表現できる', () => {
+  const MOODS = get('MASCOT_MOODS');
+  // idle / happy / correct / incorrect / thinking / wave / celebrate / sleeping
+  const wanted = ['idle', 'happy', 'delighted', 'sad', 'thinking', 'wave', 'levelup', 'sleeping'];
+  for (const m of wanted) assert.ok(MOODS[m], `${m} が割り当てられていない`);
+});
+
+test('知らないキーを渡されても既定の絵を返す', () => {
+  assert.ok(mascotSvgFor('nobody').includes('viewBox'));
+});
+
+test('解放レベルは既存の節目とぶつからない', () => {
+  // Lv4 シルバー/young、Lv7 ゴールド、Lv8 adult、Lv10 ダイヤ
+  const taken = new Set([4, 7, 8, 10]);
+  for (const key of MASCOT_ORDER) {
+    const lv = MASCOTS[key].unlock;
+    if (lv === 1) continue;
+    assert.ok(!taken.has(lv), `${key} の解放Lv${lv}が既存のご褒美と重なっている`);
+  }
 });
 
 // ── 実行 ──────────────────────────────────────────────────────────────────

@@ -37,7 +37,7 @@ await page.route('**/*', route => {
     if (!photoReply) return route.abort();
     return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ photos: photoReply }) });
   }
-  if (/images\.unsplash\.com/.test(url)) { photoImageRequests++; return route.abort(); }
+  if (/api\.iconify\.design/.test(url)) { photoImageRequests++; return route.abort(); }
   if (url.startsWith(BASE)) return route.continue();
   return route.abort();
 });
@@ -431,6 +431,7 @@ photoReply = null;
 const photoFailAdd = await page.evaluate(async () => {
   switchTab('vocab');
   await new Promise(r => setTimeout(r, 200));
+  toggleVocabAdd(true);
   document.getElementById('v-en').value = 'resilient';
   document.getElementById('v-jp').value = 'しぶとい';
   document.getElementById('v-note').value = '';
@@ -438,14 +439,14 @@ const photoFailAdd = await page.evaluate(async () => {
   await _vocabPhotoWork;
   return allVocab.some(v => v.en === 'resilient');
 });
-check('写真の取得が失敗しても単語帳から追加できる', photoFailAdd);
+check('アイコンの取得が失敗しても単語帳から追加できる', photoFailAdd);
 
 const photoFailBatch = await page.evaluate(async () => {
   const batch = await addVocabBatch([{ en: 'persistence', jp: '粘り強さ', note: '' }]);
   await _vocabPhotoWork;
   return batch.length === 1;
 });
-check('写真の取得が失敗しても一括追加が通る（日記の保存経路）', photoFailBatch);
+check('アイコンの取得が失敗しても一括追加が通る（日記の保存経路）', photoFailBatch);
 
 // 写真が無い行は頭文字のタイルを出し、写真CDNへは一切出ない
 photoImageRequests = 0;
@@ -462,8 +463,8 @@ const fallback = await page.evaluate(async () => {
     label: row.querySelector('.v-thumb-btn')?.getAttribute('aria-label') || '',
   };
 });
-check('写真が無い行は頭文字タイルを出す', fallback.hasFallback && !fallback.hasImg);
-check('写真が無い行から写真CDNへリクエストを出さない', photoImageRequests === 0,
+check('アイコンが無い行は頭文字タイルを出す', fallback.hasFallback && !fallback.hasImg);
+check('アイコンが無い行から外部へリクエストを出さない', photoImageRequests === 0,
   `${photoImageRequests} 件`);
 check('サムネイルのボタンに単語を含む読み上げ名が付いている',
   fallback.label.includes(fallback.en) && fallback.label.length > fallback.en.length,
@@ -489,17 +490,17 @@ check('穴埋めのリクエストは action:photo と語の配列を送る',
   JSON.stringify(workerCalls[0] || {}).slice(0, 120));
 
 // 写真が取れたら image_url と image_credit が保存される。
-// 撮影者名とリンクには、外部由来の危険な値を混ぜて渡す。
+// セット名とリンクには、外部由来の危険な値を混ぜて渡す。
 photoReply = {
   grateful: [
-    { name: 'Jane "quote" Doe', page: 'https://unsplash.com/@jane?utm_source=english-diary&utm_medium=referral',
-      small: 'https://images.unsplash.com/1?w=200', large: 'https://images.unsplash.com/1?w=400',
-      download: 'https://api.unsplash.com/photos/aaa/download', source: 'unsplash' },
-    { name: 'John Roe', page: 'javascript:alert(1)',
-      small: 'https://images.unsplash.com/2?w=200', large: 'https://images.unsplash.com/2?w=400',
-      download: 'https://api.unsplash.com/photos/bbb/download', source: 'unsplash' },
+    { icon: 'ph:hands-praying', set: 'Phosphor "quoted"', license: 'MIT',
+      page: 'https://github.com/phosphor-icons/core', source: 'iconify' },
+    { icon: 'tabler:heart-handshake', set: 'Tabler Icons', license: 'MIT',
+      page: 'javascript:alert(1)', source: 'iconify' },
   ],
 };
+const ICON1 = 'https://api.iconify.design/ph/hands-praying.svg?color=%23DB3A00&height=64';
+const ICON2 = 'https://api.iconify.design/tabler/heart-handshake.svg?color=%23DB3A00&height=64';
 const saved = await page.evaluate(async () => {
   _photoTried.clear();
   window.__stubClearPatches();
@@ -507,22 +508,16 @@ const saved = await page.evaluate(async () => {
   target.image_url = null;
   target.image_credit = null;
   await queueVocabPhotos([{ id: target.id, en: 'grateful' }]);
-  await new Promise(r => setTimeout(r, 300));   // 使用通知は待たずに投げられる
   const row = allVocab.find(v => v.en === 'grateful');
   return { url: row.image_url, credit: row.image_credit, patches: window.__stubPatches().length };
 });
-saved.used = workerCalls.find(c => c.action === 'photo_used');
-check('写真が取れたら image_url が保存される', saved.url === 'https://images.unsplash.com/1?w=200', String(saved.url));
-check('撮影者クレジットも保存される',
-  saved.credit && saved.credit.name === 'Jane "quote" Doe' && saved.credit.source === 'unsplash',
+check('アイコンが取れたら image_url が保存される', saved.url === ICON1, String(saved.url));
+check('アイコンセットとライセンスも保存される',
+  saved.credit && saved.credit.name === 'Phosphor "quoted"' && saved.credit.license === 'MIT'
+  && saved.credit.icon === 'ph:hands-praying' && saved.credit.source === 'iconify',
   JSON.stringify(saved.credit));
-check('使用通知が保存と同じ便で1回だけ出る（Unsplashの規約）',
-  saved.used && saved.used.action === 'photo_used'
-  && saved.used.downloads.length === 1
-  && saved.used.downloads[0] === 'https://api.unsplash.com/photos/aaa/download',
-  JSON.stringify(saved.used));
 
-// 写真モーダル: 撮影者名とUnsplashへのリンクが出る（規約上の義務）
+// アイコンモーダル: セット名・ライセンス・Iconifyへのリンクが出る
 const modal = await page.evaluate(async () => {
   const target = allVocab.find(v => v.en === 'grateful');
   await openVocabPhoto(target.id);
@@ -534,38 +529,33 @@ const modal = await page.evaluate(async () => {
     creditText: creditEl.textContent,
     linkHref: link ? link.getAttribute('href') : '',
     linkRel: link ? link.getAttribute('rel') : '',
-    hasSourceLink: [...creditEl.querySelectorAll('a')].some(a => a.href.includes('unsplash.com')),
-    utm: [...creditEl.querySelectorAll('a')].every(a => a.href.includes('utm_source=english-diary')),
+    hasSourceLink: [...creditEl.querySelectorAll('a')].some(a => a.href.includes('iconify.design')),
     nextEnabled: !document.getElementById('vocab-photo-next').disabled,
     imgSrc: document.querySelector('.vocab-photo-img')?.getAttribute('src') || '',
     xss: window.__xss === 1,
   };
 });
-check('写真モーダルが開く', modal.visible && modal.word === 'grateful');
-check('撮影者名が表示される', modal.creditText.includes('Jane "quote" Doe'), modal.creditText);
-check('撮影者名を属性に入れてもXSSにならない', !modal.xss);
-check('Unsplashへのリンクがある', modal.hasSourceLink);
-check('クレジットのリンクにUTMが付く（Unsplashの規約）', modal.utm);
+check('アイコンモーダルが開く', modal.visible && modal.word === 'grateful');
+check('アイコンセット名が表示される', modal.creditText.includes('Phosphor "quoted"'), modal.creditText);
+check('ライセンスが表示される', modal.creditText.includes('MIT'), modal.creditText);
+check('セット名を属性に入れてもXSSにならない', !modal.xss);
+check('Iconifyへのリンクがある', modal.hasSourceLink);
 check('外部リンクに rel=noopener noreferrer が付く', /noopener/.test(modal.linkRel) && /noreferrer/.test(modal.linkRel), modal.linkRel);
-check('モーダルは大きい方の写真を使う', modal.imgSrc === 'https://images.unsplash.com/1?w=400', modal.imgSrc);
-check('別の写真にするボタンが押せる', modal.nextEnabled);
+check('モーダルは大きい方のアイコンを使う',
+  modal.imgSrc === 'https://api.iconify.design/ph/hands-praying.svg?color=%23DB3A00&height=220',
+  modal.imgSrc);
+check('別のアイコンにするボタンが押せる', modal.nextEnabled);
 
-// 「別の写真にする」で次の候補に進む。javascript: のリンクは空に落とされている。
-workerCalls = [];
+// 「別のアイコンにする」で次の候補に進む。javascript: のリンクは空に落とされている。
 const cycled = await page.evaluate(async () => {
   await cycleVocabPhoto();
-  await new Promise(r => setTimeout(r, 300));
   const row = allVocab.find(v => v.en === 'grateful');
   const link = document.getElementById('vocab-photo-credit').querySelector('a');
   return { url: row.image_url, href: link ? link.getAttribute('href') : '' };
 });
-check('別の写真にすると次の候補が保存される', cycled.url === 'https://images.unsplash.com/2?w=200', String(cycled.url));
-check('候補のjavascript:リンクはUnsplashのトップに落とされる',
-  cycled.href === 'https://unsplash.com/?utm_source=english-diary&utm_medium=referral', cycled.href);
-check('写真を選び直したときも使用通知が出る',
-  workerCalls.some(c => c.action === 'photo_used'
-    && c.downloads[0] === 'https://api.unsplash.com/photos/bbb/download'),
-  JSON.stringify(workerCalls.map(c => c.action)));
+check('別のアイコンにすると次の候補が保存される', cycled.url === ICON2, String(cycled.url));
+check('候補のjavascript:リンクはIconifyのトップに落とされる',
+  cycled.href === 'https://iconify.design/', cycled.href);
 
 // 「写真を外す」は空文字。nullに戻すと穴埋めが拾い直してしまう。
 const cleared = await page.evaluate(async () => {
@@ -575,8 +565,8 @@ const cleared = await page.evaluate(async () => {
   const row = allVocab.find(v => v.en === 'grateful');
   return { url: row.image_url, needs: needsVocabPhoto(row) };
 });
-check('写真を外すと空文字になる', cleared.url === '', JSON.stringify(cleared.url));
-check('外した写真は穴埋めが拾い直さない', cleared.needs === false);
+check('アイコンを外すと空文字になる', cleared.url === '', JSON.stringify(cleared.url));
+check('外したアイコンは穴埋めが拾い直さない', cleared.needs === false);
 
 // ── 回帰: 画像の列が無い環境でも単語を記録できること ──────────────────────
 for (const col of ['image_url', 'image_credit']) {
@@ -585,7 +575,8 @@ for (const col of ['image_url', 'image_credit']) {
     _vocabImageColumnMissing = false;
     warnMissingImageColumn._warned = false;
 
-    document.getElementById('v-en').value = `word-${dropped}`;
+    toggleVocabAdd(true);
+  document.getElementById('v-en').value = `word-${dropped}`;
     document.getElementById('v-jp').value = 'てすと';
     document.getElementById('v-note').value = '';
     await addVocab();
@@ -616,12 +607,103 @@ const stopsBackfill = await page.evaluate(async () => {
 check('画像の列が無い環境では穴埋めをしない', stopsBackfill && workerCalls.length === 0,
   `${workerCalls.length} 回`);
 
+// ── 一覧性: 1語が1行に収まること ──────────────────────────────────────────
+// 以前は8要素を横一列に並べていて、iPhone幅では折り返して1語が縦に伸びていた。
+const density = await page.evaluate(async () => {
+  switchTab('vocab');
+  await new Promise(r => setTimeout(r, 300));
+  const rows = [...document.querySelectorAll('.vocab-row:not(.vocab-row-editing)')];
+  const heights = rows.map(r => Math.round(r.getBoundingClientRect().height));
+  const row = rows[0];
+  const thumb = row.querySelector('.v-thumb-btn').getBoundingClientRect();
+  const main = row.querySelector('.v-main').getBoundingClientRect();
+  const meta = row.querySelector('.v-meta').getBoundingClientRect();
+  return {
+    heights,
+    // 3つの固まりが横に並んでいる（折り返していない）こと
+    sideBySide: thumb.right <= main.left + 1 && main.right <= meta.left + 1,
+    // 開閉できること。前段のテストで開いているので、閉じる→開くで見る
+    closed: (toggleVocabAdd(false), document.getElementById('vocab-add').style.display === 'none'),
+    closedLabel: document.getElementById('vocab-add-toggle').textContent.trim(),
+    reopened: (toggleVocabAdd(), document.getElementById('vocab-add').style.display !== 'none'),
+    focused: document.activeElement === document.getElementById('v-en'),
+    countLabel: document.getElementById('vocab-count').textContent.trim(),
+    emptyNotes: [...document.querySelectorAll('.vocab-row .v-note')].filter(n => !n.textContent.trim()).length,
+  };
+});
+check('単語の行が横1列に並ぶ（折り返さない）', density.sideBySide, JSON.stringify(density.heights));
+check('1語あたりの高さが抑えられている',
+  density.heights.every(h => h <= 92), JSON.stringify(density.heights));
+check('追加フォームを畳める', density.closed);
+check('畳むとボタンの文言が「追加」に戻る', /追加|Add/.test(density.closedLabel), density.closedLabel);
+check('もう一度押すと開く', density.reopened);
+check('開いたら英語欄にフォーカスが入る', density.focused);
+check('件数が裸の数字でない', /語|words/.test(density.countLabel), density.countLabel);
+check('メモが空の行に空のメモ欄を描かない', density.emptyNotes === 0, String(density.emptyNotes));
+
+// ── 仲間の選択 ────────────────────────────────────────────────────────────
+const buddy = await page.evaluate(async () => {
+  openMascotModal();
+  await new Promise(r => setTimeout(r, 200));
+  const picks = [...document.querySelectorAll('.mascot-pick')];
+  const before = document.querySelector('#mascot-modal-body .kotora-wrap').dataset.mascot;
+  // 未解放の子は押せないこと（テスト環境はLv2前後）
+  const locked = picks.filter(b => b.disabled).length;
+  return {
+    count: picks.length,
+    locked,
+    before,
+    // 解放済みの子だけ aria-pressed を持つ
+    pressed: picks.filter(b => b.getAttribute('aria-pressed') === 'true').length,
+    lockedLabel: picks.find(b => b.disabled)?.textContent.replace(/\s+/g, ' ').trim() || '',
+  };
+});
+check('仲間が3人ぶん並ぶ', buddy.count === 3, String(buddy.count));
+check('未解放の子は押せない', buddy.locked >= 1, `${buddy.locked}人が未解放`);
+check('いま選んでいる子が1人だけ印になる', buddy.pressed === 1, String(buddy.pressed));
+check('未解放の子は解放レベルを見せる', /Lv\.|Lv/.test(buddy.lockedLabel), buddy.lockedLabel);
+
+// 解放済みの子に切り替えると、全スロットのSVGが入れ替わること
+const switched = await page.evaluate(async () => {
+  // レベルに依らず検証したいので、解放判定を一時的に通す
+  const orig = window.mascotUnlocked;
+  window.mascotUnlocked = () => true;
+  openMascotModal();
+  await new Promise(r => setTimeout(r, 100));
+  chooseMascot('kuma');
+  await new Promise(r => setTimeout(r, 200));
+  const wraps = [...document.querySelectorAll('.kotora-wrap')];
+  const out = {
+    all: wraps.length > 0 && wraps.every(w => w.dataset.mascot === 'kuma'),
+    hasEyes: !!document.querySelector('.kotora-wrap[data-mascot="kuma"] .kt-eyes-happy'),
+  };
+  chooseMascot('neko');
+  window.mascotUnlocked = orig;
+  closeModal('mascot-modal');
+  return out;
+});
+check('相棒を変えると全スロットが入れ替わる', switched.all);
+check('入れ替えた相棒にも表情のパーツが揃っている', switched.hasEyes);
+
+// ── マイクが使えないときの案内 ────────────────────────────────────────────
+const micHelp = await page.evaluate(() => ({
+  ios: soloMicHelpKey('service-not-allowed'),
+  notAllowed: soloMicHelpKey('not-allowed'),
+  noApi: soloMicHelpKey('no-api'),
+  hasPanel: !!document.getElementById('solo-mic-help'),
+}));
+check('マイクの案内パネルがHTMLにある', micHelp.hasPanel);
+check('原因ごとに案内を出し分ける',
+  micHelp.noApi === 'solo-help-no-api' && micHelp.notAllowed.startsWith('solo-help-not-allowed'),
+  `${micHelp.noApi} / ${micHelp.notAllowed}`);
+
 // ── メモの改行 ────────────────────────────────────────────────────────────
 // 日記Step3のメモは元から textarea だったので、改行入りのメモは保存されていたが、
 // 単語帳では1行に潰れて表示されていた。入力側と表示側の両方を直している。
 const noteMultiline = await page.evaluate(async () => {
   const el = document.getElementById('v-note');
   const tag = el.tagName;
+  toggleVocabAdd(true);
   document.getElementById('v-en').value = 'multiline';
   document.getElementById('v-jp').value = 'かいぎょう';
   el.value = '一行目\n二行目';
@@ -652,6 +734,82 @@ const editNote = await page.evaluate(async () => {
 });
 check('インライン編集のメモ欄も textarea', editNote.tag === 'TEXTAREA', editNote.tag);
 check('編集欄に改行がそのまま入る', editNote.value === '一行目\n二行目', JSON.stringify(editNote.value));
+
+// ── 吹き出しが操作を塞がないこと ──────────────────────────────────────────
+// 吹き出しはマスコットの上端から真上へ伸びるため、上に余白が無い画面では
+// 上の要素を覆っていた。独り言では「← ホームへ」を丸ごと覆い、
+// pointer-events でタップまで吸い取って戻れなくなっていた。
+// モバイル幅で (1) 覆ってはいけない要素（data-kt-keepout）と重ならない
+// (2) 戻るボタンが実際にタップできる (3) 画面内に収まる を見る。
+await page.setViewportSize({ width: 390, height: 844 });
+
+const bubbleGeometry = (slotId, lineKey) => page.evaluate(async ({ slotId, lineKey }) => {
+  kotoraDismiss(slotId);
+  // duration を長く取って、測っている間に消えないようにする
+  kotoraSay(slotId, lineKey, { typewriter: false, duration: 60000 });
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  const bubble = document.querySelector(`[data-kt-bubble-for="${slotId}"].kt-bubble-in`);
+  if (!bubble) return { shown: false, hits: [] };
+  const b = bubble.getBoundingClientRect();
+  const hits = [...document.querySelectorAll('[data-kt-keepout]')]
+    .filter(el => el.getClientRects().length > 0)
+    .filter(el => {
+      const k = el.getBoundingClientRect();
+      return b.left < k.right && b.right > k.left && b.top < k.bottom && b.bottom > k.top;
+    })
+    .map(el => el.className || el.tagName);
+  const header = document.querySelector('.header');
+  const headerBottom = header ? header.getBoundingClientRect().bottom : 0;
+  return {
+    shown: true,
+    hits,
+    // 属性ごと消すと「重ならない」が素通りしてしまうので、見えている数も返す
+    keepouts: [...document.querySelectorAll('[data-kt-keepout]')]
+      .filter(el => el.getClientRects().length > 0).length,
+    rect: { top: Math.round(b.top), bottom: Math.round(b.bottom), left: Math.round(b.left), right: Math.round(b.right) },
+    inViewport: b.top >= headerBottom - 0.5 && b.bottom <= window.innerHeight + 0.5
+      && b.left >= -0.5 && b.right <= window.innerWidth + 0.5,
+  };
+}, { slotId, lineKey });
+
+await page.evaluate(() => { switchTab('solo'); soloSetView('solo-setup-view'); });
+await page.waitForTimeout(300);
+const soloBubble = await bubbleGeometry('solo-intro-mascot', 'solo-intro');
+check('独り言で吹き出しが出る', soloBubble.shown);
+check('独り言に data-kt-keepout がある', soloBubble.keepouts >= 1, String(soloBubble.keepouts));
+check('独り言の吹き出しが覆ってはいけない要素に重ならない',
+  soloBubble.shown && soloBubble.hits.length === 0, soloBubble.hits.join(', '));
+check('独り言の吹き出しが画面内に収まる', !!soloBubble.inViewport, JSON.stringify(soloBubble.rect));
+
+const backReachable = await page.evaluate(() => {
+  const btn = document.querySelector('#solo-setup-view .solo-back');
+  const r = btn.getBoundingClientRect();
+  const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+  return { ok: !!el && (el === btn || btn.contains(el)), got: el ? (el.className || el.tagName) : 'null' };
+});
+check('吹き出しが出ていても「← ホームへ」がタップできる', backReachable.ok, backReachable.got);
+
+await page.evaluate(() => { kotoraDismiss('solo-intro-mascot'); switchTab('home'); });
+await page.waitForTimeout(300);
+const homeBubble = await bubbleGeometry('home-kotora', 'greet-morning');
+check('ホームで吹き出しが出る', homeBubble.shown);
+check('ホームに data-kt-keepout がある', homeBubble.keepouts >= 1, String(homeBubble.keepouts));
+check('ホームの吹き出しが挨拶とストリークに重ならない',
+  homeBubble.shown && homeBubble.hits.length === 0, homeBubble.hits.join(', '));
+check('ホームの吹き出しが画面内に収まる', !!homeBubble.inViewport, JSON.stringify(homeBubble.rect));
+
+// 吹き出しはタップを吸わない（位置がどうであれ下のボタンに届く）
+const bubbleClickThrough = await page.evaluate(() => {
+  const bubble = document.querySelector('.kt-bubble.kt-bubble-in');
+  if (!bubble) return { ok: false, got: 'no bubble' };
+  const b = bubble.getBoundingClientRect();
+  const el = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+  return { ok: !!el && !el.classList.contains('kt-bubble'), got: el ? (el.className || el.tagName) : 'null' };
+});
+check('吹き出し自体はタップを吸わない', bubbleClickThrough.ok, bubbleClickThrough.got);
+
+await page.evaluate(() => kotoraDismiss('home-kotora'));
+await page.setViewportSize({ width: 1280, height: 720 });
 
 const ignorable = /favicon|ERR_FAILED|net::ERR|Failed to load resource/i;
 const real = errors.filter(e => !ignorable.test(e));
