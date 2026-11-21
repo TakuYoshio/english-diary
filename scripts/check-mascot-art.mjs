@@ -22,6 +22,7 @@ if (!keys.length || !faces.length) {
 
 const errors = [];
 let withArt = 0;
+const noSource = [];   // 元PNGが無くて消し残し検査を飛ばしたキャラ
 
 // これより小さい塊は、線の端のアンチエイリアスなどの誤差として無視する
 const STRAY_MIN_PX = 50;
@@ -81,6 +82,7 @@ for (const key of keys) {
   // 元データ（Task/art-source/<key>/*.png）があればそちらを見る。
   // WebPは自前でデコードできないので、検査は変換前のPNGに対して行う。
   const srcDir = `Task/art-source/${key}`;
+  if (!existsSync(srcDir)) noSource.push(key);
   if (existsSync(srcDir)) {
     for (const f of present) {
       const png = `${srcDir}/${f}.png`;
@@ -111,3 +113,12 @@ if (errors.length) {
 }
 console.log(`\nイラスト素材: ${keys.length} キャラ / 表情 ${faces.length} 種を検証`
   + (withArt ? `（素材あり ${withArt} キャラ）` : '（まだ素材は未設置。SVGで描画）'));
+
+// 元PNGは .gitignore で除外しているので（11MBあり、クローンが重くなる）
+// CIでは消し残し検査が動かない。黙って素通りすると「検査した」と
+// 誤解するので、飛ばしたことを必ず言う。
+if (noSource.length) {
+  console.log(`  ※ 消し残し検査は未実施: ${noSource.join(', ')}`
+    + '（Task/art-source/<key>/*.png が無い。'
+    + '元PNGはリポジトリに入れていないため、手元でのみ検査できる）');
+}

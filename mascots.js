@@ -222,8 +222,8 @@ function kumaSvg() {
 // 素材が無い／読み込めないあいだはSVGで描く（無表情で固まらせない）。
 const MASCOTS = {
   neko:  { key: 'neko',  unlock: 1, art: true , svg: () => kotoraSvg() },
-  akita: { key: 'akita', unlock: 5, art: false, svg: () => akitaSvg() },
-  kuma:  { key: 'kuma',  unlock: 9, art: false, svg: () => kumaSvg() },
+  akita: { key: 'akita', unlock: 5, art: true , svg: () => akitaSvg() },
+  kuma:  { key: 'kuma',  unlock: 9, art: true , svg: () => kumaSvg() },
 };
 const MASCOT_ORDER = ['neko', 'akita', 'kuma'];
 const MASCOT_DEFAULT = 'neko';

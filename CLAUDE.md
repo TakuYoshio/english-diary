@@ -25,7 +25,9 @@ npm test         # Workerのユニットテスト + 実ブラウザのスモー�
 | `app.js` | i18n・認証・日記6ステップ・AI呼び出し・音声・単語帳・クイズ |
 | `progress.js` | ストリーク・XP・レベル・バッジ・カレンダー・統計 |
 | `mascot.js` | コトラの状態機械（mood / tier / stage） |
-| `kotora-svg.js` | コトラのインラインSVG（表情8種） |
+| `kotora-svg.js` | コトラのインラインSVG（表情8種）。素材が無い子の描画に使う |
+| `mascots.js` | 相棒の名簿（`MASCOTS`）・mood→表情の対応（`MASCOT_MOODS`）・描画の振り分け |
+| `character/<key>/*.webp` | 採用イラスト（3キャラ×9表情）。`art: true` の子はこちらで描く |
 | `kotora-speech.js` | `KOTORA_LINES`（セリフ辞書）と吹き出し |
 | `fx.js` | 紙吹雪・XP演出・カウントアップ |
 | `solo.js` | 英語ひとりごと（`SoloMic`・セッション・レポート）。`app.js` の `startMic` とは別実装 |
@@ -58,6 +60,12 @@ npm test         # Workerのユニットテスト + 実ブラウザのスモー�
   覆われたくない要素には **`data-kt-keepout`** を付ける（`index.html`）。
   `_ktPositionBubble` がそれを見て、上に収まらなければ下に回す。
   スロットごとの特例をJSに書かない。
+- **キャラのイラストは9表情そろえて、足元を揃える。** `mascots.js` の
+  `art: true` にしたら `character/<key>/` に9枚すべて要る（`check-mascot-art.mjs`
+  が検出する）。寸法が1枚でも違うと、表情が変わるたびにキャラが飛び跳ねる。
+  キャラ間でも「体の高さ / 画布の高さ」を揃える（`equalize-art-scale.mjs`）。
+  揃えないと、相棒を変えたときに大きさが変わって見える。
+  素材の受け入れ手順と過去の失敗は `Task/art-source/README.md`。
 - **運用費ゼロ。** すべて無料枠で動かす。ローカル計算で済むものにAIを使わない。
 - **一覧の行ごとに外部へ重い要求を出さない。** 単語帳は最大2000行あり、
   遅延読み込みでも行の数だけリクエストが出る。以前、行ごとに画像生成を
@@ -93,6 +101,11 @@ npm test         # Workerのユニットテスト + 実ブラウザのスモー�
   コードを静的に追うだけでは `row.image_url = ...` のような後からの代入を
   拾えないため、明示された一覧どうしを比べる方式にしてある。
   実際に `image_url` の適用漏れで本番が壊れたので入れた。
+- `scripts/check-mascot-art.mjs` — `mascots.js` の `art` フラグと
+  `character/<key>/` の素材を突き合わせ、寸法の揃いと消し残しを見る。
+  素材とフラグは別々に直せてしまうので、片方だけ進むと静かに壊れる。
+  消し残しの検査だけは元PNG（`.gitignore` で除外）が要るのでCIでは動かず、
+  飛ばしたことを出力で明示する。
 - `test/worker.test.mjs` — Workerの検証・レート制限ロジック（fetchとKVをスタブ）。
 - `test/smoke.mjs` — Supabaseをスタブした実ブラウザで主要タブを一巡し、
   コンソールエラー・XSS・アクセシビリティ・パフォーマンスの回帰を見る。
