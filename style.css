@@ -63,6 +63,14 @@
   --mascot-collar: var(--mascot-collar-bronze);
 }
 
+html {
+  /* 横はみ出しで画面が縮んで見えるのを防ぐ */
+  overflow-x: hidden;
+  /* 横向きにしたときiOSが勝手に文字を拡大するのを止める */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   font-family: 'Inter', 'Noto Sans JP', sans-serif;
   background: var(--bg);
@@ -70,6 +78,9 @@ body {
   font-size: 15px;
   line-height: 1.6;
   min-height: 100vh;
+  overflow-x: hidden;
+  /* ダブルタップでの拡大を無効化。ピンチ（指2本）での拡大は残す */
+  touch-action: manipulation;
 }
 
 @keyframes pop-in {
@@ -419,6 +430,26 @@ body {
   color: var(--text); white-space: pre-wrap;
 }
 .loading-text { color: var(--text-faint); font-style: italic; font-size: 14px; }
+
+/* ── 読み込み中のスケルトン（AI添削の待ち時間）── */
+.sk-block { display: flex; flex-direction: column; gap: 9px; padding: 2px 0; }
+.sk-line {
+  display: block; height: 13px; border-radius: 7px;
+  /* .ai-box の背景が --surface2 なので、帯はそれより一段濃い色にする */
+  background: var(--border);
+  animation: sk-pulse 1.4s ease-in-out infinite;
+}
+.sk-line:nth-child(2) { animation-delay: 0.15s; }
+.sk-line:nth-child(3) { animation-delay: 0.3s; }
+.sk-line:nth-child(4) { animation-delay: 0.45s; }
+@keyframes sk-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+
+/* ── 添削が取れなかったときの案内 ── */
+.fb-fail-lead { margin: 0 0 4px; font-size: 14px; color: var(--text-muted); line-height: 1.6; }
+.fb-fail-detail { margin: 0 0 10px; font-size: 12px; color: var(--text-faint); }
 .tts-bar {
   display: flex; align-items: center; gap: 10px;
   margin-top: 12px; padding-top: 12px;
@@ -697,6 +728,14 @@ body {
 .kotora-wrap[data-mood="badge"] { animation: badge-pop 0.5s ease; }
 .kotora-wrap[data-mood="badge"]::after { content: '🏅'; opacity: 1; transform: scale(1); }
 
+/* thinking: AI添削を待っている間。首をかしげて考え込む */
+.kotora-wrap[data-mood="thinking"] .kotora-img { animation: kotora-think 2.6s ease-in-out infinite; }
+.kotora-wrap[data-mood="thinking"]::after { content: '💭'; opacity: 1; transform: scale(1); }
+@keyframes kotora-think {
+  0%, 100% { transform: rotate(-4deg); }
+  50%      { transform: rotate(4deg); }
+}
+
 @keyframes kotora-breathe {
   0%, 100% { transform: scale(1); }
   50%      { transform: scale(1.03); }
@@ -723,6 +762,8 @@ body {
   .kotora-img, .kotora-wrap[data-mood="delighted"], .kotora-wrap[data-mood="levelup"], .kotora-wrap[data-mood="badge"] {
     animation: none !important;
   }
+  /* スケルトンは明滅を止める。灰色の帯は残るので読み込み中だとは分かる */
+  .sk-line { animation: none !important; }
 }
 
 .mascot-inline { width: 88px; height: 88px; margin: 0 auto 10px; }
@@ -1086,6 +1127,20 @@ body {
   transition: border-color 0.12s; display: block;
 }
 .textarea:focus { outline: none; border-color: var(--accent-mid); box-shadow: 0 0 0 3px var(--focus-ring); }
+
+/* ── iOSの入力時オートズーム対策 ──
+   Safari(iOS)は16px未満の入力欄にフォーカスするとページを自動で拡大し、
+   フォーカスを外しても元の倍率に戻さない。モバイル幅では16pxを強制する。
+   （PC版の見た目は変えたくないのでメディアクエリ内に閉じる） */
+@media (max-width: 768px) {
+  .input,
+  .textarea,
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
 .form-group { margin-bottom: 1.25rem; }
 .form-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text-muted); }
 
@@ -1352,6 +1407,16 @@ svg.kotora-img * { transform-box: fill-box; }
 /* badge: にっこり目 */
 .kotora-wrap[data-mood="badge"] .kt-eyes-open { display: none; }
 .kotora-wrap[data-mood="badge"] .kt-eyes-happy { display: inline; }
+
+/* thinking: 半目＋への字口＋片方だけ下がった眉。アート画像が読めない端末向け */
+.kotora-wrap[data-mood="thinking"] .kt-eye { animation: none; transform: scaleY(0.55); }
+.kotora-wrap[data-mood="thinking"] .kt-pupil { transform: translateX(3px) translateY(-2px); transform-origin: center; }
+.kotora-wrap[data-mood="thinking"] .kt-mouth-smile { display: none; }
+.kotora-wrap[data-mood="thinking"] .kt-mouth-frown { display: inline; }
+.kotora-wrap[data-mood="thinking"] .kt-brow { display: inline; }
+.kotora-wrap[data-mood="thinking"] .kt-brow-l { transform: rotate(-9deg) translateY(-2px); }
+.kotora-wrap[data-mood="thinking"] .kt-brow-r { transform: rotate(4deg); }
+.kotora-wrap[data-mood="thinking"] .kt-tail { animation-duration: 5s; }
 
 /* 口パク（吹き出し表示中はスロット要素に .kt-talking が付与される。mood側の口より優先） */
 .kt-talking .kotora-wrap .kt-mouth-smile,

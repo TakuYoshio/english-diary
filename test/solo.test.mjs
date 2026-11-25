@@ -4,8 +4,10 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { fileURLToPath } from 'node:url';
 
-const root = new URL('..', import.meta.url).pathname;
+// pathname はパーセントエンコードされたまま（パスに空白があると開けない）
+const root = fileURLToPath(new URL('..', import.meta.url));
 
 // ── 偽の SpeechRecognition ────────────────────────────────────────────────
 // 実物と同じく「再開するたびに results のインデックスが0に戻る」挙動を再現する。

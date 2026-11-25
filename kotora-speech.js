@@ -36,6 +36,12 @@ const KOTORA_LINES = {
       '辞書なしで挑戦！わからない単語はメモでOK',
       '完璧じゃなくていいんだにゃ。まずは自力で！',
     ],
+    'step5-thinking': [
+      'うーん、読んでるにゃ…🤔',
+      'ちょっと考えさせてにゃ〜',
+      'どこを直そうかな…📖',
+      'もうちょっとだけ待っててにゃ！',
+    ],
     'step3-guide': [
       'わからなかった単語を調べよう🔍',
       '新しい単語はぜんぶ宝物にゃ✨',
@@ -115,6 +121,12 @@ const KOTORA_LINES = {
     'step2-guide': [
       'Try it without a dictionary! Just note unknown words',
       "It doesn't have to be perfect. Give it a go!",
+    ],
+    'step5-thinking': [
+      'Hmm, let me read it… 🤔',
+      'Give me a moment to think!',
+      'Looking for things to fix… 📖',
+      'Almost there, hang tight!',
     ],
     'step3-guide': ['Look up the words you didn\'t know 🔍', 'Every new word is a treasure ✨'],
     'step4-guide': ['Translate again with your word hints!', "You'll do even better this time 💪"],

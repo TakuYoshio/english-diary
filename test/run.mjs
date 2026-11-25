@@ -1,6 +1,7 @@
 // スモークテストの実行係。ローカルサーバを起動し、終わったら必ず落とす。
 import { spawn } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { fileURLToPath } from 'node:url';
 
 const PORT = process.env.PORT || 8931;
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -21,7 +22,7 @@ for (let i = 0; i < 40; i++) {
 }
 if (!up) { console.error('ローカルサーバを起動できませんでした'); stop(); process.exit(1); }
 
-const smoke = spawn(process.execPath, [new URL('./smoke.mjs', import.meta.url).pathname], {
+const smoke = spawn(process.execPath, [fileURLToPath(new URL('./smoke.mjs', import.meta.url))], {
   stdio: 'inherit',
   env: { ...process.env, BASE_URL: BASE },
 });
