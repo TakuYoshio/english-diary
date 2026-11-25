@@ -4,8 +4,10 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { fileURLToPath } from 'node:url';
 
-const root = new URL('..', import.meta.url).pathname;
+// pathname はパーセントエンコードされたまま（パスに空白があると開けない）
+const root = fileURLToPath(new URL('..', import.meta.url));
 
 // app.js / progress.js は DOM や Supabase に触る関数も含むが、
 // ここで呼ぶのは純粋な関数だけなので、最低限のスタブを置いて読み込む。

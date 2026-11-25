@@ -663,7 +663,8 @@ check('未解放の子は押せない', buddy.locked >= 1, `${buddy.locked}人�
 check('いま選んでいる子が1人だけ印になる', buddy.pressed === 1, String(buddy.pressed));
 check('未解放の子は解放レベルを見せる', /Lv\.|Lv/.test(buddy.lockedLabel), buddy.lockedLabel);
 
-// 解放済みの子に切り替えると、全スロットのSVGが入れ替わること
+// 解放済みの子に切り替えると、全スロットが入れ替わること。
+// イラストのある子は画像、無い子はSVGで描かれるので、どちらかを見る。
 const switched = await page.evaluate(async () => {
   // レベルに依らず検証したいので、解放判定を一時的に通す
   const orig = window.mascotUnlocked;
@@ -673,9 +674,17 @@ const switched = await page.evaluate(async () => {
   chooseMascot('kuma');
   await new Promise(r => setTimeout(r, 200));
   const wraps = [...document.querySelectorAll('.kotora-wrap')];
+  const art = MASCOTS.kuma.art;
+  const one = document.querySelector('.kotora-wrap[data-mascot="kuma"]');
   const out = {
     all: wraps.length > 0 && wraps.every(w => w.dataset.mascot === 'kuma'),
-    hasEyes: !!document.querySelector('.kotora-wrap[data-mascot="kuma"] .kt-eyes-happy'),
+    art,
+    // 画像が1枚でも読めないと mascotArtFailed がSVGに戻すので、
+    // 表情の画像が残っていること自体が「読めている」証拠になる
+    hasFace: art
+      ? /(^|\/)character\/kuma\/[a-z]+\.webp$/.test(
+          one?.querySelector('.kt-art-img')?.getAttribute('src') || '')
+      : !!one?.querySelector('.kt-eyes-happy'),
   };
   chooseMascot('neko');
   window.mascotUnlocked = orig;
@@ -683,7 +692,28 @@ const switched = await page.evaluate(async () => {
   return out;
 });
 check('相棒を変えると全スロットが入れ替わる', switched.all);
-check('入れ替えた相棒にも表情のパーツが揃っている', switched.hasEyes);
+check('入れ替えた相棒にも表情が揃っている', switched.hasFace,
+  switched.art ? 'イラスト' : 'SVG');
+
+// イラスト素材が実際に配信できること。404でも mascotArtFailed が黙ってSVGに
+// 戻してしまい、コンソールエラーも ignorable に吸われるため、明示的に見る。
+const artFetch = await page.evaluate(async () => {
+  const out = { checked: 0, missing: [] };
+  for (const key of MASCOT_ORDER) {
+    if (!MASCOTS[key].art) continue;
+    for (const face of MASCOT_FACES_ART) {
+      const url = `./character/${key}/${face}.webp`;
+      out.checked++;
+      try {
+        const r = await fetch(url, { method: 'GET' });
+        if (!r.ok) out.missing.push(`${url} (${r.status})`);
+      } catch { out.missing.push(`${url} (取得失敗)`); }
+    }
+  }
+  return out;
+});
+check('イラスト素材がすべて配信できる', artFetch.checked > 0 && artFetch.missing.length === 0,
+  `${artFetch.checked}枚中 ${artFetch.missing.length}枚が欠け ${artFetch.missing.join(', ')}`);
 
 // ── マイクが使えないときの案内 ────────────────────────────────────────────
 const micHelp = await page.evaluate(() => ({

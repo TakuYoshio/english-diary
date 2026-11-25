@@ -10,6 +10,9 @@ const MAX_TEXT_CHARS = 60000;       // プロンプト（全ターン合計）�
 const MAX_TURNS = 40;               // マルチターン会話の往復数
 const MAX_OUTPUT_TOKENS_CAP = 4096;
 const DEFAULT_OUTPUT_TOKENS = 2048;
+// Gemini への1回あたりの待ち時間。これが無いとブラウザが諦めたあとも
+// Workerが待ち続け、レート制限だけを無駄に消費する。
+const GEMINI_TIMEOUT_MS = 45000;
 
 // 1ユーザーあたり（Gemini無料枠を1人で使い切れないようにする）
 const DAILY_LIMIT = 80;
@@ -433,11 +436,24 @@ export default {
 
     let res;
     for (let attempt = 0; ; attempt++) {
-      res = await fetch(`${GEMINI_URL}?key=${env.GEMINI_API_KEY}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body,
-      });
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+      try {
+        res = await fetch(`${GEMINI_URL}?key=${env.GEMINI_API_KEY}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+          signal: controller.signal,
+        });
+      } catch (e) {
+        if (e.name !== 'AbortError') throw e;
+        return new Response(
+          JSON.stringify({ error: { message: 'Gemini timed out' } }),
+          { status: 504, headers: { 'Content-Type': 'application/json', ...cors } },
+        );
+      } finally {
+        clearTimeout(timer);
+      }
       if ((res.status === 429 || res.status >= 500) && attempt === 0) {
         await new Promise((r) => setTimeout(r, 2500));
         continue;

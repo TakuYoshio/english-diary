@@ -109,6 +109,9 @@ const TRANSLATIONS = {
     'boot-error-hint': '通信状況を確認して、もう一度お試しください。',
     'btn-retry': '再読み込み',
     'loading-correcting': 'AIが添削中…', 'loading-feedback': 'フィードバック生成中…',
+    'fb-partial-fail': '添削文は表示できています。詳しい解説だけ取得できませんでした。',
+    'fb-both-fail': '添削を取得できませんでした。',
+    'btn-ai-retry': '🔁 もう一度添削する',
     'error-ai': 'AI添削エラー: ', 'error-save': '保存エラー: ', 'error-vocab': 'エラー: ',
     'toast-saved': '日記を保存しました！', 'toast-words-added': '件の単語を単語帳に追加。',
     'toast-word-note-added': 'メモを追加しました',
@@ -379,6 +382,9 @@ const TRANSLATIONS = {
     'boot-error-hint': 'Check your connection and try again.',
     'btn-retry': 'Reload',
     'loading-correcting': 'AI is correcting…', 'loading-feedback': 'Generating feedback…',
+    'fb-partial-fail': 'Your corrected text is ready, but the detailed explanation could not be fetched.',
+    'fb-both-fail': 'Could not get the correction.',
+    'btn-ai-retry': '🔁 Try correcting again',
     'error-ai': 'AI correction error: ', 'error-save': 'Save error: ', 'error-vocab': 'Error: ',
     'toast-saved': 'Diary saved!', 'toast-words-added': ' words added to vocabulary.',
     'toast-word-note-added': 'Note added',
@@ -1234,15 +1240,27 @@ Fill in the JSON fields as follows:
 Be encouraging and specific. Write "good_points", every "summary", every "explanation", and "vocab_usage" in ${t('feedback-lang')}.`;
 }
 
+// 待っている間の仮表示。読み込み中だと一目で分かる灰色の帯。
+function skeletonHtml(lines, label) {
+  const bars = Array.from({ length: lines }, (_, i) =>
+    `<span class="sk-line" style="width:${[100, 92, 78, 64][i % 4]}%"></span>`).join('');
+  return `<div class="sk-block" role="status" aria-live="polite" aria-label="${escapeHtml(label)}">${bars}</div>`;
+}
+
+// 進捗バー。待ち時間が最大60秒になったので、90%へは時間をかけて近づける。
+// （以前は20秒かからず90%に張り付き、止まったように見えていた）
+const AI_PROGRESS_SPAN_MS = 60000;
+
 function startAiProgress() {
   const track = document.getElementById('ai-progress-track');
   const bar   = document.getElementById('ai-progress-bar');
   track.style.display = 'block';
   bar.style.width = '0%';
-  let pct = 0;
+  const start = Date.now();
   const timer = setInterval(() => {
-    pct = Math.min(90, pct + Math.random() * 10);
-    bar.style.width = pct + '%';
+    // 残りを少しずつ詰める曲線。90%に漸近して到達はしない。
+    const ratio = Math.min(1, (Date.now() - start) / AI_PROGRESS_SPAN_MS);
+    bar.style.width = (90 * (1 - Math.pow(1 - ratio, 2.2))).toFixed(1) + '%';
   }, 400);
   return () => {
     clearInterval(timer);
@@ -1262,12 +1280,14 @@ async function goStep5() {
   _aiCorrecting = true;
 
   goToDiaryStep(5);
-  if (typeof mascotSetMood === 'function') mascotSetMood('step5-mascot', 'excited');
+  if (typeof mascotSetMood === 'function') mascotSetMood('step5-mascot', 'thinking');
+  if (typeof kotoraSay === 'function') kotoraSay('step5-mascot', 'step5-thinking');
   const correctedEl = document.getElementById('ai-corrected-text');
   const feedbackEl  = document.getElementById('ai-feedback-text');
-  correctedEl.innerHTML = `<span class="loading-text">${t('loading-correcting')}</span>`;
-  feedbackEl.innerHTML  = `<span class="loading-text">${t('loading-feedback')}</span>`;
+  correctedEl.innerHTML = skeletonHtml(3, t('loading-correcting'));
+  feedbackEl.innerHTML  = skeletonHtml(4, t('loading-feedback'));
   renderCategorizedFeedback([]);
+  setStep5Busy(true);
   const stopProgress = startAiProgress();
 
   const jp  = document.getElementById('diary-jp').value.trim();
@@ -1283,6 +1303,7 @@ async function goStep5() {
   window._correctedText = en2;
   window._lastFeedback  = null;
   window._aiCorrectionFailed = false;
+  window._aiDetailFailed = false;
 
   const fastPromise = callGemini(buildFastCorrectionPrompt(jp, en1, en2), FAST_CORRECTION_SCHEMA)
     .then(res => {
@@ -1301,13 +1322,45 @@ async function goStep5() {
 
   // 詳細フィードバックは4カテゴリ分の添削と日本語解説を含むため長くなる。
   // Worker側の既定値では足りず、JSONが途中で切れてparseに失敗することがあった。
-  const detailedPromise = callGemini(
+  // 再試行ボタンから同じ呼び出しを繰り返せるよう、引数を取っておく。
+  _aiDetailArgs = { jp, en1, words, en2 };
+  const detailedPromise = runDetailedFeedback();
+
+  await Promise.allSettled([fastPromise, detailedPromise]);
+  _aiCorrecting = false;
+  stopProgress();
+  setStep5Busy(false);
+  settleStep5Mascot();
+}
+
+// 添削の結果に合わせて表情を決める。
+// 解説だけ取れなかったときに全力で喜ばれると、エラー表示と噛み合わない。
+function settleStep5Mascot() {
+  if (typeof mascotSetMood !== 'function') return;
+  if (window._aiCorrectionFailed && window._aiDetailFailed) {
+    mascotSetMood('step5-mascot', 'sad');
+  } else if (window._aiDetailFailed) {
+    mascotSetMood('step5-mascot', 'idle');
+  } else {
+    mascotSetMood('step5-mascot', 'delighted');
+    if (typeof kotoraSay === 'function') kotoraSay('step5-mascot', 'step5-done');
+  }
+}
+
+// 詳細フィードバックだけを投げる。初回と「もう一度添削する」で共用する。
+let _aiDetailArgs = null;
+
+function runDetailedFeedback() {
+  const { jp, en1, words, en2 } = _aiDetailArgs;
+  const feedbackEl = document.getElementById('ai-feedback-text');
+  return callGemini(
     buildDetailedFeedbackPrompt(jp, en1, words, en2, currentProfile?.skill_focus || []),
     DETAILED_FEEDBACK_SCHEMA,
-    30000,
+    60000,
     { maxOutputTokens: 3072 }
   ).then(res => {
     const data = JSON.parse(res);
+    window._aiDetailFailed = false;
     renderFeedback(data);
     renderCategorizedFeedback(data.categories);
     window._lastFeedback = {
@@ -1316,15 +1369,39 @@ async function goStep5() {
       vocab_usage: data.vocab_usage || '',
     };
   }).catch(e => {
-    feedbackEl.textContent = '(' + t('error-ai') + e.message + ')';
+    // 速いほうの添削が通っていれば、英文は出せている。
+    // エラー文だけを残さず「解説だけ取れなかった」と伝えて再試行させる。
+    window._aiDetailFailed = true;
+    const lead = window._aiCorrectionFailed ? t('fb-both-fail') : t('fb-partial-fail');
+    feedbackEl.innerHTML =
+      `<p class="fb-fail-lead">${escapeHtml(lead)}</p>` +
+      `<p class="fb-fail-detail">${escapeHtml(e.message)}</p>` +
+      `<button type="button" class="btn btn-sm" id="ai-retry-btn" onclick="retryDetailedFeedback()">${t('btn-ai-retry')}</button>`;
     renderCategorizedFeedback([]);
   });
+}
 
-  await Promise.allSettled([fastPromise, detailedPromise]);
+async function retryDetailedFeedback() {
+  if (_aiCorrecting || !_aiDetailArgs) return;
+  _aiCorrecting = true;
+  setStep5Busy(true);
+  const feedbackEl = document.getElementById('ai-feedback-text');
+  feedbackEl.innerHTML = `<span class="loading-text">${t('loading-feedback')}</span>`;
+  if (typeof mascotSetMood === 'function') mascotSetMood('step5-mascot', 'thinking');
+  const stopProgress = startAiProgress();
+  await runDetailedFeedback();
   _aiCorrecting = false;
   stopProgress();
-  if (typeof mascotSetMood === 'function') mascotSetMood('step5-mascot', 'delighted');
-  if (typeof kotoraSay === 'function') kotoraSay('step5-mascot', 'step5-done');
+  setStep5Busy(false);
+  settleStep5Mascot();
+}
+
+// 添削を待っている間は先に進ませない（空の結果のまま保存されるのを防ぐ）
+function setStep5Busy(busy) {
+  // 「戻る」は押せるままにする（待っている間に抜けられないと困るため）
+  document.querySelectorAll('#step5-card .step-actions .btn-primary').forEach(b => {
+    b.disabled = busy;
+  });
 }
 
 function renderFeedback(data, feedbackElId = 'ai-feedback-text') {
@@ -3300,14 +3377,22 @@ function callGemini(prompt, schema, timeoutMs = 20000, opts = {}) {
     .then(data => data?.candidates?.[0]?.content?.parts?.[0]?.text || '');
 }
 
+// リトライを含めた全体の持ち時間。1回目で使い切ったのに投げ直して
+// 開始直後に中断される、という無駄を避けるため締切で管理する。
+const RETRY_WAIT_MS = 2500;
+const RETRY_MIN_BUDGET_MS = 8000;
+
 async function _postWorker(payload, timeoutMs) {
   const body = JSON.stringify(payload);
+  const deadline = Date.now() + timeoutMs;
 
   for (let attempt = 0; ; attempt++) {
     const { data: { session } } = await sb.auth.getSession();
     const token = session?.access_token || '';
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) throw new Error(t('error-ai-timeout'));
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const timer = setTimeout(() => controller.abort(), remaining);
     let res;
     try {
       res = await fetch(WORKER_URL, {
@@ -3322,8 +3407,10 @@ async function _postWorker(payload, timeoutMs) {
     } finally {
       clearTimeout(timer);
     }
-    if ((res.status === 429 || res.status >= 500) && attempt === 0) {
-      await new Promise(r => setTimeout(r, 2500));
+    // 残り時間が短すぎるときは投げ直さない（待つだけ無駄になるため）
+    if ((res.status === 429 || res.status >= 500) && attempt === 0
+        && deadline - Date.now() > RETRY_WAIT_MS + RETRY_MIN_BUDGET_MS) {
+      await new Promise(r => setTimeout(r, RETRY_WAIT_MS));
       continue;
     }
     if (res.status === 401) throw new Error(t('alert-auth-error'));
